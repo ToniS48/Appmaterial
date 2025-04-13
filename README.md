@@ -51,6 +51,8 @@ To learn React, check out the [React documentation](https://reactjs.org/).
 
 La aplicación está configurada para desplegarse automáticamente en Firebase Hosting mediante GitHub Actions.
 
+![Deploy to Firebase Hosting](https://github.com/TU_USUARIO/TU_REPO/actions/workflows/firebase-deploy.yml/badge.svg)
+
 ### Proceso de CI/CD
 
 1. Cuando se hace push a la rama `main`, se dispara el workflow de GitHub Actions
