@@ -1,0 +1,440 @@
+/* ===== VARIABLES GLOBALES ===== */
+:root {
+  /* Colores principales (Rosa-Morado) */
+  --color-brand-50: #FFF5F8;
+  --color-brand-100: #FFE4ED;
+  --color-brand-200: #FFD4E3;
+  --color-brand-300: #FFB3CD;
+  --color-brand-400: #E3699A; /* Rosa principal */
+  --color-brand-500: #932B71; /* Morado principal */
+  --color-brand-600: #7A2460;
+  --color-brand-700: #611D4E;
+  --color-brand-800: #48163C;
+  --color-brand-900: #2F0F2A;
+
+  /* Colores grises */
+  --color-gray-50: #F7F7F8;
+  --color-gray-100: #E8E9EA;
+  --color-gray-200: #A9ACAE; /* Gris medio claro */
+  --color-gray-300: #8B9094;
+  --color-gray-400: #6D747A;
+  --color-gray-500: #545D61; /* Gris principal */
+  --color-gray-600: #434A4D;
+  --color-gray-700: #323739;
+  --color-gray-800: #212425;
+  --color-gray-900: #080D10; /* Negro */
+
+  /* Variables de color de acento (Lila) */
+  --color-accent-50: #F8F2F7;
+  --color-accent-100: #EBD9E8;
+  --color-accent-200: #DEC0D9;
+  --color-accent-300: #D1A7CB;
+  --color-accent-400: #C48EBC;
+  --color-accent-500: #B47BA3; /* Lila principal */
+  --color-accent-600: #9A6289;
+  --color-accent-700: #804970;
+  --color-accent-800: #663057;
+  --color-accent-900: #4C173E;
+
+  /* Variables de color de estado */
+  --color-available: #38a169;
+  --color-borrowed: #dd6b20;
+  --color-maintenance: #3182ce;
+  --color-disabled: #718096;
+  --color-lost: #e53e3e;
+
+  /* Bordes redondeados */
+  --border-radius-sm: 0.125rem;
+  --border-radius-md: 0.25rem;
+  --border-radius-lg: 0.5rem;
+  --border-radius-xl: 0.75rem;
+  --border-radius-2xl: 1rem;
+  --border-radius-3xl: 1.5rem;
+  --border-radius-full: 9999px;
+
+  /* Transiciones */
+  --transition-fast: 0.15s ease-in-out;
+  --transition-normal: 0.3s ease-in-out;
+  --transition-slow: 0.5s ease-in-out;
+
+  /* Fuentes */
+  --font-family-primary: 'Roboto', sans-serif;
+  --font-family-secondary: 'Noto Sans', sans-serif;
+  --font-family-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-family-mono: 'IBM Plex Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+}
+
+/* ===== RESET Y NORMALIZACIÓN ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family-primary), var(--font-family-secondary), var(--font-family-system);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  background-color: var(--color-gray-50);
+  color: var(--color-gray-800);
+}
+
+/* Modificar estilos específicos para modo oscuro */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-gray-900);
+    color: var(--color-gray-100);
+  }
+}
+
+code {
+  font-family: var(--font-family-mono);
+}
+
+a {
+  color: var(--color-brand-500);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+/* ===== CLASES UTILITARIAS ===== */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+
+/* ===== CLASES ESTADO MATERIAL ===== */
+.status-label {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.status-available {
+  background-color: var(--color-available-20);
+  color: var(--color-available);
+}
+
+.status-borrowed {
+  background-color: var(--color-borrowed-20);
+  color: var(--color-borrowed);
+}
+
+.status-maintenance {
+  background-color: var(--color-maintenance-20);
+  color: var(--color-maintenance);
+}
+
+.status-disabled {
+  background-color: var(--color-disabled-20);
+  color: var(--color-disabled);
+}
+
+.status-lost {
+  background-color: var(--color-lost-20);
+  color: var(--color-lost);
+}
+
+/* ===== ANIMACIONES ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-normal);
+}
+
+.slide-in {
+  animation: slideInFromRight var(--transition-normal);
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+/* ===== LAYOUT ===== */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Soportes de pantalla y ayudas responsive */
+@media (max-width: 640px) {
+  .hide-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hide-md {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .show-only-mobile {
+    display: none !important;
+  }
+}
+
+/* ===== FORMULARIOS ===== */
+.form-container {
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-gray-800);
+  background-color: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-md);
+  transition: border-color var(--transition-normal);
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-brand-400);
+  box-shadow: 0 0 0 3px rgba(88, 169, 255, 0.15);
+}
+
+/* ===== ESTILO ESPECÍFICO ESPEMO ===== */
+.espemo-logo {
+  max-height: 250px;
+  transition: var(--transition-normal);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.espemo-logo:hover {
+  transform: scale(1.05);
+}
+
+/* Nuevo estilo para el contenedor del logo */
+.logo-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Estilos para cards de actividades */
+.activity-card {
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: var(--transition-normal);
+}
+
+.activity-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo para material-item */
+.material-item {
+  padding: 0.75rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-md);
+  transition: var(--transition-normal);
+}
+
+.material-item:hover {
+  border-color: var(--color-brand-400);
+  background-color: var(--color-brand-50);
+}
+
+/* Animaciones de App.css */
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Estilos para el nuevo menú de navegación */
+.nav-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  transition: var(--transition-normal);
+}
+
+.nav-menu-item:hover {
+  background-color: var(--color-brand-50);
+}
+
+.nav-menu-item.active {
+  background-color: var(--color-brand-100);
+  font-weight: 500;
+}
+
+.nav-menu-icon {
+  margin-right: 0.5rem;
+  color: var(--color-brand-500);
+}
+
+/* Agregar al final del archivo - Estilo para inputs con autofill */
+
+/* Versión más sutil */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-accent-500-15) inset !important; /* accent-500 con 15% opacidad */
+  -webkit-text-fill-color: var(--color-gray-800) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+input:autofill {
+  background-color: var(--color-brand-50-40) !important; /* brand-50 con 40% opacidad */
+  color: var(--color-gray-800) !important;
+  box-shadow: 0 0 0 30px var(--color-brand-300-20) inset !important; /* brand-300 con 20% opacidad */
+}

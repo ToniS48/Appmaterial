@@ -1,0 +1,595 @@
+# Documentación para Implementación de Sistema de Gestión de Material Deportivo de ESPEMO
+
+# Descripción General
+
+Este documento proporciona las instrucciones detalladas para implementar un sistema de gestión y préstamo de material deportivo 
+para el club deportivo ESPEMO utilizando React, TypeScript, Chakra UI y Firebase.
+
+Será una app con pocos usuarios activos y base de datos no muy grandes.
+
+# Flujo de Autenticación y Navegación
+
+1. Acceso Inicial
+   - La aplicación redirige a /login si no hay sesión activa
+   - Formulario de login con email/password
+   - Opción de recuperación de contraseña
+   - Bloqueo tras 3 intentos fallidos
+
+2. Post-Autenticación
+   - Redirección automática al dashboard según rol
+   - Dashboard Administrador: /admin
+   - Dashboard Vocal: /vocal
+   - Dashboard Socio: /socio
+   - Sesión expira tras 8 horas de inactividad
+
+3. Navegación Protegida
+   - Todas las rutas (excepto /login) requieren autenticación
+   - Verificación de permisos por rol en cada ruta
+   - Redirección a dashboard correspondiente si accede a ruta no autorizada
+
+# Flujo de Trabajo Principal
+
+1. Gestión de Actividades
+   - Creación por cualquier usuario
+   - Asignación de fecha/lugar
+   - Opcional: Solicitud de material (no necesita aprobación, solo que esté disponible)
+   - Notificación automática a vocales
+
+2. Material (si aplica)
+    - Actualizar Material disponible (por estar en uso)
+    - Entrega de material con/sin incidencias (ejem. rotura,pérdida,etc.)
+    - Plazo máximo de entrega 2 semanas
+    - Vocal revisa entregas
+    - Vocal gestiona disponibilidad (estado) del material (si ha tenido alguna incidencia)
+    - Vocal revisa material al menos una vez al año
+
+3. Control
+   - Admin: Supervisión general
+   - Vocal: Control material
+   - Sistema: Notificaciones automáticas
+
+
+# Relaciones y Dependencias
+
+1.  Flujo de Datos Principal:
+    -   Componentes → Hooks → Servicios → Firebase
+    -   Componentes ← Contextos ← Servicios
+
+2.  Validación y Tipos:
+    -   Esquemas → Interfaces → Componentes
+    -   Tipos → Interfaces → Servicios
+
+3.  Gestión de Estado:
+    -   Contextos → Hooks → Componentes
+    -   Servicios → Contextos → Componentes
+
+4.  Manejo de Errores:
+    -   ManejadorErrores → Servicios → Componentes
+    -   Registrador → Servicios → Componentes
+
+5.  Exportación:
+    -   Servicios/Exportación → Componentes
+    -   Utilidades → Servicios/Exportación
+
+# Funcionalidades Principales
+
+1.  Gestión de Materiales:
+    -   CRUD completo
+    -   Préstamos y devoluciones
+    -   Seguimiento de estado
+    -   Establecer disponibilidad
+    -   Historial de uso detallado
+    -   Sistema de reservas avanzado
+    -   Tracking en tiempo real
+
+2.  Gestión de Actividades:
+    -   Planificación
+    -   Asignación de materiales
+    -   Asignación de responsables (material y actividad)
+    -   Gestión de participantes
+    -   Estados y seguimiento
+    -   Calendario integrado y posibilidad de añadir a Google Calendar
+    -   Notificaciones automáticas
+    -   Gestión de recursos
+    -   Reportes automáticos
+    -   Posibilidad de añadir comentarios,
+    -   posibilidad de añadir enlaces de tracks de Wikiloc, Enlaces a Imágenes de topografías, etc.
+    -   Posibilidad de añadir enlaces de archivos adjuntos (GoogleDrive).
+
+3.  Roles y Permisos de usuario (admin,vocal,socio):
+
+    3.1 Roles Básicos
+        # Roles de Usuario
+
+        1. Administrador
+            - Gestión total del sistema
+            - Configuración de la app
+            - Gestión de roles
+
+        2. Vocal
+            - Supervisión de material
+            - Validación de devoluciones
+            - Gestión de incidencias de material
+            - Gestión de usuarios
+            - Participación en actividades
+            - Creación de actividades
+
+        3. Socio
+            - Creación de actividades
+            - Solicitud de material para actividades
+            - Participación en actividades
+            - Reporte de incidencias
+
+    3.2 Matriz de Permisos
+        # Permisos por Rol
+
+        1. Actividades
+            - Admin: Supervisión total
+            - Vocal: Creación y gestión
+            - Socio: Creación y participación
+
+        2. Materiales
+            - Admin: Gestión configuración
+            - Vocal: Control estado y validación
+            - Socio: Solicitud para actividades
+
+        3. Préstamos
+            - Admin: Supervisión
+            - Vocal: Supervisión y control
+            - Socio: Solicitud en actividades
+
+    3.3 Validaciones
+        # Validaciones por Rol
+
+        1. Actividades
+            - Todos pueden crear
+
+        2. Material
+           - Vocal debe validar estado
+           - Sistema trackea historial
+           - Notificaciones automáticas
+
+    3.4 Acceso a Datos
+        # Niveles de Acceso
+
+            1. Administrador
+               - Acceso total
+               - Logs del sistema
+               - Configuración
+
+            2. Vocal
+               - Datos operativos
+               - Histórico ilimitado
+               - Sin acceso a config
+
+            3. Socio
+               - Datos personales
+               - Actividades propias
+               - Préstamos propios
+            
+
+4.  Exportación y Reportes:
+    -   Excel
+    -   PDF
+    -   Históricos
+
+5.  Monitorización:
+    -   Logging
+    -   Analytics
+    -   Errores
+    -   Rendimiento
+
+6.  Analíticas y Reportes:
+    -   Seguimiento de uso
+    -   Estadísticas esenciales
+    -   Análisis de datos
+    -   Reportes básicos
+
+7.  Funcionalidades de los Paneles:
+    * Panel de Administración:
+
+    +   Dashboard Principal
+        -   Alertas y notificaciones
+    +   Gestión de Usuarios
+        -   Acceso al CRUD completo de usuarios
+        -   Acceso a la Asignación de roles
+        -   Acceso a la Gestión de permisos
+        -   Historial de acciones
+    +   Configuración del Sistema
+        -   Parámetros generales
+        -   Configuración de correo
+        -   Configuración de notificaciones
+        -   Gestión de backups (Notificación de Backup manual mensual)
+    +   Informes y Analytics
+        -   Generación de informes
+        -   Exportación de datos
+        -   Análisis estadístico
+    +   Auditoría y Seguridad
+        -   Logs del sistema
+        -   Registro de actividades
+        -   Control de accesos
+    
+    * Panel de Socio:
+
+    +   Dashboard Principal
+        - Lista de Actividades
+        - Lista de Mis Actividades
+        - Calendario
+        - Notificaciones, Recordatorios.
+        - Mi Perfil
+        - Logros
+
+
+8.  Consideraciones Técnicas
+
+    - Estrategia de escalado
+
+    + Sistema de Logs
+        - Alertas automáticas
+        - Logs centralizados
+        - Monitorización (Uso de material por categoría)
+    
+    + Limitaciones técnicas
+
+    - Tiempo de respuesta objetivo (<2s)
+    - Número esperado de usuarios activos/mes (20-30)
+    - Volumen estimado de datos mensual (<1GB)
+    - Límites de Firebase gratuito (plan Spark)
+        - Monthly active users	50k/mes
+        - Usuarios activos por mes (SAML/OIDC): 50/mes
+        + Cloud Firestore
+            - Stored data	1 GiB total
+            - Network egress	10 GiB/month
+            - Escrituras de documentos	20K escrituras/día	
+            - Lecturas de documentos	50K lecturas/día	
+            - Eliminaciones de documentos	20K borrados/día
+        + Cloud Storage 		
+            - GB almacenados	5 GB	
+            - GB descargados	1 GB por día	
+            - Operaciones de carga	20,000 por día	
+            - Operaciones de descarga	50,000 por día
+        + Hosting
+            - Almacenamiento	10 GB	
+            - Transferencia de datos	360 MB por día
+    - Los usuarios no tienen límite de Almacenamiento
+    - Tiempo máximo de retencion de datos para socio (12 meses)
+    
+
+
+# Arquitectura: La aplicación sigue una arquitectura basada en componentes React con TypeScript, Chakra UI y utilizando Firebase como backend.
+    +   Flujo de Datos:
+        - Los datos fluyen unidireccionalmente
+        - Los contextos (AuthContext, NotificationContext) manejan el estado global
+        - Los servicios encapsulan la lógica de negocio y comunicación con Firebase
+        - Los componentes son mayormente presentacionales
+    +   Gestión de Estado:
+        - Firestore para persistencia
+        - Context API para estado global
+        - React Hook Form para formularios
+        - Estado local con useState cuando sea necesario
+    +   Seguridad:
+        - Autenticación mediante Firebase Auth
+        - Reglas de Firestore para control de acceso
+        - Validaciones en cliente y servidor
+    +   Patrones de Diseño:
+        - Container/Presentational
+        - Custom Hooks para lógica reutilizable
+        - Context para estado global
+        - Service Layer para lógica de negocio
+        - Arquitectura monolítica escalable
+        - Modularización por funcionalidades
+    +   Dependencias Clave:
+        - Firebase: Backend y autenticación
+        - React Hook Form: Gestión de formularios
+        - date-fns: Manipulación de fechas
+        - XLSX/PDFMake: Exportación de datos
+    +   Testing:
+        - Test unitarios para servicios y utilidades básicos
+        + Validación y Sanitización:
+            - Esquemas de validación (Zod/Yup)
+            - Sanitización de entradas de usuario
+            - Validaciones esenciales
+        + Monitorización Básica:
+            - Registro de operaciones críticas
+            - Alertas de seguridad esenciales
+            - Monitoreo de errores básico
+
+# Control de Versiones
+
+1. GitHub
+   - Repositorio principal en GitHub
+   - Estructura de ramas:
+     * main: código en producción
+     * develop: rama de desarrollo principal
+     * feature/*: nuevas funcionalidades
+     * hotfix/*: correcciones urgentes
+   - Flujo de trabajo:
+     * Pull requests obligatorios
+     * Code review por al menos 1 desarrollador
+     * Tests automáticos antes de merge
+   - Convenciones:
+     * Commits semánticos (feat:, fix:, docs:, etc.)
+     * Descripción clara en español
+     * Referencias a issues (#numero)
+
+2. CI/CD
+   - GitHub Actions para:
+     * Tests automáticos
+     * Build de producción
+     * Deploy automático a Firebase Hosting
+
+3. Seguridad de Credenciales
+   - Archivo .env en la raíz del proyecto (no versionado)
+   - Archivo .env.example en el repositorio como plantilla
+   - Variables de entorno en GitHub Actions (secretos)
+   - Credenciales de Firebase:
+     * REACT_APP_FIREBASE_API_KEY
+     * REACT_APP_FIREBASE_AUTH_DOMAIN
+     * REACT_APP_FIREBASE_PROJECT_ID
+     * REACT_APP_FIREBASE_STORAGE_BUCKET
+     * REACT_APP_FIREBASE_MESSAGING_SENDER_ID
+     * REACT_APP_FIREBASE_APP_ID
+   - Añadir .env a .gitignore
+   - Documentar proceso de configuración en README.md
+
+# Validaciones y Comprobaciones
+
+    # Validaciones Críticas
+
+    1. Actividades
+       - Fechas válidas
+       - Material disponible
+       - Responsable/s Actividad y Material
+
+    2. Material
+       - Estado actual
+       - Disponibilidad real
+
+    3. Préstamos
+       - Vinculación a actividad
+
+    Otras verificaciones:
+
+    - Tipos correctos en todas las interfaces
+    - Manejo adecuado de nulos y undefined
+    - Gestión correcta de promesas y async/await
+    - Uso apropiado de tipos genéricos
+    - Implementación correcta de patrones React
+
+    1.  Procesamiento de Datos
+        - Validar todas las entradas según las interfaces definidas
+        - Mantener la inmutabilidad de los datos
+        - Utilizar tipos estrictos de TypeScript
+
+    2.  Gestión de Estado
+        - Usar contextos para estado global
+        - Implementar hooks personalizados para lógica reutilizable
+        - Mantener el estado local en componentes cuando sea apropiado
+
+    3.  Manejo de Errores
+        - Implementar try/catch en operaciones asíncronas
+        - Utilizar el sistema de tipos para prevenir errores
+        - Propagar errores al sistema de notificaciones
+
+    4.  Internacionalización
+        - Cargar traducciones bajo demanda
+        - Utilizar el hook useTraduccion para textos
+        - Mantener las claves de traducción organizadas jerárquicamente
+
+    5.  Estilos
+        - Usar CSS Modules para evitar conflictos
+        - Implementar sistema de temas (claro/oscuro)
+        - Seguir metodología BEM para clases CSS
+
+    
+# Consideraciones de Rendimiento (Carga Reducida)
+
+    - Índices básicos prioritarios
+    - Paginación simple (10 items)
+    - Memorización de componentes cuando sea necesario
+    - Lazy loading de componentes/módulos grandes
+    - Gestión eficiente de recursos
+    
+
+
+# Consideraciones de Seguridad
+
+    Se debe garantizar:
+
+    - Autenticación básica    
+    - Control de acceso basado en roles
+    - Consolidar control de acceso
+    - Backup automático semanal
+    - Protección contra XSS
+    - Unificar validaciones
+    - Sanitización de datos
+    - Validación estricta de datos en cliente y servidor    
+    - Políticas de retención de datos
+    - Backup manual mensual
+    - Retención: 3 meses
+    - Procedimiento documentado
+    
+
+
+# Otras Funcionalidades
+
+    + Integración Externa
+        - Sincronización con calendarios
+        - Whatsapp
+
+    + Sistema de Comunicación
+        - Enviar mensaje a grupo de whatsapp
+        - Notificaciones push
+
+# Mantenimiento
+    - Limpieza datos actividad/prestamos (anual) después de exportación (EXCEL)
+    - Archivado: >2 años
+    - Logs: 6 meses
+
+# Fases de Implementación:
+
+        - Core (Login, Usuarios, Materiales)
+        - Extensiones (Actividades, Préstamos, Notificaciones)
+        
+
+# Base de Datos (Firestore)
+
+Secciones principales: cuerdas, anclajes, varios, usuarios, actividades, préstamos, notificaciones.
+
+1.  Colección: usuarios
+
+    *   Cada documento representa un usuario.
+
+| Campo		            | Tipo		    | Descripción                                       |
+|-----------------------|---------------|---------------------------------------------------|
+|uid    			    |String 	    |ID único del usuario (generado por Firebase Auth)  |
+|nombre 		        |String 	    |Nombre del usuario                                 |
+|apellido   		    |String 	    |Apellido del usuario                               |
+|email  			    |String 	    |Correo electrónico del usuario                     |
+|telefono   		    |String 	    |Número de teléfono del usuario                     |
+|telefonosEmergencia	|Array<String> 	|Números de teléfono de Emergencias del usuario     |
+|avatarUrl  		    |String 	    |URL de la imagen de perfil del usuario             |
+|rol    			    |String 	    |Rol asignado al usuario (socio,vocal,admin)        |
+|estado 		        |String 	    |Activo, inactivo, bloqueado                        |
+|ultimaConexion 	    |Timestamp      |Fecha y hora de la última conexión                 |
+
+2. Colección: actividades
+
+    *   Cada documento representa una actividad con sus responsables, participantesy materiales.
+
+| Campo                 | Tipo                          | Descripción                                              |
+|-----------------------|-------------------------------|----------------------------------------------------------|
+| id                    | String                        | ID único de la actividad                                 |
+| nombre                | String                        | Nombre de la actividad                                   |
+| tipo                  | Array<String>                 | Tipo de actividad (espeleologia, barranquismo, exterior) |
+| subtipo               | Array<String>                 | Sub-Tipo de actividad (visita, exploración, formación)   |
+| descripcion           | String                        | Descripción detallada de la actividad                    |
+| fechaInicio           | Timestamp                     | Fecha y hora de inicio                                   |
+| fechaFin              | Timestamp                     | Fecha y hora de fin                                      |
+| lugar                 | String                        | Ubicación de la actividad                                |
+| creadorActividad      | Reference (usuarios)          | Creador de la actividad                                  |
+| responsableMaterial   | Reference (usuarios)          | Responsable del material                                 |
+| responsableActividad  | Reference (usuarios)          | Responsable de la actividad                              |
+| participantes         | Array<Reference> (usuarios)   | Lista de participantes                                   |
+| necesidadMaterial     | Boolean                       | Se coge material para actividad                          |
+| materiales            | Array<Object>                 | Lista de materiales asignados                            |
+| materiales[].material | Reference (materiales)        | Material asignado                                        |
+| materiales[].cantidad | Number                        | Cantidad asignada                                        |
+| estado                | String                        | Planificada, en curso, finalizada, cancelada             |
+| comentarios           | Array<Object>                 | Lista de comentarios                                     |
+| enlaces               | Array<String>                 | Enlaces                                                  |
+| imagenesTopografia    | Array<String>                 | URLs de imágenes de topografías                          |
+| archivosAdjuntos      | Array<String>                 | URLs de archivos adjuntos                                |
+
+
+3. Colección: inventario/material_deportivo (cuerdas, anclajes, varios)
+
+    *   Cada documento representa un material deportivo.
+
+3.1. Campos Base (comunes para todos)
+
+|Campo                  |Tipo           |Descripción                                    |
+|-----------------------|---------------|-----------------------------------------------|
+|id	                    |String	        |ID único del material                          |
+|nombre	                |String	        |Nombre del material                            |
+|tipo	                |String	        |Identificador del tipo (cuerda/anclaje/varios) |
+|estado	                |String	        |Disponible/prestado/mantenimiento/baja/perdido |
+|fechaAdquisicion	    |Timestamp	    |Fecha de compra                                |
+|fechaUltimaRevision	|Timestamp	    |Última revisión realizada                      |
+|proximaRevision	    |Timestamp	    |Fecha programada siguiente revisión            |
+|observaciones	        |String	        |Notas generales                                |
+
+3.2. Subcolección: materiales/cuerdas
+|Campo              |Tipo               |Descripción                                    |
+|-------------------|-------------------|-----------------------------------------------|
+|codigo	            |String	            |Codificación interna                           |
+|longitud	        |Number	            |Longitud en metros                             |
+|diametro	        |Number	            |Diámetro en milímetros                         |
+|usos	            |Number	            |Contador de usos                               |
+|tipoCuerda	        |String	            |espeleologia, barrancos                        |
+|numeroSerie	    |String	            |Número de serie fabricante                     |
+|fechaFabricacion	|Timestamp	        |Fecha de fabricación                           |
+|fechaPrimerUso	    |Timestamp	        |Primer uso registrado                          |
+|vidaUtilRestante	|Number	            |Días restantes estimados                       |
+|historialUsos	    |Array<Reference>	|Referencias a registros de uso                 |
+
+3.3. Subcolección: materiales/anclajes
+|Campo                  |Tipo           |Descripción                                    |
+|-----------------------|---------------|-----------------------------------------------|
+|tipoAnclaje	        |String	        |Químico/Mecánico/As/                           |
+|cantidad	            |Number	        |Cantidad total                                 |
+|cantidadDisponible     |Number	        |Cantidad disponible                            |
+|revisiones	            |Array<Object>	|Historial de revisiones                        |
+
+
+3.4. Subcolección: materiales/varios
+|Campo                      |Tipo                 |Descripción                          |
+|---------------------------|---------------------|-------------------------------------|
+|categoria	                |String	              |EquipoTPV/Tienda/Pote Estanco/etc.   |
+|subcategoria	            |String	              |Subcategoría específica              |
+|cantidad	                |Number	              |Cantidad total                       |
+|cantidadDisponible         |Number	              |Cantidad disponible                  |
+
+3.5. Subcolección: materiales/{id}/incidencias
+|Campo                  |Tipo           |Descripción                                    |
+|-----------------------|---------------|-----------------------------------------------|
+|fecha	                |Timestamp	    |Fecha de la incidencia                         |
+|reportadoPor	        |Reference	    |Usuario que reporta                            |
+|descripcion	        |String	        |Descripción detallada                          |
+|fechaResolucion	    |Timestamp	    |Fecha de resolución                            |
+
+3.6. Subcolección: materiales/{id}/estado
+|Campo                  |Tipo           |Descripción                                    |
+|-----------------------|---------------|-----------------------------------------------|
+|tipo	                |String	        |Tipo de certificación                          |
+|fechaEmision	        |Timestamp	    |Fecha de emisión                               |
+|fechaExpiracion	    |Timestamp	    |Fecha de caducidad                             |
+|emisor	                |String	        |Entidad certificadora                          |
+|documento	            |String	        |URL del documento                              |
+|validez	            |String	        |Estado de validez                              |
+
+4. Colección: prestamos
+
+    *   Cada documento representa un préstamo de material.
+
+| Campo            | Tipo                    | Descripción                                       |
+|------------------|-------------------------|---------------------------------------------------|
+| id               | String                  | ID único del préstamo                             |
+| material         | Reference (materiales)  | Material prestado                                 |
+| usuario          | Reference (usuarios)    | Usuario que realizó el préstamo                   |
+| actividad        | Reference (actividades) | Actividad asociada (opcional)                     |
+| fechaPrestamo    | Timestamp               | Fecha y hora del préstamo                         |
+| fechaDevolucion  | Timestamp               | Fecha y hora de la devolución (opcional)          |
+| estado           | String                  | En Uso, devuelto, pendiente, perdido, estropeado  |
+| cantidadPrestada | Number                  | Cantidad prestada                                 |
+
+5. Colección: incidencias
+
+    *   Cada documento representa una incidencia relacionada con un material.
+
+| Campo       | Tipo                   | Descripción                            |
+|-------------|------------------------|----------------------------------------|
+| id          | String                 | ID único de la incidencia              |
+| material    | Reference (materiales) | Material afectado                      |
+| usuario     | Reference (usuarios)   | Usuario que reportó la incidencia      |
+| fecha       | Timestamp              | Fecha y hora de la incidencia          |
+| descripcion | String                 | Descripción detallada de la incidencia |
+| estado      | String                 | Abierta, en curso, resuelta            |
+| comentarios | Array<Object>          | Lista de comentarios                   |
+
+6. Colección: notificaciones
+
+    *   Cada documento representa una notificación para un usuario.
+
+| Campo     | Tipo                 | Descripción                                 |
+|-----------|----------------------|---------------------------------------------|
+| id        | String               | ID único de la notificación                 |
+| usuario   | Reference (usuarios) | Usuario destinatario                        |
+| tipo      | String               | Préstamo, devolución, incidencia, actividad |
+| mensaje   | String               | Texto de la notificación                    |
+| fecha     | Timestamp            | Fecha y hora de la notificación             |
+| leida     | Boolean              | Indica si la notificación fue leída         |
+
+
+
+

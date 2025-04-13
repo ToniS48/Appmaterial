@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Funciones auxiliares para verificar roles
+    function isAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    function isVocal() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'vocal';
+    }
+    
+    function isSocio() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'socio';
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.activo == true;
+    }
+    
+    // Reglas para la colección de intentos de login
+    match /loginAttempts/{docId} {
+      // Permitir lectura/escritura para todos (necesario para verificar intentos sin autenticación)
+      allow read, write: if true;
+    }
+    
+    // Reglas para usuarios
+    match /usuarios/{userId} {
+      // Los usuarios pueden leer su propio perfil
+      // Los administradores pueden leer todos los perfiles
+      allow read: if request.auth != null && 
+                    (request.auth.uid == userId || isAdmin());
+      
+      // Los usuarios pueden actualizar ciertos campos de su perfil
+      // Los administradores pueden actualizar cualquier campo
+      allow update: if request.auth != null && 
+                     (request.auth.uid == userId || isAdmin());
+      
+      // Solo administradores pueden crear o eliminar usuarios
+      allow create, delete: if isAdmin();
+    }
+    
+    // Reglas para material (equipamiento)
+    match /material/{itemId} {
+      // Cualquier usuario autenticado puede ver el material
+      allow read: if isAuthenticated();
+      
+      // Solo administradores y vocales pueden modificar el material
+      allow write: if isAdmin() || isVocal();
+    }
+    
+    // Reglas para actividades
+    match /actividades/{actividadId} {
+      // Cualquier usuario activo puede ver actividades
+      allow read: if isAuthenticated();
+      
+      // Solo admins y vocales pueden crear/modificar actividades
+      allow write: if isAdmin() || isVocal();
+    }
+    
+    // Reglas para préstamos/reservas
+    match /prestamos/{prestamoId} {
+      // Los usuarios pueden ver sus propios préstamos
+      // Admins y vocales pueden ver todos los préstamos
+      allow read: if isAuthenticated() && 
+                    (resource.data.usuarioId == request.auth.uid || 
+                     isAdmin() || isVocal());
+      
+      // Usuarios pueden crear préstamos, pero solo admins/vocales pueden modificarlos
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || isVocal();
+    }
+    
+    // Regla por defecto - restringir acceso
+    match /{document=**} {
+      // Para producción: denegar acceso por defecto
+      // Para desarrollo: permitir todo (comenta/descomenta según necesites)
+      
+      // Opción desarrollo (permite todo)
+      allow read, write: if true;
+      
+      // Opción producción (deniega por defecto)
+      // allow read, write: if false;
+    }
+  }
+}
