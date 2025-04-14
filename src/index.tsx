@@ -1,19 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './styles/global.css'; 
+import './styles/global.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-
-const forceRefresh = Date.now();
-console.log(`Forzando recarga con timestamp: ${forceRefresh}`);
+import { ColorModeScript } from '@chakra-ui/react';
+import theme from './styles/theme';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
+    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
     <App />
   </React.StrictMode>
 );
 
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
 reportWebVitals();

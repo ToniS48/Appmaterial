@@ -11,7 +11,7 @@ import { Usuario } from '../types/usuario';
 import { toast } from 'react-toastify';
 import { handleFirebaseError } from '../utils/errorHandling';
 import messages from '../constants/messages';
-import { validateEmail } from '../utils/validation';
+import { validateEmail } from '../utils/validationUtils';
 import { 
   INACTIVITY_TIMEOUT,
   INACTIVITY_WARNING_TIMEOUT,

@@ -26,7 +26,13 @@ import { Actividad, EstadoActividad, TipoActividad } from '../../types/actividad
 import { listarActividades } from '../../services/actividadService';
 import ActividadDetalle from './ActividadDetalle';
 import messages from '../../constants/messages';
-import { safeISOString } from '../../utils/dateUtils';
+import { 
+  safeISOString, 
+  isSameDay, 
+  toDate, 
+  normalizarFecha, 
+  compareDates 
+} from '../../utils/dateUtils';
 
 // Días de la semana
 const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -148,26 +154,33 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   
   // Verificar si un día es hoy
   const isToday = (day: Date): boolean => {
-    const today = new Date();
-    return day.getDate() === today.getDate() &&
-      day.getMonth() === today.getMonth() &&
-      day.getFullYear() === today.getFullYear();
+    return isSameDay(day, new Date());
   };
   
   // Obtener actividades para un día específico
   const getActividadesForDay = (day: Date): Actividad[] => {
     return actividades.filter(act => {
-      const inicio = act.fechaInicio instanceof Date ? act.fechaInicio : act.fechaInicio.toDate();
-      const fin = act.fechaFin instanceof Date ? act.fechaFin : act.fechaFin.toDate();
+      const inicio = toDate(act.fechaInicio);
+      const fin = toDate(act.fechaFin);
+      if (!inicio || !fin) return false;
       
-      const dayStart = new Date(day);
-      dayStart.setHours(0, 0, 0, 0);
+      const dayNormalized = normalizarFecha(day);
+      const inicioNormalized = normalizarFecha(inicio);
+      const finNormalized = normalizarFecha(fin);
       
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
+      // Verificar que ninguno sea null antes de comparar
+      if (!dayNormalized || !inicioNormalized || !finNormalized) return false;
       
-      // Comprobar si la actividad está en este día
-      return (inicio <= dayEnd && fin >= dayStart);
+      // Si llegamos aquí, sabemos que ninguna variable es null
+      // Comprobar si el día está dentro del rango de la actividad o coincide con el inicio/fin
+      const diaEnRango = 
+        dayNormalized.getTime() >= inicioNormalized.getTime() && 
+        dayNormalized.getTime() <= finNormalized.getTime();
+        
+      const coincideInicio = dayNormalized.getTime() === inicioNormalized.getTime();
+      const coincideFin = dayNormalized.getTime() === finNormalized.getTime();
+      
+      return diaEnRango || coincideInicio || coincideFin;
     });
   };
 
@@ -198,24 +211,23 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
     if (window.confirm(confirmMessage)) {
       // Añadir cada actividad a Google Calendar
       actividadesVisibles.forEach(actividad => {
-        const inicio = actividad.fechaInicio instanceof Date 
-          ? actividad.fechaInicio 
-          : actividad.fechaInicio.toDate();
-          
-        const fin = actividad.fechaFin instanceof Date 
-          ? actividad.fechaFin 
-          : actividad.fechaFin.toDate();
-          
-        const url = new URL('https://calendar.google.com/calendar/render');
-        url.searchParams.append('action', 'TEMPLATE');
-        url.searchParams.append('text', actividad.nombre);
-        url.searchParams.append('dates', 
-          `${safeISOString(inicio).replace(/-|:|\.\d+/g, '')}/
-           ${safeISOString(fin).replace(/-|:|\.\d+/g, '')}`);
-        url.searchParams.append('details', actividad.descripcion || '');
-        url.searchParams.append('location', actividad.lugar || '');
+        const inicio = toDate(actividad.fechaInicio);
+        const fin = toDate(actividad.fechaFin);
         
-        window.open(url.toString(), '_blank');
+        if (inicio && fin) {
+          const url = new URL('https://calendar.google.com/calendar/render');
+          url.searchParams.append('action', 'TEMPLATE');
+          url.searchParams.append('text', actividad.nombre);
+          url.searchParams.append('dates', 
+            `${safeISOString(inicio).replace(/-|:|\.\d+/g, '')}/
+             ${safeISOString(fin).replace(/-|:|\.\d+/g, '')}`);
+          url.searchParams.append('details', actividad.descripcion || '');
+          url.searchParams.append('location', actividad.lugar || '');
+          
+          window.open(url.toString(), '_blank');
+        } else {
+          console.error(`No se pudo añadir actividad "${actividad.nombre}" a Google Calendar: fechas inválidas`);
+        }
       });
       
       toast({

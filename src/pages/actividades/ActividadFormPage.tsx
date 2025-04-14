@@ -18,9 +18,10 @@ import {
   useToast,
   Badge,
   Card,
-  CardBody
+  CardBody,
+  HStack
 } from '@chakra-ui/react';
-import { FiFileText, FiUsers, FiPackage, FiLink } from 'react-icons/fi';
+import { FiFileText, FiUsers, FiPackage, FiLink, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave } from 'react-icons/fi';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { obtenerActividad, crearActividad, actualizarActividad } from '../../services/actividadService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,10 +34,20 @@ import ParticipantesEditor from '../../components/actividades/ParticipantesEdito
 import MaterialEditor from '../../components/actividades/MaterialEditor';
 import EnlacesEditor from '../../components/actividades/EnlacesEditor';
 
+// Importar las nuevas funciones
+import { normalizarFecha, toDate, toTimestamp, compareDates } from '../../utils/dateUtils';
+import { validateActividad } from '../../utils/actividadUtils';
+import { determinarEstadoActividad } from '../../utils/dateUtils';
+import { validateActividadEnlaces } from '../../utils/actividadUtils';
+
 const ActividadFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const toast = useToast();
+  const toast = useToast({
+    position: "top",
+    duration: 5000,
+    isClosable: true,
+  });
   const { userProfile } = useAuth();
   const [actividad, setActividad] = useState<Actividad | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
@@ -49,6 +60,28 @@ const ActividadFormPage: React.FC = () => {
   const [participantesEdited, setParticipantesEdited] = useState<boolean>(false);
   const [materialEdited, setMaterialEdited] = useState<boolean>(false);
   const [enlacesEdited, setEnlacesEdited] = useState<boolean>(false);
+
+  // Añade este estado
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Añade esto antes del condicional alrededor de la línea 70
+  const [isUserResponsable, setIsUserResponsable] = useState<boolean>(false);
+
+  // Dentro del componente, antes de usar hasResponsableMaterial
+  const hasResponsableMaterial = formData?.responsableMaterialId ? true : false;
+
+  // Alternativa con comprobación explícita
+  const checkIsUserResponsable = () => {
+    if (!userProfile || !formData.responsableMaterialId) {
+      return false;
+    }
+    return formData.responsableMaterialId === userProfile.uid;
+  };
+
+  // Modifica el condicional existente
+  useEffect(() => {
+    setIsUserResponsable(checkIsUserResponsable());
+  }, [userProfile, formData.responsableMaterialId]);
 
   // Cargar actividad si estamos en modo edición
   useEffect(() => {
@@ -74,23 +107,31 @@ const ActividadFormPage: React.FC = () => {
   // Para nuevo registro, inicializar con datos básicos
   useEffect(() => {
     if (!id && userProfile) {
+      const mañana = new Date();
+      mañana.setDate(mañana.getDate() + 1);
+      
       setFormData({
         nombre: '',
         lugar: '',
         descripcion: '',
         fechaInicio: new Date(),
-        fechaFin: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        fechaFin: mañana,
         tipo: [],
         subtipo: [],
         dificultad: 'media',
         responsableActividadId: userProfile.uid,
         participanteIds: [userProfile.uid],
-        materiales: [], // La propiedad "necesidadMaterial" se calculará automáticamente
+        materiales: [], 
         estado: 'planificada',
+        creadorId: userProfile.uid,
+        // Inicializar todos los arrays de enlaces vacíos explícitamente
         enlacesWikiloc: [],
         enlacesTopografias: [],
         enlacesDrive: [],
-        enlacesWeb: []
+        enlacesWeb: [],
+        // Inicializar otros arrays opcionales
+        comentarios: [],
+        enlaces: []
       });
     }
   }, [id, userProfile]);
@@ -179,7 +220,7 @@ const ActividadFormPage: React.FC = () => {
     // Si estamos en la última pestaña, guardar toda la actividad
     try {
       // Validaciones básicas
-      if (!formData.nombre || !formData.lugar || formData.tipo?.length === 0 || formData.subtipo?.length === 0) {
+      if (!formData.nombre || !formData.lugar || !formData.tipo?.length || !formData.subtipo?.length) {
         toast({
           title: "Datos incompletos",
           description: "Por favor completa todos los campos requeridos",
@@ -189,49 +230,51 @@ const ActividadFormPage: React.FC = () => {
         return;
       }
 
-      // Determinar estado según fechas
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      // Determinar estado según fechas con las nuevas funciones
+      const hoy = normalizarFecha(new Date())!;
+      const fechaInicio = normalizarFecha(toDate(formData.fechaInicio))!;
+      const fechaFin = normalizarFecha(toDate(formData.fechaFin))!;
       
-      const fechaInicio = formData.fechaInicio ? 
-        (formData.fechaInicio instanceof Date ? 
-          formData.fechaInicio : 
-          new Date(formData.fechaInicio.toDate())
-        ) : new Date();
-      
-      const fechaFin = formData.fechaFin ? 
-        (formData.fechaFin instanceof Date ? 
-          formData.fechaFin : 
-          new Date(formData.fechaFin.toDate())
-        ) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-      
-      let estadoAutomatico = formData.estado;
+      let estadoAutomatico = formData.estado as EstadoActividad;
       
       if (formData.estado !== 'cancelada') {
-        if (hoy.getTime() > fechaFin.getTime()) {
+        if ((compareDates(hoy, fechaFin) ?? 0) > 0) {
           estadoAutomatico = 'finalizada';
-        } else if (hoy.getTime() >= fechaInicio.getTime()) {
+        } else if ((compareDates(hoy, fechaInicio) ?? 0) >= 0) {
           estadoAutomatico = 'en_curso';
         } else {
           estadoAutomatico = 'planificada';
         }
       }
 
-      // Crear el objeto de actividad completo con los últimos enlaces
+      // Crear el objeto de actividad completo con los últimos enlaces y usar toTimestamp para guardar
       const actividadCompleta = {
-        ...formData,
-        ...enlaces,
+        nombre: formData.nombre || '',
+        tipo: formData.tipo || [],
+        subtipo: formData.subtipo || [],
+        descripcion: formData.descripcion || '',
+        lugar: formData.lugar || '',
+        responsableActividadId: formData.responsableActividadId || userProfile?.uid || '',
+        participanteIds: formData.participanteIds || [],
+        necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
+        materiales: formData.materiales || [],
         estado: estadoAutomatico,
-        enlaces: [
-          ...((formData.enlacesWikiloc || []).concat(enlaces.enlacesWikiloc || [])).map((e: any) => e.url),
-          ...(formData.enlacesTopografias || []).concat(enlaces.enlacesTopografias || []), 
-          ...(formData.enlacesDrive || []).concat(enlaces.enlacesDrive || []),
-          ...(formData.enlacesWeb || []).concat(enlaces.enlacesWeb || [])
-        ],
-        fechaActualizacion: Timestamp.fromDate(new Date())
+        comentarios: formData.comentarios || [],
+        creadorId: formData.creadorId || userProfile?.uid || '',
+        enlaces: formData.enlaces || [],
+        ...formData,
+        fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
+        fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
+        fechaActualizacion: Timestamp.fromDate(new Date()),
+        enlacesWikiloc: formData.enlacesWikiloc || [],
+        enlacesTopografias: formData.enlacesTopografias || [],
+        enlacesDrive: formData.enlacesDrive || [],
+        enlacesWeb: formData.enlacesWeb || [],
+        imagenesTopografia: formData.imagenesTopografia || [],
+        archivosAdjuntos: formData.archivosAdjuntos || []
       };
 
-      let resultado;
+      let resultado: Actividad;
       
       if (id) {
         // Actualizar actividad existente
@@ -243,29 +286,7 @@ const ActividadFormPage: React.FC = () => {
         });
       } else {
         // Crear nueva actividad
-        resultado = await crearActividad({
-          nombre: actividadCompleta.nombre || '',
-          tipo: actividadCompleta.tipo || [],
-          subtipo: actividadCompleta.subtipo || [],
-          descripcion: actividadCompleta.descripcion || '',
-          fechaInicio: actividadCompleta.fechaInicio || new Date(),
-          fechaFin: actividadCompleta.fechaFin || new Date(Date.now() + 24 * 60 * 60 * 1000),
-          lugar: actividadCompleta.lugar || '',
-          responsableActividadId: actividadCompleta.responsableActividadId || userProfile?.uid || '',
-          participanteIds: actividadCompleta.participanteIds || [userProfile?.uid || ''],
-          necesidadMaterial: actividadCompleta.necesidadMaterial || false,
-          materiales: actividadCompleta.materiales || [],
-          estado: estadoAutomatico as EstadoActividad,
-          creadorId: userProfile?.uid || '',
-          comentarios: [],
-          imagenesTopografia: [],
-          archivosAdjuntos: [],
-          enlaces: actividadCompleta.enlaces || [],
-          enlacesWikiloc: actividadCompleta.enlacesWikiloc || [],
-          enlacesTopografias: actividadCompleta.enlacesTopografias || [],
-          enlacesDrive: actividadCompleta.enlacesDrive || [],
-          enlacesWeb: actividadCompleta.enlacesWeb || []
-        });
+        resultado = await crearActividad(actividadCompleta);
         toast({
           title: "Actividad creada",
           status: "success",
@@ -273,14 +294,12 @@ const ActividadFormPage: React.FC = () => {
         });
       }
       
-      // Redirigir a la página de detalle
-      navigate(id ? `/activities/${id}` : `/activities/${resultado.id}`);
-      
+      navigate(`/activities/${resultado.id}`);
     } catch (error) {
-      console.error("Error al guardar actividad:", error);
+      console.error("Error al guardar la actividad:", error);
       toast({
-        title: "Error al guardar",
-        description: "No se pudo guardar la actividad. Inténtalo de nuevo.",
+        title: "Error",
+        description: "No se pudo guardar la actividad",
         status: "error",
         duration: 5000
       });
@@ -289,6 +308,138 @@ const ActividadFormPage: React.FC = () => {
 
   const handleCancel = () => {
     navigate(id ? `/activities/${id}` : '/activities');
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      setIsSaving(true);
+      // Mostrar feedback visual de inicio de proceso
+      toast({
+        title: "Procesando",
+        description: "Guardando datos de la actividad...",
+        status: "info",
+        duration: 2000
+      });
+
+      // Usar la función de validación centralizada
+      const validationError = validateActividad(formData);
+      if (validationError) {
+        toast({
+          title: "Datos incompletos",
+          description: validationError,
+          status: "error",
+          duration: 5000
+        });
+        return;
+      }
+
+      // Validación específica para enlaces
+      if (enlacesEdited) {
+        const enlacesError = validateActividadEnlaces(formData);
+        if (enlacesError) {
+          toast({
+            title: "Error en enlaces",
+            description: enlacesError,
+            status: "error",
+            duration: 5000
+          });
+          setTabIndex(3); // Ir a la pestaña de enlaces
+          return;
+        }
+      }
+
+      // Determinar estado automático usando la función centralizada
+      const estadoAutomatico = determinarEstadoActividad(
+        formData.fechaInicio,
+        formData.fechaFin,
+        formData.estado
+      );
+
+      // Comprobar disponibilidad del usuario actual
+      const usuarioActual = userProfile?.uid;
+      if (!usuarioActual) {
+        toast({
+          title: "Error de autenticación",
+          description: "No se pudo identificar al usuario actual. Por favor, inicia sesión nuevamente.",
+          status: "error",
+          duration: 5000
+        });
+        return;
+      }
+
+      // Crear el objeto de actividad completo con valores seguros utilizando las funciones de conversión centralizada
+      const actividadCompleta = {
+        nombre: formData.nombre || '',
+        tipo: formData.tipo || [],
+        subtipo: formData.subtipo || [],
+        descripcion: formData.descripcion || '',
+        lugar: formData.lugar || '',
+        responsableActividadId: formData.responsableActividadId || usuarioActual,
+        participanteIds: formData.participanteIds || [usuarioActual],
+        necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
+        materiales: formData.materiales || [],
+        estado: estadoAutomatico,
+        comentarios: formData.comentarios || [],
+        creadorId: formData.creadorId || usuarioActual,
+        // Usar funciones centralizadas para fechas
+        fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
+        fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
+        fechaActualizacion: Timestamp.fromDate(new Date()),
+        enlacesWikiloc: formData.enlacesWikiloc || [],
+        enlacesTopografias: formData.enlacesTopografias || [],
+        enlacesDrive: formData.enlacesDrive || [],
+        enlacesWeb: formData.enlacesWeb || [],
+        imagenesTopografia: formData.imagenesTopografia || [],
+        archivosAdjuntos: formData.archivosAdjuntos || [],
+        // Incluir un array de enlaces para compatibilidad
+        enlaces: [
+          ...(formData.enlacesWikiloc?.map(e => e.url) || []),
+          ...(formData.enlacesTopografias || []),
+          ...(formData.enlacesDrive || []),
+          ...(formData.enlacesWeb || [])
+        ]
+      };
+
+      // Mostrar feedback de guardado
+      let resultado: Actividad;
+      
+      if (id) {
+        // Actualizar actividad existente
+        resultado = await actualizarActividad(id, actividadCompleta);
+        toast({
+          title: "Actividad actualizada",
+          description: "La actividad se ha actualizado correctamente",
+          status: "success",
+          duration: 5000
+        });
+      } else {
+        // Crear nueva actividad
+        resultado = await crearActividad(actividadCompleta);
+        toast({
+          title: "Actividad creada",
+          description: "La actividad se ha creado correctamente",
+          status: "success",
+          duration: 5000
+        });
+      }
+      
+      // Redirigir a la página de detalle después de un pequeño delay
+      // para que el usuario vea el mensaje de éxito
+      setTimeout(() => {
+        navigate(`/activities/${resultado.id}`);
+      }, 1500);
+      
+    } catch (error) {
+      console.error("Error al guardar la actividad:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la actividad. Por favor, inténtalo de nuevo.",
+        status: "error",
+        duration: 5000
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (loading) {
@@ -349,8 +500,9 @@ const ActividadFormPage: React.FC = () => {
                 <TabPanel>
                   <InfoEditor 
                     actividad={getCompleteActivity(formData)}
-                    onSave={handleInfoSave}
+                    onSave={handleInfoSave} 
                     onCancel={handleCancel}
+                    mostrarBotones={false}
                   />
                 </TabPanel>
                 
@@ -359,6 +511,7 @@ const ActividadFormPage: React.FC = () => {
                     actividad={getCompleteActivity(formData)}
                     onSave={handleParticipantesSave}
                     onCancel={handleCancel}
+                    mostrarBotones={false}
                   />
                 </TabPanel>
                 
@@ -367,6 +520,7 @@ const ActividadFormPage: React.FC = () => {
                     actividad={getCompleteActivity(formData)}
                     onSave={handleMaterialSave}
                     onCancel={handleCancel}
+                    mostrarBotones={false}
                   />
                 </TabPanel>
                 
@@ -375,13 +529,53 @@ const ActividadFormPage: React.FC = () => {
                     actividad={getCompleteActivity(formData)}
                     onSave={handleEnlacesSave}
                     onCancel={handleCancel}
-                    esNuevo={!id} // true si es una nueva actividad, false si se está editando
+                    esNuevo={!id}
+                    mostrarBotones={false}
                   />
                 </TabPanel>
               </TabPanels>
             </Tabs>
           </CardBody>
         </Card>
+        <Box pt={4} pb={2} borderTop="1px" borderColor="gray.200" width="100%" mt={4}>
+          <Flex justify="space-between" maxW="1200px" mx="auto">
+            <Button 
+              leftIcon={<FiArrowLeft />}
+              onClick={handleCancel}
+              variant="outline"
+            >
+              Cancelar
+            </Button>
+            
+            <HStack spacing={3}>
+              <Button 
+                leftIcon={<FiChevronLeft />} 
+                onClick={() => setTabIndex(Math.max(0, tabIndex - 1))} 
+                isDisabled={tabIndex === 0}
+                variant="ghost"
+              >
+                Anterior
+              </Button>
+              <Button 
+                rightIcon={<FiChevronRight />} 
+                onClick={() => setTabIndex(Math.min(3, tabIndex + 1))} 
+                isDisabled={tabIndex === 3}
+                variant="ghost"
+              >
+                Siguiente
+              </Button>
+              <Button 
+                leftIcon={<FiSave />} 
+                colorScheme="brand" 
+                onClick={handleSaveAll}
+                isLoading={isSaving}
+                loadingText="Guardando..."
+              >
+                {id ? "Actualizar actividad" : "Crear actividad"}
+              </Button>
+            </HStack>
+          </Flex>
+        </Box>
       </Container>
     </DashboardLayout>
   );

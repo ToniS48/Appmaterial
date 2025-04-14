@@ -45,8 +45,11 @@ import messages from '../../constants/messages';  // Añadir esta importación
 
 interface MaterialSelectorProps {
   control: Control<any>;
-  errors: FieldErrors<any>;
-  existingMaterials?: MaterialField[];
+  name: string;
+  error?: any;  // Cambiar a 'any' para aceptar cualquier tipo de error
+  materialesActuales?: MaterialField[];
+  cardBg?: string;
+  borderColor?: string;
 }
 
 // Definir interfaz para los materiales
@@ -68,13 +71,20 @@ interface MaterialField {
   cantidad: number;
 }
 
-const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, existingMaterials = [] }) => {
+const MaterialSelector: React.FC<MaterialSelectorProps> = ({ 
+  control, 
+  name,  // Añadir name como prop
+  error, // Cambiar a error en singular, hacerlo opcional
+  materialesActuales = [], // Renombrar de existingMaterials a materialesActuales
+  cardBg,
+  borderColor
+}) => {
   // Estados para el componente
   const [materiales, setMateriales] = useState<MaterialItem[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<string>('');
   const [cantidad, setCantidad] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<string | null>(null);
   
   // Nuevos estados para el selector visual
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -85,15 +95,15 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
   // Usar useFieldArray para manejar el array de materiales
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'materiales'
+    name
   });
   
   // Inicializar con materiales existentes si se proporcionan
   useEffect(() => {
-    if (existingMaterials && existingMaterials.length > 0) {
+    if (materialesActuales && materialesActuales.length > 0) {
       // Verificar si ya están cargados en fields para evitar duplicados
       const existingIds = fields.map((field: any) => field.materialId);
-      const newMaterials = existingMaterials.filter(mat => !existingIds.includes(mat.materialId));
+      const newMaterials = materialesActuales.filter(mat => !existingIds.includes(mat.materialId));
       
       if (newMaterials.length > 0) {
         // Usar un setTimeout para asegurar que este código se ejecute después de que React haya actualizado el DOM
@@ -104,7 +114,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
         }, 0);
       }
     }
-  }, [existingMaterials]); 
+  }, [materialesActuales]); 
   
   // Cargar materiales disponibles en tiempo real
   useEffect(() => {
@@ -113,7 +123,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
     const setupMaterialesListener = async () => {
       try {
         setIsLoading(true);
-        setError(null);
+        setErrorState(null);
         
         // Crear una consulta que filtre por materiales disponibles
         const materialesQuery = query(
@@ -145,7 +155,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
           },
           (error) => {
             console.error('Error en el listener de materiales:', error);
-            setError(`Error al monitorear materiales: ${error.message || 'Error desconocido'}`);
+            setErrorState(`Error al monitorear materiales: ${error.message || 'Error desconocido'}`);
             setIsLoading(false);
             
             toast({
@@ -159,7 +169,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
         );
       } catch (error: any) {
         console.error('Error al configurar listener de materiales:', error);
-        setError(`Error al configurar monitoreo: ${error.message || 'Error desconocido'}`);
+        setErrorState(`Error al configurar monitoreo: ${error.message || 'Error desconocido'}`);
         setIsLoading(false);
       }
     };
@@ -359,7 +369,8 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
         borderWidth="1px" 
         borderRadius="md" 
         _hover={{ borderColor: "brand.300", shadow: "sm" }}
-        bg={disponibilidadReal === 0 ? "gray.50" : "white"}
+        bg={disponibilidadReal === 0 ? "gray.50" : cardBg || "white"}
+        borderColor={borderColor}
       >
         <CardBody p={3}>
           <Flex direction="column" justify="space-between" height="100%">
@@ -436,9 +447,9 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
           <Spinner size="md" />
           <Text mt={2}>{messages.material.selector.cargando}</Text>
         </Box>
-      ) : error ? (
+      ) : errorState ? (
         <Box p={3} bg="red.50" color="red.700" borderRadius="md">
-          <Text>{error}</Text>
+          <Text>{errorState}</Text>
           <Button size="sm" mt={2} onClick={() => window.location.reload()}>
             {messages.actions.retry || "Reintentar"}
           </Button>
@@ -609,10 +620,10 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({ control, errors, ex
         </>
       )}
       
-      {errors.materiales && (
+      {error && (
         <FormErrorMessage>
-          {typeof errors.materiales.message === 'string' 
-            ? errors.materiales.message 
+          {typeof error.message === 'string' 
+            ? error.message 
             : 'Error en la selección de materiales'}
         </FormErrorMessage>
       )}

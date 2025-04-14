@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { debounce } from 'lodash';
-import { checkEmailAvailability, validateEmail } from '../utils/validation';
+import { checkEmailAvailability, validateEmail } from '../utils/validationUtils';
 import { handleFirebaseError } from '../utils/errorHandling';
 import messages from '../constants/messages';
 import { LoadingState } from '../types/ui';

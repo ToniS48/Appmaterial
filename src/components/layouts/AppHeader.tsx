@@ -26,7 +26,20 @@ import {
   DrawerBody,
   useDisclosure,
   Link,
-  Tooltip
+  Tooltip,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Textarea,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+  useToast,
+  Button
 } from '@chakra-ui/react';
 import { HamburgerIcon } from '@chakra-ui/icons';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
@@ -36,8 +49,12 @@ import NotificacionBadge from '../notificaciones/NotificacionBadge';
 import NotificacionPanel from '../notificaciones/NotificacionPanel';
 import logoEspemo from '../../assets/images/logoEspemo.png';
 import AppNavigationMenu from './AppNavigationMenu';
-import { FiLogOut, FiMenu, FiHome, FiUser } from 'react-icons/fi';
+import { FiLogOut, FiMenu, FiHome, FiUser, FiAlertTriangle } from 'react-icons/fi';
 import { getRutaPorRol } from '../../utils/navigation';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { enviarNotificacionMasiva } from '../../services/notificacionService';
+import { listarUsuarios } from '../../services/usuarioService';
 
 interface HeaderProps {
   onSidebarOpen: () => void;
@@ -65,167 +82,326 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
   // Obtener la ruta del dashboard según el rol
   const dashboardPath = getRutaPorRol(userProfile?.rol || 'invitado');
 
-  return (
-    <Flex
-      as="header"
-      align="center"
-      justify="space-between"
-      w="100%"
-      px={4}
-      py={{ base: 2, md: 4 }}
-      bg={bgColor}
-      borderBottomWidth="1px"
-      borderColor={borderColor}
-      position="sticky"
-      top={0}
-      zIndex={2}
-      minH={{ base: "60px", md: "70px" }}
-    >
-      {/* Izquierda: Botón para sidebar móvil, logo y título */}
-      <Flex align="center">
-        {/* Botón de menú en móvil */}
-        <IconButton
-          ref={btnRef}
-          display={{ base: "flex", lg: "none" }}
-          onClick={onOpen}
-          variant="ghost"
-          aria-label="Abrir menú"
-          icon={<HamburgerIcon />}
-          size="md"
-          mr={2}
-        />
+  // Nuevo estado para el modal de reporte
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const toast = useToast();
+  
+  // Función para manejar el reporte de errores
+  const handleReporteError = () => {
+    setIsReportModalOpen(true);
+  };
+  
+  // Función para enviar el reporte
+  const sendReport = async () => {
+    if (!reportMessage.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor, describe el error o sugerencia",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    setIsSending(true);
+    
+    try {
+      // Obtener todos los usuarios administradores
+      const adminUsuarios = await listarUsuarios();
+      const adminIds = adminUsuarios
+        .filter(user => user.rol === 'admin')
+        .map(user => user.uid);
       
-        {/* Logo y título - ahora redirigen al dashboard específico */}
-        <Box as={RouterLink} to={dashboardPath} display="flex" alignItems="center">
-          <Image 
-            src={logoEspemo} 
-            alt="ESPEMO Logo"
-            height={{ base: "36px", md: "60px" }}
-            mr={3}
-            className="espemo-logo"
-            display="block"
-          />
-          
-          <Text
-            display={displayTitle}
-            fontSize={{ base: "md", sm: "lg" }}
-            fontWeight="bold"
-            color="inherit"
+      if (adminIds.length === 0) {
+        throw new Error("No se encontraron administradores para enviar el reporte");
+      }
+      
+      // Enviar notificación a todos los administradores
+      await enviarNotificacionMasiva(
+        adminIds,
+        'sistema',
+        `Reporte de error/sugerencia: ${reportMessage.substring(0, 50)}${reportMessage.length > 50 ? '...' : ''}`,
+        'reporte',
+        'error_reporte',
+        '/admin/reportes'  // Ruta donde se podrían ver todos los reportes
+      );
+      
+      // También guardar el reporte en una colección dedicada
+      await addDoc(collection(db, 'reportes_errores'), {
+        mensaje: reportMessage,
+        usuario: {
+          id: userProfile?.uid,
+          nombre: `${userProfile?.nombre} ${userProfile?.apellidos || ''}`,
+          email: userProfile?.email
+        },
+        ruta: window.location.pathname,
+        fechaCreacion: Timestamp.now(),
+        estado: "pendiente"
+      });
+      
+      toast({
+        title: "Reporte enviado",
+        description: "Gracias por ayudarnos a mejorar el sistema",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      setReportMessage('');
+      setIsReportModalOpen(false);
+    } catch (error) {
+      console.error("Error al enviar reporte:", error);
+      toast({
+        title: "Error al enviar",
+        description: "No se pudo enviar tu reporte. Inténtalo más tarde.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Banner de proyecto en construcción - Ahora colocado ANTES del header */}
+      <Box 
+        position="relative"
+        width="100%"
+        bg="red.600" 
+        color="white"
+        py={2}
+        px={4}
+        zIndex={2}
+        boxShadow="md"
+      >
+        <Flex 
+          justify="space-between" 
+          align="center"
+          direction={{ base: "column", md: "row" }}
+          gap={{ base: 2, md: 0 }}
+        >
+          <HStack spacing={2}>
+            <Icon as={FiAlertTriangle} boxSize={5} />
+            <Text fontWeight="bold">
+              ¡Proyecto bajo construcción!<br />
+              Pueden aparecer errores o funcionalidades incompletas.
+            </Text>
+          </HStack>
+          <Button 
+            size="sm" 
+            colorScheme="whiteAlpha" 
+            onClick={handleReporteError}
+            rightIcon={<FiAlertTriangle />}
           >
-            S.E. ESPEMO
-          </Text>
-        </Box>
-        
-        {/* Icono Home para dashboard - visible en pantallas grandes */}
-        <Tooltip label="Dashboard" placement="bottom">
+            Reportar error o sugerencia
+          </Button>
+        </Flex>
+      </Box>
+      
+      {/* Header principal ahora debajo del banner */}
+      <Flex
+        as="header"
+        align="center"
+        justify="space-between"
+        w="100%"
+        px={4}
+        py={{ base: 2, md: 4 }}
+        bg={bgColor}
+        borderBottomWidth="1px"
+        borderColor={borderColor}
+        position="sticky"
+        top={0}
+        zIndex={1}
+        minH={{ base: "60px", md: "70px" }}
+      >
+        {/* Izquierda: Botón para sidebar móvil, logo y título */}
+        <Flex align="center">
+          {/* Botón de menú en móvil */}
           <IconButton
-            as={RouterLink}
-            to={dashboardPath}
+            ref={btnRef}
+            display={{ base: "flex", lg: "none" }}
+            onClick={onOpen}
             variant="ghost"
-            aria-label="Dashboard"
-            icon={<Icon as={FiHome} boxSize={5} />}
-            ml={4}
-            display={{ base: "none", lg: "flex" }}
+            aria-label="Abrir menú"
+            icon={<HamburgerIcon />}
+            size="md"
+            mr={2}
           />
-        </Tooltip>
         
-        {/* Navegación horizontal para pantallas grandes */}
-        <HStack spacing={4} ml={6} display={{ base: "none", lg: "flex" }}>
-          <Link as={RouterLink} to="/activities" _hover={{ textDecoration: 'none' }}>
-            <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Actividades</Text>
-          </Link>
-          <Link as={RouterLink} to="/activities/calendario" _hover={{ textDecoration: 'none' }}>
-            <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Calendario</Text>
-          </Link>
-          {(userProfile?.rol === 'admin' || userProfile?.rol === 'vocal') && (
-            <Link as={RouterLink} to="/material" _hover={{ textDecoration: 'none' }}>
-              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Material</Text>
+          {/* Logo y título - ahora redirigen al dashboard específico */}
+          <Box as={RouterLink} to={dashboardPath} display="flex" alignItems="center">
+            <Image 
+              src={logoEspemo} 
+              alt="ESPEMO Logo"
+              height={{ base: "36px", md: "60px" }}
+              mr={3}
+              className="espemo-logo"
+              display="block"
+            />
+            
+            <Text
+              display={displayTitle}
+              fontSize={{ base: "md", sm: "lg" }}
+              fontWeight="bold"
+              color="inherit"
+            >
+              S.E. ESPEMO
+            </Text>
+          </Box>
+          
+          {/* Icono Home para dashboard - visible en pantallas grandes */}
+          <Tooltip label="Dashboard" placement="bottom">
+            <IconButton
+              as={RouterLink}
+              to={dashboardPath}
+              variant="ghost"
+              aria-label="Dashboard"
+              icon={<Icon as={FiHome} boxSize={5} />}
+              ml={4}
+              display={{ base: "none", lg: "flex" }}
+            />
+          </Tooltip>
+          
+          {/* Navegación horizontal para pantallas grandes */}
+          <HStack spacing={4} ml={6} display={{ base: "none", lg: "flex" }}>
+            <Link as={RouterLink} to="/activities" _hover={{ textDecoration: 'none' }}>
+              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Actividades</Text>
             </Link>
-          )}
-          {userProfile?.rol !== 'invitado' && (
-            <Link as={RouterLink} to="/mis-prestamos" _hover={{ textDecoration: 'none' }}>
-              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Mis Préstamos</Text>
+            <Link as={RouterLink} to="/activities/calendario" _hover={{ textDecoration: 'none' }}>
+              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Calendario</Text>
             </Link>
-          )}
+            {(userProfile?.rol === 'admin' || userProfile?.rol === 'vocal') && (
+              <Link as={RouterLink} to="/material" _hover={{ textDecoration: 'none' }}>
+                <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Material</Text>
+              </Link>
+            )}
+            {userProfile?.rol !== 'invitado' && (
+              <Link as={RouterLink} to="/mis-prestamos" _hover={{ textDecoration: 'none' }}>
+                <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Mis Préstamos</Text>
+              </Link>
+            )}
+          </HStack>
+          
+          {/* Contenido adicional (personalizado) */}
+          {children}
+        </Flex>
+        
+        <Spacer />
+        
+        {/* Derecha: Notificaciones y menú de usuario */}
+        <HStack spacing={{ base: 2, md: 4 }}>
+          {/* Botón de notificaciones */}
+          <Box>
+            <Popover
+              isOpen={notificacionesOpen}
+              onClose={() => setNotificacionesOpen(false)}
+              placement="bottom-end"
+              closeOnBlur={true}
+            >
+              <PopoverTrigger>
+                <Box>
+                  <NotificacionBadge 
+                    onClick={() => setNotificacionesOpen(!notificacionesOpen)}
+                    iconSize={{ base: "24px", md: "20px" }}
+                    count={notificacionesNoLeidas}
+                  />
+                </Box>
+              </PopoverTrigger>
+              <PopoverContent width="400px" maxW="90vw">
+                <PopoverBody p={0}>
+                  <NotificacionPanel />
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
+          </Box>
+          
+          {/* Perfil de usuario - mostrando avatar y opciones */}
+          <Menu placement="bottom-end">
+            <MenuButton>
+              <Avatar 
+                size="sm" 
+                name={`${userProfile?.nombre} ${userProfile?.apellidos}`}
+                src={userProfile?.avatarUrl} 
+                cursor="pointer"
+              />
+            </MenuButton>
+            <MenuList>
+              <Box px={4} py={3} borderBottomWidth="1px" borderColor={borderColor}>
+                <Text fontWeight="medium">{userProfile?.nombre || 'Usuario'}</Text>
+                <Text fontSize="sm" color="gray.600">{userProfile?.email}</Text>
+              </Box>
+              <MenuItem as={RouterLink} to="/profile" icon={<Icon as={FiUser} />}>
+                Mi Perfil
+              </MenuItem>
+              <MenuItem onClick={logout} icon={<Icon as={FiLogOut} />}>
+                Cerrar Sesión
+              </MenuItem>
+            </MenuList>
+          </Menu>
         </HStack>
         
-        {/* Contenido adicional (personalizado) */}
-        {children}
+        {/* Drawer para el menú en móvil */}
+        <Drawer
+          isOpen={isOpen}
+          placement="left"
+          onClose={onClose}
+          finalFocusRef={btnRef}
+        >
+          <DrawerOverlay />
+          <DrawerContent>
+            <DrawerCloseButton />
+            <DrawerBody p={0} mt={8}>
+              <AppNavigationMenu 
+                userRole={userProfile?.rol ?? 'invitado'} 
+                onItemClick={onClose} 
+              />
+            </DrawerBody>
+          </DrawerContent>
+        </Drawer>
       </Flex>
       
-      <Spacer />
-      
-      {/* Derecha: Notificaciones y menú de usuario */}
-      <HStack spacing={{ base: 2, md: 4 }}>
-        {/* Botón de notificaciones */}
-        <Box>
-          <Popover
-            isOpen={notificacionesOpen}
-            onClose={() => setNotificacionesOpen(false)}
-            placement="bottom-end"
-            closeOnBlur={true}
-          >
-            <PopoverTrigger>
-              <Box>
-                <NotificacionBadge 
-                  onClick={() => setNotificacionesOpen(!notificacionesOpen)}
-                  iconSize={{ base: "24px", md: "20px" }}
-                  count={notificacionesNoLeidas}
-                />
-              </Box>
-            </PopoverTrigger>
-            <PopoverContent width="400px" maxW="90vw">
-              <PopoverBody p={0}>
-                <NotificacionPanel />
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
-        </Box>
-        
-        {/* Perfil de usuario - mostrando avatar y opciones */}
-        <Menu placement="bottom-end">
-          <MenuButton>
-            <Avatar 
-              size="sm" 
-              name={`${userProfile?.nombre} ${userProfile?.apellidos}`}
-              src={userProfile?.avatarUrl} 
-              cursor="pointer"
-            />
-          </MenuButton>
-          <MenuList>
-            <Box px={4} py={3} borderBottomWidth="1px" borderColor={borderColor}>
-              <Text fontWeight="medium">{userProfile?.nombre || 'Usuario'}</Text>
-              <Text fontSize="sm" color="gray.600">{userProfile?.email}</Text>
-            </Box>
-            <MenuItem as={RouterLink} to="/profile" icon={<Icon as={FiUser} />}>
-              Mi Perfil
-            </MenuItem>
-            <MenuItem onClick={logout} icon={<Icon as={FiLogOut} />}>
-              Cerrar Sesión
-            </MenuItem>
-          </MenuList>
-        </Menu>
-      </HStack>
-      
-      {/* Drawer para el menú en móvil */}
-      <Drawer
-        isOpen={isOpen}
-        placement="left"
-        onClose={onClose}
-        finalFocusRef={btnRef}
-      >
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerBody p={0} mt={8}>
-            <AppNavigationMenu 
-              userRole={userProfile?.rol ?? 'invitado'} 
-              onItemClick={onClose} 
-            />
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
-    </Flex>
+      {/* Modal para reportar errores */}
+      <Modal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Reportar error o sugerencia</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <FormControl>
+              <FormLabel>Describe el problema o sugerencia:</FormLabel>
+              <Textarea
+                value={reportMessage}
+                onChange={(e) => setReportMessage(e.target.value)}
+                placeholder="Explica lo que ocurrió o tu sugerencia para mejorar..."
+                size="md"
+                rows={5}
+              />
+              <FormHelperText>
+                Tu reporte será enviado al administrador del sistema para su revisión.
+              </FormHelperText>
+            </FormControl>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button 
+              colorScheme="brand" 
+              mr={3} 
+              onClick={sendReport}
+              isLoading={isSending}
+              loadingText="Enviando"
+            >
+              Enviar reporte
+            </Button>
+            <Button onClick={() => setIsReportModalOpen(false)}>Cancelar</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
   );
 };
 

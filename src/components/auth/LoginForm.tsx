@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import messages from '../../constants/messages';
-import { validateEmail, validatePassword } from '../../utils/validation';
+import { validateEmail, validatePassword } from '../../utils/validationUtils';
 import { navigateByUserRole } from '../../utils/navigation';
 import { EmailField, PasswordField } from '../common/FormFields';
 import { useFormValidation } from '../../hooks/useFormValidation';

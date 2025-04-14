@@ -1,26 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Button, Stack, Text, Grid, GridItem, Flex,
-  Heading, Card, CardBody, Checkbox
+  Heading, Card, CardBody, Checkbox, Input, InputGroup, InputLeftElement, Divider,
+  useDisclosure, useColorModeValue
 } from '@chakra-ui/react';
 import { listarUsuarios } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
 import { Actividad } from '../../types/actividad';
 
+// Actualizar la interfaz ParticipantesEditorProps
 interface ParticipantesEditorProps {
   actividad: Actividad;
   onSave: (participanteIds: string[]) => void;
   onCancel: () => void;
+  mostrarBotones?: boolean; // Nueva propiedad opcional
 }
 
 const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({ 
   actividad, 
   onSave, 
-  onCancel 
+  onCancel,
+  mostrarBotones = true // Valor predeterminado para la nueva propiedad
 }) => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>(actividad.participanteIds || []);
   const [loading, setLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  const cardBg = useColorModeValue("white", "gray.700");
+  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const inputBg = useColorModeValue("white", "gray.700");
   
   useEffect(() => {
     const fetchUsuarios = async () => {
@@ -54,11 +63,21 @@ const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({
     <Box>
       <Text mb={4}>Selecciona los participantes de esta actividad:</Text>
       
+      {/* Input de búsqueda */}
+      <Input 
+        placeholder="Buscar por nombre o email..." 
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        bg={inputBg}
+        borderColor={borderColor}
+        mb={4}
+      />
+      
       {/* Lista de usuarios con checkboxes */}
       <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4} mb={6}>
         {usuarios.map(usuario => (
           <GridItem key={usuario.uid}>
-            <Card variant="outline">
+            <Card variant="outline" bg={cardBg} borderColor={borderColor}>
               <CardBody>
                 <Checkbox 
                   isChecked={selectedIds.includes(usuario.uid)} 
@@ -74,14 +93,17 @@ const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({
         ))}
       </Grid>
       
-      <Stack direction="row" spacing={4} justify="flex-end">
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button colorScheme="brand" onClick={handleSubmit}>
-          Guardar Participantes ({selectedIds.length})
-        </Button>
-      </Stack>
+      {/* Renderizado condicional de los botones */}
+      {mostrarBotones !== false && (
+        <Stack direction="row" spacing={4} justify="flex-end">
+          <Button variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button colorScheme="brand" onClick={handleSubmit}>
+            Guardar Participantes ({selectedIds.length})
+          </Button>
+        </Stack>
+      )}
     </Box>
   );
 };

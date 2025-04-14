@@ -81,8 +81,29 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   const actividadActiva = actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada';
 
   return (
-    <Card mb={4} p={variant === 'simple' ? 2 : 4}>
-      <CardBody p={variant === 'simple' ? 2 : 4}>
+    <Card 
+      position="relative" 
+      mb={4} 
+      overflow="hidden" 
+      variant={variant === 'simple' ? 'outline' : 'elevated'}
+      _hover={{ boxShadow: 'md' }}
+      borderLeft="4px solid"
+      borderColor={
+        esResponsable ? "purple.500" : 
+        esParticipante ? "blue.400" : 
+        "transparent"
+      }
+      height={variant === 'complete' ? { base: "auto", md: "220px" } : "auto"}
+      display="flex"
+      flexDirection="column"
+    >
+      <CardBody 
+        p={variant === 'simple' ? 2 : 4}
+        display="flex"
+        flexDirection="column"
+        justifyContent="space-between"
+        height="100%"
+      >
         <Flex justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
             <Heading size={variant === 'simple' ? 'xs' : 'sm'}>
@@ -136,8 +157,32 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
           <Text fontSize={variant === 'simple' ? 'xs' : 'sm'} mt={2}>Lugar: No especificado</Text>
         )}
         
-        {mostrarDescripcion && actividad.descripcion && (
-          <Text fontSize={variant === 'simple' ? 'xs' : 'sm'} mt={2} noOfLines={2}>{actividad.descripcion}</Text>
+        {mostrarDescripcion && (
+          <Box 
+            minHeight={variant === 'simple' ? "40px" : "50px"} 
+            display="flex" 
+            flexDirection="column" 
+            justifyContent="flex-start"
+            mt={2}
+          >
+            {actividad.descripcion ? (
+              <Text 
+                fontSize={variant === 'simple' ? 'xs' : 'sm'} 
+                noOfLines={2}
+                overflow="hidden"
+              >
+                {actividad.descripcion}
+              </Text>
+            ) : (
+              <Text 
+                fontSize={variant === 'simple' ? 'xs' : 'sm'} 
+                color="gray.400"
+                fontStyle="italic"
+              >
+                Sin descripción
+              </Text>
+            )}
+          </Box>
         )}
         
         {mostrarBotones && (
