@@ -27,7 +27,8 @@ import {
   FiUsers, 
   FiBox, 
   FiSettings, 
-  FiBell
+  FiBell,
+  FiAlertTriangle
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -191,6 +192,37 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
             </Link>
           );
         })}
+        {userRole === 'admin' && (
+          <>
+            {/* Otros enlaces de administrador */}
+            <Link 
+              as={RouterLink} 
+              to="/admin/reportes" 
+              onClick={onItemClick}
+              _hover={{ textDecoration: 'none' }}
+            >
+              <Tooltip label="Reportes de errores" placement="right" hasArrow>
+                <Box 
+                  py={3}
+                  px={4}
+                  bg="transparent"
+                  color="inherit"
+                  _hover={{ 
+                    bg: 'gray.100',
+                  }}
+                  transition="all 0.2s"
+                  display="flex"
+                  alignItems="center"
+                >
+                  <Icon as={FiAlertTriangle} boxSize={5} mr={3} />
+                  <Text fontWeight="normal">
+                    Reportes de errores
+                  </Text>
+                </Box>
+              </Tooltip>
+            </Link>
+          </>
+        )}
       </VStack>
     </VStack>
   );

@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type EstadoPrestamo = 'solicitado' | 'aprobado' | 'rechazado' | 'en_uso' | 'devuelto' | 'expirado' | 'pendiente' | 'perdido' | 'estropeado';
+export type EstadoPrestamo = 'solicitado' | 'aprobado' | 'rechazado' | 'en_uso' | 'devuelto' | 'expirado' | 'pendiente' | 'perdido' | 'estropeado' | 'cancelado';
 
 export interface Prestamo {
   id?: string;

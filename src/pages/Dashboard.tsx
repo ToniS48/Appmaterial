@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import { 
   FiUsers, FiPackage, FiCalendar, FiBox, FiBell, FiSettings, 
-  FiClipboard
+  FiClipboard, FiAlertTriangle
 } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
 import DashboardLayout from '../components/layouts/DashboardLayout';
@@ -175,6 +175,15 @@ const Dashboard: React.FC = () => {
             "/admin/settings", 
             "Ajustes generales de la aplicación", 
             "gray"
+          )}
+          
+          {/* Reportes - solo admin */}
+          {isAdmin && renderAccessCard(
+            "Reportes", 
+            FiAlertTriangle, 
+            "/admin/reportes", 
+            "Gestiona reportes de errores y sugerencias", 
+            "red"
           )}
           
           {/* Perfil - para todos */}

@@ -6,7 +6,8 @@ import { Usuario } from '../types/usuario';
 import { actividadCache } from './actividadCache';
 import { crearPrestamo, actualizarPrestamo, registrarDevolucion, obtenerPrestamosPorActividad } from './prestamoService';
 import { enviarNotificacionMasiva } from './notificacionService'; // Importamos el servicio de notificaciones
-import { listarUsuarios } from './usuarioService'; // Importamos el servicio de usuarios
+import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService'; // Importamos el servicio de usuarios
+import { obtenerMaterial } from './materialService'; // Importamos el servicio de materiales
 import messages from '../constants/messages';
 
 // Crear una nueva actividad
@@ -35,13 +36,8 @@ export const crearActividad = async (actividadData: Omit<Actividad, 'id' | 'fech
       ...dataToSave
     };
     
-    // Crear préstamos automáticamente para los materiales seleccionados
+    // La función ya tiene validaciones internas, solo necesitamos llamarla una vez
     await crearPrestamosParaActividad(nuevaActividad);
-    
-    // Si la actividad necesita material, creamos los préstamos correspondientes
-    if (nuevaActividad.necesidadMaterial && nuevaActividad.materiales && nuevaActividad.materiales.length > 0) {
-      await crearPrestamosParaActividad(nuevaActividad);
-    }
     
     // Enviar notificaciones a administradores y vocales
     await enviarNotificacionesNuevaActividad(nuevaActividad);
@@ -80,12 +76,6 @@ export const actualizarActividad = async (id: string, actividadData: Partial<Act
     
     // Actualizar préstamos automáticamente
     await crearPrestamosParaActividad(actividadActualizada);
-    
-    // Si la actividad necesita material, creamos los préstamos correspondientes
-    // Solo si hay campos de material en la actualización
-    if (actividadData.necesidadMaterial && actividadData.materiales && actividadData.materiales.length > 0) {
-      await crearPrestamosParaActividad(actividadActualizada);
-    }
     
     return actividadActualizada;
   } catch (error) {
@@ -375,98 +365,113 @@ export const unirseActividad = async (actividadId: string, usuarioId: string): P
     handleFirebaseError(error, 'Error al unirse a la actividad');
     throw error;
   }
-};
+}
 
 // Función auxiliar para crear o actualizar préstamos asociados a una actividad
 async function crearPrestamosParaActividad(actividad: Actividad): Promise<void> {
+  if (!actividad.id) {
+    console.warn('No se pueden crear préstamos para una actividad sin ID');
+    return;
+  }
+  
   try {
     // Solo procedemos si hay un responsable de material y materiales asignados
     if (!actividad.responsableMaterialId || !actividad.materiales || actividad.materiales.length === 0) {
+      // Verificar si había préstamos previos que necesitan cancelarse
+      const prestamosExistentes = await obtenerPrestamosPorActividad(actividad.id);
+      
+      // Si hay préstamos existentes pero ya no hay materiales, cancelarlos
+      if (prestamosExistentes.length > 0) {
+        for (const prestamo of prestamosExistentes) {
+          await actualizarPrestamo(prestamo.id as string, {
+            estado: 'cancelado',
+            observaciones: `Cancelado automáticamente porque la actividad ${actividad.id} ya no requiere material`
+          });
+        }
+      }
       return;
     }
-
-    console.log(messages.actividades.materiales.procesandoPrestamos.replace('{nombre}', actividad.nombre).replace('{id}', actividad.id as string));
-    console.log(messages.actividades.materiales.materialesEnActividad.replace('{cantidad}', actividad.materiales.length.toString()));
-
-    // Primero, obtenemos los préstamos existentes para esta actividad
+    
+    // Obtener préstamos existentes para la actividad
     const prestamosExistentes = await obtenerPrestamosPorActividad(actividad.id as string);
     
-    console.log(messages.actividades.materiales.prestamosExistentes.replace('{cantidad}', prestamosExistentes.length.toString()));
-
-    // Creamos un mapa de los préstamos existentes por materialId para búsqueda rápida
+    // Crear mapa para búsqueda eficiente
     const mapaPrestamosPorMaterial = new Map();
     prestamosExistentes.forEach(prestamo => {
       mapaPrestamosPorMaterial.set(prestamo.materialId, prestamo);
     });
     
-    // Para cada material asignado a la actividad
-    for (const material of actividad.materiales) {
-      const prestamoExistente = mapaPrestamosPorMaterial.get(material.materialId);
-      
-      if (prestamoExistente) {
-        // Actualizar préstamo existente si hay cambios
-        if (prestamoExistente.cantidadPrestada !== material.cantidad || 
-            prestamoExistente.usuarioId !== actividad.responsableMaterialId) {
-          
-          console.log(messages.actividades.materiales.actualizandoPrestamo
-            .replace('{nombre}', material.nombre)
-            .replace('{cantidad}', material.cantidad.toString()));
-          
-          await actualizarPrestamo(prestamoExistente.id as string, {
-            cantidadPrestada: material.cantidad,
-            usuarioId: actividad.responsableMaterialId,
-            nombreUsuario: '', // Se completará en el servicio de préstamos
-            fechaDevolucionPrevista: actividad.fechaFin instanceof Date 
-              ? actividad.fechaFin 
-              : actividad.fechaFin.toDate()
-          });
-        }
-      } else {
-        // Crear nuevo préstamo
-        console.log(messages.actividades.materiales.creandoPrestamo
-          .replace('{nombre}', material.nombre)
-          .replace('{cantidad}', material.cantidad.toString()));
-        
-        await crearPrestamo({
-          materialId: material.materialId,
-          nombreMaterial: material.nombre,
-          usuarioId: actividad.responsableMaterialId,
-          nombreUsuario: '', // Se completará en el servicio de préstamos
-          actividadId: actividad.id as string,
-          nombreActividad: actividad.nombre,
-          fechaPrestamo: new Date(),
-          fechaDevolucionPrevista: actividad.fechaFin instanceof Date 
-            ? actividad.fechaFin 
-            : actividad.fechaFin.toDate(),
-          estado: 'en_uso',
-          cantidadPrestada: material.cantidad,
-          registradoPor: actividad.creadorId
+    // Crear mapa de materiales actuales para detectar préstamos que ya no son necesarios
+    const materialesActuales = new Set();
+    actividad.materiales.forEach(material => {
+      materialesActuales.add(material.materialId);
+    });
+    
+    // Verificar préstamos a cancelar (los que ya no están en la lista de materiales)
+    for (const prestamo of prestamosExistentes) {
+      if (!materialesActuales.has(prestamo.materialId)) {
+        await actualizarPrestamo(prestamo.id as string, {
+          estado: 'devuelto',
+          observaciones: `Devuelto automáticamente porque el material ya no está asignado a la actividad ${actividad.id}`
         });
       }
     }
     
-    // Enviar notificación para materiales que ya no están en la actividad
-    for (const prestamo of prestamosExistentes) {
-      // Si este material ya no está en la lista actual
-      if (!actividad.materiales.some(m => m.materialId === prestamo.materialId) && prestamo.estado !== 'devuelto') {
-        console.log(messages.actividades.materiales.notificandoMaterial.replace('{nombre}', prestamo.nombreMaterial));
+    // Para cada material en la actividad
+    for (const material of actividad.materiales) {
+      const prestamoExistente = mapaPrestamosPorMaterial.get(material.materialId);
+      
+      if (prestamoExistente) {
+        // Actualizar préstamo si es necesario
+        if (prestamoExistente.cantidadPrestada !== material.cantidad || 
+            prestamoExistente.usuarioId !== actividad.responsableMaterialId) {
+          
+          await actualizarPrestamo(prestamoExistente.id as string, {
+            cantidadPrestada: material.cantidad,
+            usuarioId: actividad.responsableMaterialId
+          });
+        }
+      } else {
+        // Intentar obtener información del usuario para el nombre
+        let nombreUsuario = '';
+        try {
+          const usuario = await obtenerUsuario(actividad.responsableMaterialId);
+          nombreUsuario = usuario ? `${usuario.nombre} ${usuario.apellidos}` : '';
+        } catch (error) {
+          console.error('Error al obtener datos del usuario:', error);
+        }
         
-        // Enviar notificación al responsable para que devuelva el material
-        await enviarNotificacionMasiva(
-          [prestamo.usuarioId],
-          'recordatorio',
-          messages.actividades.service.notifications.materialNoAsignado
-            .replace('{nombre}', prestamo.nombreMaterial)
-            .replace('{actividad}', actividad.nombre),
-          prestamo.id,
-          'prestamo',
-          `/devolucion-material` // Enlace a la página de devolución
-        );
+        // Obtener información del material
+        let nombreMaterial = material.nombre;
+        if (!nombreMaterial) {
+          try {
+            const materialInfo = await obtenerMaterial(material.materialId);
+            if (materialInfo) {
+              nombreMaterial = materialInfo.nombre;
+            }
+          } catch (error) {
+            console.error('Error al obtener datos del material:', error);
+          }
+        }
+        
+        // Crear nuevo préstamo
+        await crearPrestamo({
+          materialId: material.materialId,
+          nombreMaterial,
+          cantidadPrestada: material.cantidad,
+          usuarioId: actividad.responsableMaterialId,
+          nombreUsuario,
+          actividadId: actividad.id as string,
+          nombreActividad: actividad.nombre,
+          fechaPrestamo: new Date(),
+          fechaDevolucionPrevista: actividad.fechaFin,
+          estado: 'en_uso'
+        });
       }
     }
   } catch (error) {
-    handleFirebaseError(error, messages.actividades.service.errors.crearPrestamos);
-    throw error;
+    console.error('Error al gestionar préstamos para actividad:', error);
+    throw new Error(`No se pudieron gestionar los préstamos: ${error}`);
   }
 }
 
