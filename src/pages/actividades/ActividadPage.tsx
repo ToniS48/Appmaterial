@@ -4,23 +4,25 @@ import {
   Box, Spinner, Center, Alert, AlertIcon, Heading, Text, Flex, 
   Badge, Divider, List, ListItem, Tab, Tabs, TabList, TabPanel, 
   TabPanels, Grid, GridItem, Button, Stack, HStack, VStack, Link,
-  Card, CardBody, IconButton, Tooltip, useToast
+  Card, CardBody, IconButton, Tooltip, useToast, AlertDialog, AlertDialogOverlay, 
+  AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter, Icon
 } from '@chakra-ui/react';
-import { CalendarIcon, ExternalLinkIcon, DownloadIcon, LinkIcon } from '@chakra-ui/icons';
-import { FiCalendar, FiUsers, FiPackage, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit } from 'react-icons/fi';
+import { CalendarIcon, ExternalLinkIcon, DownloadIcon, LinkIcon, CheckIcon } from '@chakra-ui/icons';
+import { FiCalendar, FiUsers, FiPackage, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave, FiX } from 'react-icons/fi';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import ActividadDetalle from '../../components/actividades/ActividadDetalle';
 import MaterialEditor from '../../components/actividades/MaterialEditor';
 import InfoEditor from '../../components/actividades/InfoEditor';
 import ParticipantesEditor from '../../components/actividades/ParticipantesEditor';
 import EnlacesEditor from '../../components/actividades/EnlacesEditor';
-import { obtenerActividad, obtenerComentariosActividad, actualizarActividad } from '../../services/actividadService';
+import { obtenerActividad, obtenerComentariosActividad, actualizarActividad, cancelarActividad } from '../../services/actividadService';
 import { obtenerPrestamosPorActividad } from '../../services/prestamoService';
 import { listarUsuariosPorIds } from '../../services/usuarioService';
-import { Actividad } from '../../types/actividad';
+import { Actividad, EstadoActividad } from '../../types/actividad';
 import { Prestamo } from '../../types/prestamo';
 import { Usuario } from '../../types/usuario';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, toDate, toTimestamp, normalizarFecha, compareDates, determinarEstadoActividad } from '../../utils/dateUtils';
+import { validateActividadEnlaces } from '../../utils/actividadUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { Timestamp } from 'firebase/firestore';
 
@@ -62,6 +64,41 @@ const extractWikilocTrackName = (url: string): string => {
 };
 
 /**
+ * Función para determinar estado automático de una actividad
+ */
+const determinarEstadoAutomatico = (actividad: Actividad): EstadoActividad => {
+  // Si ya está cancelada, mantener ese estado
+  if (actividad.estado === 'cancelada') {
+    return 'cancelada';
+  }
+
+  const hoy = new Date();
+  const fechaInicio = toDate(actividad.fechaInicio);
+  const fechaFin = toDate(actividad.fechaFin);
+  
+  if (!fechaInicio || !fechaFin) return 'planificada';
+  
+  const hoyNormalizado = normalizarFecha(hoy);
+  const inicioNormalizado = normalizarFecha(fechaInicio);
+  const finNormalizado = normalizarFecha(fechaFin);
+  
+  // Verificar que todas las fechas se hayan normalizado correctamente
+  if (!hoyNormalizado || !inicioNormalizado || !finNormalizado) return 'planificada';
+  
+  // Usar operador de coalescencia nula para manejar posibles valores nulos
+  if ((compareDates(hoyNormalizado, finNormalizado) ?? 0) > 0) {
+    // Hoy es después de la fecha de fin
+    return 'finalizada';
+  } else if ((compareDates(hoyNormalizado, inicioNormalizado) ?? 0) >= 0) {
+    // Hoy es igual o después de la fecha de inicio
+    return 'en_curso';
+  } else {
+    // Hoy es antes de la fecha de inicio
+    return 'planificada';
+  }
+};
+
+/**
  * Página dedicada para mostrar todos los datos referentes a una actividad
  */
 const ActividadPage: React.FC = () => {
@@ -78,6 +115,19 @@ const ActividadPage: React.FC = () => {
   const [editingInfo, setEditingInfo] = useState<boolean>(false);
   const [editingParticipantes, setEditingParticipantes] = useState<boolean>(false);
   const [editingEnlaces, setEditingEnlaces] = useState<boolean>(false);
+  const [addedToCalendar, setAddedToCalendar] = useState<boolean>(false);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [formDataInfo, setFormDataInfo] = useState<Partial<Actividad> | null>(null);
+  const [selectedParticipantes, setSelectedParticipantes] = useState<string[] | null>(null);
+  const [materialesSeleccionados, setMaterialesSeleccionados] = useState<Array<{
+    materialId: string;
+    nombre: string;
+    cantidad: number;
+  }> | null>(null);
+  const [enlacesData, setEnlacesData] = useState<Partial<Actividad> | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   // Extraer la función fuera del useEffect, después de las definiciones de estados
   const cargarDatos = async () => {
@@ -116,6 +166,21 @@ const ActividadPage: React.FC = () => {
     cargarDatos();
   }, [id]);
 
+  // Verificar si ya se añadió al calendario (en useEffect)
+  useEffect(() => {
+    if (id) {
+      const addedActivities = localStorage.getItem('calendarActivities');
+      if (addedActivities) {
+        try {
+          const activitiesArray = JSON.parse(addedActivities);
+          setAddedToCalendar(activitiesArray.includes(id));
+        } catch (e) {
+          console.error('Error parsing calendar activities from localStorage', e);
+        }
+      }
+    }
+  }, [id]);
+
   // Función para determinar si el usuario actual es responsable
   const esResponsable = () => {
     if (!userProfile || !actividad) return false;
@@ -138,6 +203,141 @@ const ActividadPage: React.FC = () => {
     }
   };
 
+  // Añadir esta función auxiliar después de getEstadoColor
+  // Sistema común para manejar actualizaciones
+  const handleActualizacionActividad = async (
+    id: string,
+    dataToUpdate: Partial<Actividad>,
+    successMessage: string,
+    errorMessage: string,
+    callback: () => void
+  ) => {
+    try {
+      // Verificar si son enlaces para usar validación específica
+      if ('enlacesWikiloc' in dataToUpdate || 'enlacesTopografias' in dataToUpdate || 
+          'enlacesDrive' in dataToUpdate || 'enlacesWeb' in dataToUpdate) {
+        const enlacesError = validateActividadEnlaces(dataToUpdate);
+        if (enlacesError) {
+          toast({
+            title: "Error en enlaces",
+            description: enlacesError,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        }
+      }
+      
+      // Si el update incluye fechas y la actividad no está cancelada, actualizar el estado automáticamente
+      if (('fechaInicio' in dataToUpdate || 'fechaFin' in dataToUpdate) && actividad?.estado !== 'cancelada') {
+        const fechaInicio = 'fechaInicio' in dataToUpdate ? 
+          dataToUpdate.fechaInicio : actividad?.fechaInicio;
+        const fechaFin = 'fechaFin' in dataToUpdate ? 
+          dataToUpdate.fechaFin : actividad?.fechaFin;
+        
+        if (fechaInicio && fechaFin) {
+          dataToUpdate.estado = determinarEstadoActividad(fechaInicio, fechaFin, actividad?.estado);
+        }
+      }
+
+      // Preprocesar enlaces para asegurar arrays
+      if ('enlacesWikiloc' in dataToUpdate && !dataToUpdate.enlacesWikiloc) {
+        dataToUpdate.enlacesWikiloc = [];
+      }
+      if ('enlacesTopografias' in dataToUpdate && !dataToUpdate.enlacesTopografias) {
+        dataToUpdate.enlacesTopografias = [];
+      }
+      if ('enlacesDrive' in dataToUpdate && !dataToUpdate.enlacesDrive) {
+        dataToUpdate.enlacesDrive = [];
+      }
+      if ('enlacesWeb' in dataToUpdate && !dataToUpdate.enlacesWeb) {
+        dataToUpdate.enlacesWeb = [];
+      }
+
+      // Si se actualizan enlaces, regenerar el array enlaces para compatibilidad
+      if ('enlacesWikiloc' in dataToUpdate || 
+          'enlacesTopografias' in dataToUpdate || 
+          'enlacesDrive' in dataToUpdate || 
+          'enlacesWeb' in dataToUpdate) {
+        
+        // Combinar los datos actuales con los nuevos para enlaces
+        const enlacesWikiloc = dataToUpdate.enlacesWikiloc || actividad?.enlacesWikiloc || [];
+        const enlacesTopografias = dataToUpdate.enlacesTopografias || actividad?.enlacesTopografias || [];
+        const enlacesDrive = dataToUpdate.enlacesDrive || actividad?.enlacesDrive || [];
+        const enlacesWeb = dataToUpdate.enlacesWeb || actividad?.enlacesWeb || [];
+        
+        dataToUpdate.enlaces = [
+          ...enlacesWikiloc.map(e => e.url),
+          ...enlacesTopografias,
+          ...enlacesDrive,
+          ...enlacesWeb
+        ];
+      }
+      
+      dataToUpdate.fechaActualizacion = Timestamp.fromDate(new Date());
+      
+      const actividadActualizada = await actualizarActividad(id, dataToUpdate);
+      setActividad(actividadActualizada);
+      
+      toast({
+        title: "¡Éxito!",
+        description: successMessage,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      callback();
+    } catch (error) {
+      console.error("Error al actualizar actividad:", error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Función para cancelar actividad
+  const handleCancelActividad = async () => {
+    try {
+      setIsCancelling(true);
+      if (actividad?.id) {
+        await cancelarActividad(actividad.id as string);
+      } else {
+        throw new Error("La actividad no está disponible para cancelar.");
+      }
+      
+      toast({
+        title: "Actividad cancelada",
+        description: "La actividad ha sido cancelada correctamente",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // Recargar datos para reflejar el cambio de estado
+      await cargarDatos();
+      
+      // Cerrar el diálogo de confirmación
+      setIsConfirmOpen(false);
+    } catch (error) {
+      console.error("Error al cancelar actividad:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la actividad. Inténtalo de nuevo.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   // Calcular el total de enlaces
   const totalEnlaces = (
     (actividad?.enlacesWikiloc?.length || 0) + 
@@ -145,6 +345,20 @@ const ActividadPage: React.FC = () => {
     (actividad?.enlacesDrive?.length || 0) + 
     (actividad?.enlacesWeb?.length || 0)
   );
+
+  // Añadir esta función en el componente ActividadPage
+  const handleTabChange = (newTabIndex: number) => {
+    // Primero activamos el modo edición para la pestaña de destino
+    switch(newTabIndex) {
+      case 0: setEditingInfo(true); break;
+      case 1: setEditingParticipantes(true); break;
+      case 2: setEditingMaterial(true); break;
+      case 3: setEditingEnlaces(true); break;
+    }
+    
+    // Luego actualizamos el índice de la pestaña
+    setActiveTabIndex(newTabIndex);
+  };
 
   return (
     <DashboardLayout title={actividad?.nombre || "Detalles de actividad"}>
@@ -204,33 +418,81 @@ const ActividadPage: React.FC = () => {
                     )}
                   </Flex>
                   
-                  <Button 
-                    leftIcon={<CalendarIcon />}
-                    size="sm" 
-                    colorScheme="blue" 
-                    variant="outline" 
-                    mt={3}
-                    onClick={() => {
-                      // Lógica para añadir a Google Calendar
-                      // Reusando la función de ActividadDetalle
-                    }}
-                  >
-                    Añadir a Google Calendar
-                  </Button>
+                  {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
+                    <Button 
+                      leftIcon={<Icon as={FiX} />}
+                      size="sm" 
+                      colorScheme="red" 
+                      variant="outline" 
+                      mt={3}
+                      onClick={() => setIsConfirmOpen(true)}
+                    >
+                      Cancelar actividad
+                    </Button>
+                  )}
                 </Box>
               </Flex>
             </CardBody>
           </Card>
           
           {/* Información detallada en pestañas */}
-          <Tabs variant="enclosed" colorScheme="brand">
+          <Tabs 
+            variant="enclosed" 
+            colorScheme="brand"
+            index={activeTabIndex}
+            onChange={(index) => setActiveTabIndex(index)}
+            sx={{
+              '.chakra-tabs__tab[aria-selected=true]': {
+                bg: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500' para coincidir con el botón
+                color: 'white',
+                fontWeight: 'bold',
+                borderBottomColor: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
+                position: 'relative',
+                borderTopRadius: '10px',
+                _after: {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-2px',
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  bg: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
+                  borderRadius: '1px'
+                },
+                transform: 'translateY(-2px)',
+                boxShadow: 'sm'
+              },
+              '.chakra-tabs__tab:hover:not([aria-selected=true])': {
+                bg: 'rgba(147, 43, 113, 0.1)',  // Mantener el mismo efecto hover pero con color brand.500
+                color: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
+              },
+              '.chakra-tabs__tab-panel': {
+                borderTop: '2px solid',
+                borderColor: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
+                pt: 5
+              },
+              '.chakra-tabs__tab[aria-selected=true] .chakra-badge': {
+                bg: 'white',
+                color: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
+                opacity: 1
+              }
+            }}
+          >
             <TabList>
               <Tab><FiFileText style={{marginRight: '8px'}} /> Información</Tab>
               <Tab>
                 <Flex align="center">
                   <FiUsers style={{marginRight: '8px'}} /> 
                   Participantes
-                  <Badge ml={2} colorScheme="brand" borderRadius="full" fontSize="xs">
+                  <Badge 
+                    ml={2} 
+                    colorScheme="brand" 
+                    borderRadius="full" 
+                    fontSize="xs"
+                    opacity={1}  // Badge completamente opaco
+                    bg="brand.500"
+                    color="white"
+                  >
                     {participantes.length}
                   </Badge>
                 </Flex>
@@ -241,84 +503,47 @@ const ActividadPage: React.FC = () => {
                   <FiLink style={{marginRight: '8px'}} /> 
                   Enlaces
                   {totalEnlaces > 0 && (
-                    <Badge ml={2} colorScheme="brand" borderRadius="full" fontSize="xs">
+                    <Badge 
+                      ml={2} 
+                      colorScheme="brand" 
+                      borderRadius="full" 
+                      fontSize="xs"
+                      opacity={1}  // Badge completamente opaco
+                      bg="brand.500"
+                      color="white"
+                    >
                       {totalEnlaces}
                     </Badge>
                   )}
                 </Flex>
               </Tab>
-              {prestamos.length > 0 && (
-                <Tab>
-                  <Flex align="center">
-                    Préstamos
-                    <Badge ml={2} colorScheme="brand" borderRadius="full" fontSize="xs">
-                      {prestamos.length}
-                    </Badge>
-                  </Flex>
-                </Tab>
-              )}
             </TabList>
             
             <TabPanels>
               {/* Pestaña de Información */}
               <TabPanel>
-                <Flex justify="space-between" align="center" mb={4}>
-                  <Heading size="md">Información</Heading>
-                  {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
-                    <Button 
-                      size="sm"
-                      colorScheme="brand" 
-                      leftIcon={<FiEdit />}
-                      onClick={() => setEditingInfo(!editingInfo)}
-                    >
-                      {editingInfo ? 'Cancelar' : 'Editar información'}
-                    </Button>
-                  )}
-                </Flex>
-
                 {editingInfo ? (
                   <InfoEditor
                     actividad={actividad}
-                    onSave={async (data) => {
-                      try {
-                        await actualizarActividad(actividad.id as string, { 
-                          ...data,
-                          fechaActualizacion: Timestamp.fromDate(new Date())
-                        });
-                        toast({
-                          title: "Información actualizada",
-                          status: "success",
-                          duration: 3000,
-                        });
-                        cargarDatos(); // Recargar datos
-                        setEditingInfo(false);
-                      } catch (error) {
-                        toast({
-                          title: "Error al actualizar la información",
-                          status: "error",
-                          duration: 3000,
-                        });
-                      }
+                    onSave={(data) => {
+                      setFormDataInfo(data);
+                      handleActualizacionActividad(
+                        actividad.id as string,
+                        data,
+                        "Información actualizada correctamente",
+                        "Error al actualizar la información",
+                        () => setEditingInfo(false)
+                      );
                     }}
                     onCancel={() => setEditingInfo(false)}
+                    mostrarBotones={false}
                   />
                 ) : (
                   <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6}>
-                    {/* Descripción */}
-                    <GridItem colSpan={{ base: 1, md: 2 }}>
-                      <Card>
-                        <CardBody>
-                          <Heading size="md" mb={3}>Descripción</Heading>
-                          <Text>{actividad.descripcion || "Sin descripción disponible"}</Text>
-                        </CardBody>
-                      </Card>
-                    </GridItem>
-                    
-                    {/* Detalles */}
                     <GridItem>
                       <Card height="100%">
                         <CardBody>
-                          <Heading size="md" mb={3}>Detalles</Heading>
+                          <Heading size="md" mb={3}>Información básica</Heading>
                           <List spacing={3}>
                             <ListItem>
                               <Text fontWeight="bold">Tipo:</Text> 
@@ -392,43 +617,22 @@ const ActividadPage: React.FC = () => {
               <TabPanel>
                 <Flex justify="space-between" align="center" mb={4}>
                   <Heading size="md">Participantes ({participantes.length})</Heading>
-                  {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
-                    <Button 
-                      size="sm"
-                      colorScheme="brand" 
-                      leftIcon={<FiEdit />}
-                      onClick={() => setEditingParticipantes(!editingParticipantes)}
-                    >
-                      {editingParticipantes ? 'Cancelar' : 'Editar participantes'}
-                    </Button>
-                  )}
                 </Flex>
 
                 {editingParticipantes ? (
                   <ParticipantesEditor
                     actividad={actividad}
-                    onSave={async (participanteIds) => {
-                      try {
-                        await actualizarActividad(actividad.id as string, { 
-                          participanteIds,
-                          fechaActualizacion: Timestamp.fromDate(new Date())
-                        });
-                        toast({
-                          title: "Participantes actualizados",
-                          status: "success",
-                          duration: 3000,
-                        });
-                        cargarDatos(); // Recargar datos
-                        setEditingParticipantes(false);
-                      } catch (error) {
-                        toast({
-                          title: "Error al actualizar participantes",
-                          status: "error",
-                          duration: 3000,
-                        });
-                      }
+                    onSave={(participanteIds) => {
+                      handleActualizacionActividad(
+                        actividad.id as string,
+                        { participanteIds },
+                        "Participantes actualizados",
+                        "Error al actualizar participantes",
+                        () => setEditingParticipantes(false)
+                      );
                     }}
                     onCancel={() => setEditingParticipantes(false)}
+                    mostrarBotones={false}
                   />
                 ) : (
                   <Card>
@@ -472,58 +676,36 @@ const ActividadPage: React.FC = () => {
                   <CardBody>
                     <Flex justify="space-between" align="center" mb={4}>
                       <Heading size="md">Material necesario</Heading>
-                      {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
-                        <Box>
-                          <Button 
-                            size="sm"
-                            colorScheme="brand" 
-                            leftIcon={<FiEdit />}
-                            mr={2}
-                            onClick={() => setEditingMaterial(!editingMaterial)}
-                          >
-                            {editingMaterial ? 'Cancelar' : 'Editar material'}
-                          </Button>
-                          
-                          {!editingMaterial && actividad.materiales && actividad.materiales.length > 0 && (
-                            <Button 
-                              colorScheme="brand" 
-                              size="sm"
-                              leftIcon={<FiPackage />}
-                              onClick={() => navigate(`/activities/${actividad.id}/material`)}
-                            >
-                              Gestionar préstamo
-                            </Button>
-                          )}
-                        </Box>
+                      {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && 
+                       !editingMaterial && actividad.materiales && actividad.materiales.length > 0 && (
+                        <Button 
+                          colorScheme="brand" 
+                          size="sm"
+                          leftIcon={<FiPackage />}
+                          onClick={() => navigate(`/activities/${actividad.id}/material`)}
+                        >
+                          Gestionar préstamo
+                        </Button>
                       )}
                     </Flex>
 
                     {editingMaterial ? (
                       <MaterialEditor 
                         actividad={actividad} 
-                        onSave={async (materiales) => {
-                          try {
-                            await actualizarActividad(actividad.id as string, { 
+                        onSave={(materiales) => {
+                          handleActualizacionActividad(
+                            actividad.id as string,
+                            { 
                               materiales,
-                              necesidadMaterial: materiales.length > 0,
-                              fechaActualizacion: Timestamp.fromDate(new Date())
-                            });
-                            toast({
-                              title: "Material actualizado",
-                              status: "success",
-                              duration: 3000,
-                            });
-                            cargarDatos();
-                            setEditingMaterial(false);
-                          } catch (error) {
-                            toast({
-                              title: "Error al actualizar el material",
-                              status: "error",
-                              duration: 3000,
-                            });
-                          }
+                              necesidadMaterial: materiales.length > 0
+                            },
+                            "Material actualizado",
+                            "Error al actualizar el material",
+                            () => setEditingMaterial(false)
+                          );
                         }}
                         onCancel={() => setEditingMaterial(false)}
+                        mostrarBotones={false}
                       />
                     ) : (
                       <>
@@ -551,40 +733,22 @@ const ActividadPage: React.FC = () => {
               <TabPanel>
                 <Flex justify="space-between" align="center" mb={4}>
                   <Heading size="md">Enlaces ({totalEnlaces})</Heading>
-                  {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
-                    <Button 
-                      size="sm"
-                      colorScheme="brand" 
-                      leftIcon={<FiEdit />}
-                      onClick={() => setEditingEnlaces(!editingEnlaces)}
-                    >
-                      {editingEnlaces ? 'Cancelar' : 'Editar enlaces'}
-                    </Button>
-                  )}
                 </Flex>
 
                 {editingEnlaces ? (
                   <EnlacesEditor
                     actividad={actividad}
-                    onSave={async (enlaces) => {
-                      try {
-                        await actualizarActividad(actividad.id as string, enlaces);
-                        toast({
-                          title: "Enlaces actualizados",
-                          status: "success",
-                          duration: 3000,
-                        });
-                        cargarDatos(); // Recargar datos
-                        setEditingEnlaces(false);
-                      } catch (error) {
-                        toast({
-                          title: "Error al actualizar enlaces",
-                          status: "error",
-                          duration: 3000,
-                        });
-                      }
+                    onSave={(enlaces) => {
+                      handleActualizacionActividad(
+                        actividad.id as string,
+                        enlaces,
+                        "Enlaces actualizados",
+                        "Error al actualizar enlaces",
+                        () => setEditingEnlaces(false)
+                      );
                     }}
                     onCancel={() => setEditingEnlaces(false)}
+                    mostrarBotones={false}
                   />
                 ) : (
                   <Tabs variant="soft-rounded" colorScheme="blue" size="sm">
@@ -789,58 +953,150 @@ const ActividadPage: React.FC = () => {
                     </Alert>
                 )}
               </TabPanel>
-              
-              {/* Pestaña de Préstamos (condicional) */}
-              {prestamos.length > 0 && (
-                <TabPanel>
-                  <Card>
-                    <CardBody>
-                      <Heading size="md" mb={3}>Préstamos relacionados</Heading>
-                      <List spacing={3}>
-                        {prestamos.map(prestamo => (
-                          <ListItem key={prestamo.id}>
-                            <Card borderWidth="1px" borderRadius="md" p={3}>
-                              <Flex justify="space-between">
-                                <Box>
-                                  <Text fontWeight="bold">{prestamo.nombreMaterial}</Text>
-                                  <Text>Cantidad: {prestamo.cantidadPrestada}</Text>
-                                </Box>
-                                <Badge colorScheme={
-                                  prestamo.estado === 'en_uso' ? 'green' : 
-                                  prestamo.estado === 'devuelto' ? 'blue' : 'orange'
-                                }>
-                                  {prestamo.estado}
-                                </Badge>
-                              </Flex>
-                            </Card>
-                          </ListItem>
-                        ))}
-                      </List>
-                    </CardBody>
-                  </Card>
-                </TabPanel>
-              )}
             </TabPanels>
           </Tabs>
           
           {/* Botones de acción */}
-          <Flex justify="space-between" mt={6}>
-            <Button 
-              onClick={() => navigate('/activities')}
-              variant="outline"
-            >
-              Volver a actividades
-            </Button>
-            
-            {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
+          <Box pt={4} pb={2} borderTop="1px" borderColor="gray.200" width="100%" mt={4}>
+            <Flex justify="space-between" maxW="1200px" mx="auto">
+              {/* Botón izquierdo: Volver o Cancelar */}
               <Button 
-                colorScheme="blue"
-                onClick={() => navigate(`/activities/edit/${actividad.id}`)}
+                leftIcon={<FiArrowLeft />}
+                onClick={() => {
+                  if (editingInfo || editingParticipantes || editingMaterial || editingEnlaces) {
+                    // Si estamos editando, cancelar la edición
+                    setEditingInfo(false);
+                    setEditingParticipantes(false);
+                    setEditingMaterial(false);
+                    setEditingEnlaces(false);
+                  } else {
+                    // Si no estamos editando, comportamiento normal de volver
+                    if (window.history.length > 1) {
+                      window.history.back();
+                    } else {
+                      navigate('/activities');
+                    }
+                  }
+                }}
+                variant="outline"
               >
-                Editar actividad
+                {editingInfo || editingParticipantes || editingMaterial || editingEnlaces ? 'Cancelar' : 'Volver'}
               </Button>
-            )}
-          </Flex>
+              
+              {/* Grupo de botones derechos */}
+              <HStack spacing={3}>
+                {/* Cuando se está editando, mostrar navegación de pestañas si es relevante */}
+                {(editingInfo || editingParticipantes || editingMaterial || editingEnlaces) && (
+                  <>
+                    <Button 
+                      leftIcon={<FiChevronLeft />}
+                      isDisabled={activeTabIndex === 0}
+                      onClick={() => handleTabChange(activeTabIndex - 1)}
+                      variant="ghost"
+                    >
+                      Anterior
+                    </Button>
+                    <Button 
+                      rightIcon={<FiChevronRight />}
+                      isDisabled={activeTabIndex >= 3}
+                      onClick={() => handleTabChange(activeTabIndex + 1)}
+                      variant="ghost"
+                    >
+                      Siguiente
+                    </Button>
+                    {/* Botón de Guardar */}
+                    <Button 
+                      colorScheme="brand"
+                      leftIcon={<FiSave />}
+                      onClick={() => {
+                        // Llamar a la función de guardado apropiada según la pestaña activa
+                        switch(activeTabIndex) {
+                          case 0: 
+                            // Guardar información
+                            if (formDataInfo) {
+                              handleActualizacionActividad(
+                                actividad.id as string,
+                                formDataInfo,
+                                "Información actualizada correctamente",
+                                "Error al actualizar la información",
+                                () => setEditingInfo(false)
+                              );
+                            }
+                            break;
+                          case 1:
+                            // Guardar participantes
+                            if (selectedParticipantes) {
+                              handleActualizacionActividad(
+                                actividad.id as string,
+                                { participanteIds: selectedParticipantes },
+                                "Participantes actualizados correctamente",
+                                "Error al actualizar los participantes",
+                                () => setEditingParticipantes(false)
+                              );
+                            }
+                            break;
+                          case 2:
+                            // Guardar material
+                            if (materialesSeleccionados) {
+                              handleActualizacionActividad(
+                                actividad.id as string,
+                                { 
+                                  materiales: materialesSeleccionados,
+                                  necesidadMaterial: materialesSeleccionados.length > 0 
+                                },
+                                "Material actualizado correctamente",
+                                "Error al actualizar el material",
+                                () => setEditingMaterial(false)
+                              );
+                            }
+                            break;
+                          case 3:
+                            // Guardar enlaces
+                            if (enlacesData) {
+                              handleActualizacionActividad(
+                                actividad.id as string,
+                                enlacesData,
+                                "Enlaces actualizados correctamente",
+                                "Error al actualizar los enlaces",
+                                () => setEditingEnlaces(false)
+                              );
+                            }
+                            break;
+                        }
+                      }}
+                    >
+                      Guardar cambios
+                    </Button>
+                  </>
+                )}
+                
+                {/* Botón de edición contextual cuando NO se está editando */}
+                {esResponsable() && actividad?.estado !== 'cancelada' && actividad?.estado !== 'finalizada' && 
+                 !editingInfo && !editingParticipantes && !editingMaterial && !editingEnlaces && 
+                 activeTabIndex <= 3 && activeTabIndex !== 4 && (
+                  <Button 
+                    leftIcon={<FiEdit />}
+                    colorScheme="brand"
+                    onClick={() => {
+                      // Activar el modo edición según la pestaña activa
+                      switch(activeTabIndex) {
+                        case 0: setEditingInfo(true); break;
+                        case 1: setEditingParticipantes(true); break;
+                        case 2: setEditingMaterial(true); break;
+                        case 3: setEditingEnlaces(true); break;
+                      }
+                    }}
+                  >
+                    {`Editar ${
+                      activeTabIndex === 0 ? 'información' : 
+                      activeTabIndex === 1 ? 'participantes' : 
+                      activeTabIndex === 2 ? 'material' : 'enlaces'
+                    }`}
+                  </Button>
+                )}
+              </HStack>
+            </Flex>
+          </Box>
         </Box>
       ) : (
         <Alert status="warning">
@@ -848,6 +1104,40 @@ const ActividadPage: React.FC = () => {
           No se encontró la actividad solicitada
         </Alert>
       )}
+
+      {/* Diálogo de confirmación para cancelar actividad */}
+      <AlertDialog
+        isOpen={isConfirmOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={() => setIsConfirmOpen(false)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Cancelar actividad
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              ¿Estás seguro de que deseas cancelar esta actividad? 
+              Esta acción no se puede deshacer.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={() => setIsConfirmOpen(false)}>
+                No, mantener
+              </Button>
+              <Button 
+                colorScheme="red" 
+                onClick={handleCancelActividad} 
+                ml={3}
+                isLoading={isCancelling}
+              >
+                Sí, cancelar actividad
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

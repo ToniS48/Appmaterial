@@ -37,6 +37,8 @@ import messages from '../../constants/messages';
 import { obtenerConfiguracionDrive } from '../../services/configuracionService';
 import { AddIcon, MinusIcon } from '@chakra-ui/icons';
 import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD, DIFICULTADES } from '../../constants/actividadOptions';
+import { validateActividad } from '../../utils/actividadUtils';
+import { toDate, toTimestamp, determinarEstadoActividad } from '../../utils/dateUtils';
 
 interface ActividadFormData {
   nombre: string;
@@ -166,16 +168,20 @@ const ActividadForm: React.FC<ActividadFormProps> = ({
       setSelectedTipos(actividad.tipo || []);
       setSelectedSubtipos(actividad.subtipo || []);
       
+      // Usar funciones de utilidad para manejar fechas
+      const fechaInicio = toDate(actividad.fechaInicio);
+      const fechaFin = toDate(actividad.fechaFin);
+      
       reset({
         ...actividad,
-        fechaInicio: actividad.fechaInicio instanceof Timestamp ? 
-          actividad.fechaInicio.toDate() : actividad.fechaInicio,
-        fechaFin: actividad.fechaFin instanceof Timestamp ? 
-          actividad.fechaFin.toDate() : actividad.fechaFin,
+        fechaInicio: fechaInicio || new Date(),
+        fechaFin: fechaFin || new Date(Date.now() + 24 * 60 * 60 * 1000),
+        // Garantizar que todos los arrays están inicializados
         enlacesWikiloc: actividad.enlacesWikiloc || [],
         enlacesTopografias: actividad.enlacesTopografias || [],
         enlacesDrive: actividad.enlacesDrive || [],
         enlacesWeb: actividad.enlacesWeb || [],
+        materiales: actividad.materiales || []
       });
     }
   }, [actividad, reset]);
@@ -205,21 +211,12 @@ const ActividadForm: React.FC<ActividadFormProps> = ({
   };
 
   const onSubmit: SubmitHandler<ActividadFormData> = async (data) => {
-    if (selectedTipos.length === 0) {
+    // Validaciones con la utilidad centralizada
+    const validationError = validateActividad(data);
+    if (validationError) {
       toast({
-        title: messages.actividades.toast.errorGuardar,
-        description: messages.actividades.form.tipoError,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    if (selectedSubtipos.length === 0) {
-      toast({
-        title: messages.actividades.toast.errorGuardar,
-        description: messages.actividades.form.tipoError,
+        title: "Error de validación",
+        description: validationError,
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -232,54 +229,36 @@ const ActividadForm: React.FC<ActividadFormProps> = ({
     try {
       setIsSubmitting(true);
       
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      // Usar la utilidad centralizada para determinar el estado
+      const estadoAutomatico = determinarEstadoActividad(
+        data.fechaInicio, 
+        data.fechaFin,
+        data.estado
+      );
       
-      const fechaInicio = new Date(data.fechaInicio);
-      fechaInicio.setHours(0, 0, 0, 0);
-      
-      const fechaFin = new Date(data.fechaFin);
-      fechaFin.setHours(0, 0, 0, 0);
-      
-      let estadoAutomatico: EstadoActividad = data.estado;
-      
-      if (data.estado !== 'cancelada') {
-        const mañana = new Date(hoy);
-        mañana.setDate(mañana.getDate() + 1);
-        
-        if (hoy.getTime() > fechaFin.getTime()) {
-          estadoAutomatico = 'finalizada';
-        } else if (hoy.getTime() === fechaFin.getTime()) {
-          estadoAutomatico = 'en_curso';
-        } else if (hoy.getTime() >= fechaInicio.getTime()) {
-          estadoAutomatico = 'en_curso';
-        } else {
-          estadoAutomatico = 'planificada';
-        }
-      }
-      
-      const actividadData = {
-        ...data,
-        estado: estadoAutomatico,
-        tipo: selectedTipos,
-        subtipo: selectedSubtipos,
-        materiales: data.materiales,
-        responsableMaterialId: data.responsableMaterialId || data.responsableActividadId || userProfile.uid,
-        enlacesWikiloc: data.enlacesWikiloc || [],
-        enlacesTopografias: data.enlacesTopografias || [],
-        enlacesDrive: data.enlacesDrive || [],
-        enlacesWeb: data.enlacesWeb || [],
-        enlaces: [
-          ...(data.enlacesWikiloc || []).map(e => e.url),
-          ...(data.enlacesTopografias || []), 
-          ...(data.enlacesDrive || []), 
-          ...(data.enlacesWeb || [])
-        ]
-      };
-
-      let resultado;
+      // Para actividad existente, actualizar
       if (actividad?.id) {
-        resultado = await actualizarActividad(actividad.id, actividadData);
+        const actividadData = {
+          ...data,
+          estado: estadoAutomatico,
+          tipo: selectedTipos,
+          subtipo: selectedSubtipos,
+          // Usar toTimestamp para garantizar consistencia, pero evitando null con ?? operator
+          fechaInicio: toTimestamp(data.fechaInicio) ?? Timestamp.fromDate(new Date()),
+          fechaFin: toTimestamp(data.fechaFin) ?? Timestamp.fromDate(new Date()),
+          fechaActualizacion: Timestamp.fromDate(new Date()),
+          // Garantizar que haya responsable de material
+          responsableMaterialId: data.responsableMaterialId || data.responsableActividadId || userProfile.uid,
+          // Regenerar array de enlaces para compatibilidad
+          enlaces: [
+            ...(data.enlacesWikiloc || []).map(e => e.url),
+            ...(data.enlacesTopografias || []), 
+            ...(data.enlacesDrive || []), 
+            ...(data.enlacesWeb || [])
+          ]
+        };
+
+        await actualizarActividad(actividad.id, actividadData);
         toast({
           title: messages.actividades.toast.actividadActualizada,
           description: messages.actividades.toast.actividadActualizadaDesc,
@@ -288,38 +267,49 @@ const ActividadForm: React.FC<ActividadFormProps> = ({
           isClosable: true,
         });
       } else {
-        resultado = await crearActividad({
+        // Para actividad nueva
+        await crearActividad({
           nombre: data.nombre,
           descripcion: data.descripcion || '',
           lugar: data.lugar,
-          fechaInicio: data.fechaInicio,
-          fechaFin: data.fechaFin,
+          // Usar toTimestamp para garantizar consistencia
+          fechaInicio: toTimestamp(data.fechaInicio) || Timestamp.fromDate(new Date()),
+          fechaFin: toTimestamp(data.fechaFin) || Timestamp.fromDate(new Date()),
           creadorId: userProfile.uid,
           responsableActividadId: data.responsableActividadId || userProfile.uid,
-          responsableMaterialId: data.responsableMaterialId,
+          responsableMaterialId: data.responsableMaterialId || data.responsableActividadId || userProfile.uid,
           participanteIds: data.participanteIds || [userProfile.uid],
-          tipo: actividadData.tipo,
-          subtipo: actividadData.subtipo,
+          tipo: selectedTipos,
+          subtipo: selectedSubtipos,
           dificultad: data.dificultad,
           necesidadMaterial: Array.isArray(data.materiales) && data.materiales.length > 0,
           materiales: data.materiales || [],
-          estado: actividadData.estado as EstadoActividad,
+          estado: estadoAutomatico,
           comentarios: [],
-          enlaces: actividadData.enlaces || [],
+          // Garantizar arrays inicializados
           enlacesWikiloc: data.enlacesWikiloc || [],
           enlacesTopografias: data.enlacesTopografias || [],
           enlacesDrive: data.enlacesDrive || [],
           enlacesWeb: data.enlacesWeb || [],
+          // Regenerar enlaces para compatibilidad
+          enlaces: [
+            ...(data.enlacesWikiloc || []).map(e => e.url),
+            ...(data.enlacesTopografias || []), 
+            ...(data.enlacesDrive || []), 
+            ...(data.enlacesWeb || [])
+          ],
           imagenesTopografia: [],
           archivosAdjuntos: []
         });
+        
         toast({
-          title: messages.actividades.toast.actividadActualizada,
-          description: messages.actividades.toast.actividadActualizadaDesc,
+          title: messages.actividades.toast.actividadCreada,
+          description: messages.actividades.toast.actividadCreadaDesc,
           status: "success",
           duration: 5000,
           isClosable: true,
         });
+        
         reset();
       }
       

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Button, Text, Stack, Heading, Tabs, TabList, Tab,
   TabPanels, TabPanel, Input, Checkbox, Flex, Badge,
-  useToast, Link
+  useToast, Link, useColorModeValue
 } from '@chakra-ui/react';
 import { FiFolder, FiExternalLink, FiSave } from 'react-icons/fi';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
@@ -14,14 +14,16 @@ interface EnlacesEditorProps {
   actividad: Actividad;
   onSave: (enlaces: Partial<Actividad>) => void;
   onCancel: () => void;
-  esNuevo?: boolean; // <- Nueva propiedad
+  esNuevo?: boolean;
+  mostrarBotones?: boolean; // Añadida propiedad opcional
 }
 
 const EnlacesEditor: React.FC<EnlacesEditorProps> = ({ 
   actividad, 
   onSave, 
   onCancel,
-  esNuevo = false 
+  esNuevo = false,
+  mostrarBotones = true // Valor predeterminado
 }) => {
   // Estados para cada tipo de enlace
   const [enlacesWikiloc, setEnlacesWikiloc] = useState(actividad.enlacesWikiloc || []);
@@ -29,26 +31,27 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
   const [enlacesDrive, setEnlacesDrive] = useState(actividad.enlacesDrive || []);
   const [enlacesWeb, setEnlacesWeb] = useState(actividad.enlacesWeb || []);
   
-  // Estados para nuevos enlaces
+  // Estado para el formulario
   const [nuevoEnlaceWikiloc, setNuevoEnlaceWikiloc] = useState({ url: '', esEmbed: false });
   const [nuevoEnlaceTopografia, setNuevoEnlaceTopografia] = useState('');
   const [nuevoEnlaceDrive, setNuevoEnlaceDrive] = useState('');
   const [nuevoEnlaceWeb, setNuevoEnlaceWeb] = useState('');
-  
+
   // Configuración de Google Drive
-  const [driveConfig, setDriveConfig] = useState({
-    googleDriveUrl: '',
-    googleDriveTopoFolder: '',
-    googleDriveDocFolder: ''
-  });
+  const [configDrive, setConfigDrive] = useState<{ googleDriveUrl: string }>({ googleDriveUrl: '' });
   
   const toast = useToast();
-  
+
+  // Variables para el modo de color
+  const inputBg = useColorModeValue("white", "gray.700");
+  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const boxBg = useColorModeValue("gray.50", "gray.800");
+
   useEffect(() => {
     const cargarConfiguracionDrive = async () => {
       try {
         const config = await obtenerConfiguracionDrive();
-        setDriveConfig(config);
+        setConfigDrive(config);
       } catch (error) {
         console.error("Error al cargar configuración de Drive:", error);
       }
@@ -56,11 +59,11 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
     
     cargarConfiguracionDrive();
   }, []);
-  
+
   const isDriveUrl = (url: string) => {
     return url.includes('drive.google.com') || url.includes('docs.google.com');
   };
-  
+
   const handleSubmit = () => {
     onSave({
       enlacesWikiloc,
@@ -78,38 +81,38 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
       fechaActualizacion: Timestamp.fromDate(new Date())
     });
   };
-  
+
   // Función para eliminar enlaces de Wikiloc
   const eliminarEnlaceWikiloc = (index: number) => {
     const nuevosEnlaces = [...enlacesWikiloc];
     nuevosEnlaces.splice(index, 1);
     setEnlacesWikiloc(nuevosEnlaces);
   };
-  
+
   // Función para eliminar enlaces de Topografía
   const eliminarEnlaceTopografia = (index: number) => {
     const nuevosEnlaces = [...enlacesTopografias];
     nuevosEnlaces.splice(index, 1);
     setEnlacesTopografias(nuevosEnlaces);
   };
-  
+
   // Función para eliminar enlaces de Drive
   const eliminarEnlaceDrive = (index: number) => {
     const nuevosEnlaces = [...enlacesDrive];
     nuevosEnlaces.splice(index, 1);
     setEnlacesDrive(nuevosEnlaces);
   };
-  
+
   // Función para eliminar enlaces Web
   const eliminarEnlaceWeb = (index: number) => {
     const nuevosEnlaces = [...enlacesWeb];
     nuevosEnlaces.splice(index, 1);
     setEnlacesWeb(nuevosEnlaces);
   };
-  
+
   return (
     <Box>
-      <Tabs variant="enclosed" colorScheme="brand">
+      <Tabs variant="enclosed" colorScheme="brand" isLazy>
         <TabList>
           <Tab>Wikiloc</Tab>
           <Tab>Topografías</Tab>
@@ -126,6 +129,8 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
                   placeholder="URL del track de Wikiloc"
                   value={nuevoEnlaceWikiloc.url}
                   onChange={(e) => setNuevoEnlaceWikiloc({...nuevoEnlaceWikiloc, url: e.target.value})}
+                  bg={inputBg}
+                  borderColor={borderColor}
                   mr={2}
                 />
                 <Checkbox 
@@ -156,7 +161,7 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
               </Flex>
               
               {enlacesWikiloc.length > 0 && (
-                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
+                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg={boxBg} borderColor={borderColor}>
                   <Heading size="xs" mb={2}>Enlaces guardados</Heading>
                   {enlacesWikiloc.map((enlace, index) => (
                     <Flex key={`wikiloc-${index}`} alignItems="center" mb={2}>
@@ -186,6 +191,8 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
                   placeholder="URL de la topografía"
                   value={nuevoEnlaceTopografia}
                   onChange={(e) => setNuevoEnlaceTopografia(e.target.value)}
+                  bg={inputBg}
+                  borderColor={borderColor}
                   mr={2}
                 />
                 <Button 
@@ -209,7 +216,7 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
               </Flex>
               
               {enlacesTopografias.length > 0 && (
-                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
+                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg={boxBg} borderColor={borderColor}>
                   <Heading size="xs" mb={2}>Enlaces guardados</Heading>
                   {enlacesTopografias.map((enlace, index) => (
                     <Flex key={`topo-${index}`} alignItems="center" mb={2}>
@@ -240,6 +247,8 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
                   placeholder="URL del documento en Google Drive"
                   value={nuevoEnlaceDrive}
                   onChange={(e) => setNuevoEnlaceDrive(e.target.value)}
+                  bg={inputBg}
+                  borderColor={borderColor}
                   mr={2}
                 />
                 <Button 
@@ -272,7 +281,7 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
               </Flex>
               
               {enlacesDrive.length > 0 && (
-                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
+                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg={boxBg} borderColor={borderColor}>
                   <Heading size="xs" mb={2}>Enlaces guardados</Heading>
                   {enlacesDrive.map((enlace, index) => (
                     <Flex key={`drive-${index}`} alignItems="center" mb={2}>
@@ -303,6 +312,8 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
                   placeholder="URL del sitio web"
                   value={nuevoEnlaceWeb}
                   onChange={(e) => setNuevoEnlaceWeb(e.target.value)}
+                  bg={inputBg}
+                  borderColor={borderColor}
                   mr={2}
                 />
                 <Button 
@@ -326,7 +337,7 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
               </Flex>
               
               {enlacesWeb.length > 0 && (
-                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
+                <Box mt={3} p={3} borderWidth="1px" borderRadius="md" bg={boxBg} borderColor={borderColor}>
                   <Heading size="xs" mb={2}>Enlaces guardados</Heading>
                   {enlacesWeb.map((enlace, index) => (
                     <Flex key={`web-${index}`} alignItems="center" mb={2}>
@@ -350,14 +361,16 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
         </TabPanels>
       </Tabs>
       
-      <Stack direction="row" spacing={4} mt={6} justify="flex-end">
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button colorScheme="brand" onClick={handleSubmit} size="lg" leftIcon={<FiSave />}>
-          {esNuevo ? 'Crear Actividad' : 'Guardar Actividad'}
-        </Button>
-      </Stack>
+      {mostrarBotones !== false && (
+        <Stack direction="row" spacing={4} mt={6} justify="flex-end">
+          <Button variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button colorScheme="brand" onClick={handleSubmit} size="lg" leftIcon={<FiSave />}>
+            {esNuevo ? 'Crear Actividad' : 'Guardar Actividad'}
+          </Button>
+        </Stack>
+      )}
     </Box>
   );
 };

@@ -20,7 +20,7 @@ import {
 import { db, auth } from './firebase';
 import { Usuario, RolUsuario } from '../types/usuario'; // Importar RolUsuario
 import { handleFirebaseError } from '../utils/errorHandling';
-import { checkEmailAvailability } from '../utils/validation';
+import { checkEmailAvailability } from '../utils/validationUtils';
 import messages from '../constants/messages';
 import { enviarNotificacionMasiva } from './notificacionService'; // Importar enviarNotificacionMasiva
 

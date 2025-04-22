@@ -1,84 +1,161 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from "firebase/firestore";
 
 /**
- * Formatea una fecha (Date o Timestamp) con el formato local
+ * Convierte cualquier representación de fecha a un objeto Date de JavaScript
+ * @param date Fecha en formato Date, Timestamp o string/number (timestamp)
+ * @returns Objeto Date o null si no es válido
  */
-export const formatDate = (date: Date | Timestamp | undefined | null): string => {
-  if (!date) return '';
-  
-  const dateObject = date instanceof Date ? date : date.toDate();
-  
-  return dateObject.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-};
-
-/**
- * Formatea una fecha y hora (Date o Timestamp) con el formato local
- */
-export const formatDateTime = (date: Date | Timestamp | undefined | null): string => {
-  if (!date) return '';
-  
-  const dateObject = date instanceof Date ? date : date.toDate();
-  
-  return dateObject.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-/**
- * Convierte con seguridad cualquier valor de fecha a un objeto Date válido
- * @param date Cualquier valor que debería representar una fecha
- * @returns Un objeto Date válido o null si la entrada no puede convertirse
- */
-export const safeDate = (date: any): Date | null => {
+export const toDate = (date: any): Date | null => {
   if (!date) return null;
   
-  // Si ya es una fecha válida, devolverla
-  if (date instanceof Date && !isNaN(date.getTime())) {
+  if (date instanceof Date) {
     return date;
   }
   
-  // Si es un Timestamp de Firestore
-  if (date && typeof date.toDate === 'function') {
-    try {
-      const convertedDate = date.toDate();
-      return isNaN(convertedDate.getTime()) ? null : convertedDate;
-    } catch (e) {
-      console.warn('Error converting Firestore timestamp', e);
-      return null;
-    }
+  if (date instanceof Timestamp || (date && typeof date.toDate === 'function')) {
+    return date.toDate();
   }
   
-  // Intentar parsear una fecha
   try {
-    const parsedDate = new Date(date);
-    return isNaN(parsedDate.getTime()) ? null : parsedDate;
+    // Intenta convertir desde timestamp o string
+    return new Date(date);
   } catch (e) {
-    console.warn('Error parsing date', e);
+    console.error("Error al convertir fecha:", e);
     return null;
   }
 };
 
 /**
- * Convierte con seguridad una fecha a formato ISO String
- * @param date Cualquier valor que debería representar una fecha
- * @returns ISO String de la fecha o cadena vacía si es inválida
+ * Convierte cualquier representación de fecha a un Timestamp de Firestore
+ * @param date Fecha en cualquier formato
+ * @returns Timestamp o null si no es válido
+ */
+export const toTimestamp = (date: any): Timestamp | null => {
+  if (!date) return null;
+  
+  if (date instanceof Timestamp) {
+    return date;
+  }
+  
+  const dateObj = toDate(date);
+  if (!dateObj) return null;
+  
+  return Timestamp.fromDate(dateObj);
+};
+
+/**
+ * Normaliza una fecha eliminando la hora para comparaciones de solo fecha
+ * @param date Fecha a normalizar
+ * @returns Date normalizada o null si la entrada no es válida
+ */
+export const normalizarFecha = (date: any): Date | null => {
+  const dateObj = toDate(date);
+  if (!dateObj) return null;
+  
+  const normalizedDate = new Date(dateObj);
+  normalizedDate.setHours(0, 0, 0, 0);
+  return normalizedDate;
+};
+
+/**
+ * Compara dos fechas: devuelve -1 si date1 < date2, 0 si son iguales, 1 si date1 > date2
+ * @param date1 Primera fecha a comparar
+ * @param date2 Segunda fecha a comparar
+ * @returns -1, 0, 1 según la comparación o null si alguna fecha es inválida
+ */
+export const compareDates = (date1: any, date2: any): number | null => {
+  const d1 = normalizarFecha(date1);
+  const d2 = normalizarFecha(date2);
+  
+  if (!d1 || !d2) return null;
+  
+  const t1 = d1.getTime();
+  const t2 = d2.getTime();
+  
+  if (t1 < t2) return -1;
+  if (t1 > t2) return 1;
+  return 0;
+};
+
+/**
+ * Determina el estado de una actividad basándose en sus fechas
+ * @param fechaInicio Fecha de inicio de la actividad
+ * @param fechaFin Fecha de fin de la actividad
+ * @param estadoActual Estado actual (se respeta si es 'cancelada')
+ * @returns El estado correspondiente
+ */
+export const determinarEstadoActividad = (
+  fechaInicio: any, 
+  fechaFin: any, 
+  estadoActual?: string
+): 'planificada' | 'en_curso' | 'finalizada' | 'cancelada' => {
+  // Si ya está cancelada, mantener ese estado
+  if (estadoActual === 'cancelada') return 'cancelada';
+  
+  const hoy = normalizarFecha(new Date())!;
+  const inicioNormalizado = normalizarFecha(fechaInicio);
+  const finNormalizado = normalizarFecha(fechaFin);
+  
+  // Si fechas no válidas, devolver planificada como fallback
+  if (!inicioNormalizado || !finNormalizado) return 'planificada';
+  
+  // Usar el operador de coalescencia nula (??) para manejar los posibles null
+  if ((compareDates(hoy, finNormalizado) ?? 0) > 0) {
+    // Hoy es después de la fecha de fin
+    return 'finalizada';
+  } else if ((compareDates(hoy, inicioNormalizado) ?? 0) >= 0) {
+    // Hoy es igual o después de la fecha de inicio
+    return 'en_curso';
+  } else {
+    // Hoy es antes de la fecha de inicio
+    return 'planificada';
+  }
+};
+
+/**
+ * Formatea una fecha para mostrarla al usuario
+ * @param date Fecha a formatear
+ * @param options Opciones de formateo (opcional)
+ * @returns Cadena de fecha formateada o cadena vacía si la fecha es inválida
+ */
+export const formatDate = (date: any, options?: Intl.DateTimeFormatOptions): string => {
+  if (!date) return '';
+  
+  const dateObj = toDate(date);
+  if (!dateObj) return '';
+  
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  };
+  
+  return dateObj.toLocaleDateString('es-ES', options || defaultOptions);
+};
+
+/**
+ * Convierte una fecha a string ISO de forma segura
+ * @param date Fecha a convertir
+ * @returns String ISO o string vacío si la fecha es inválida
  */
 export const safeISOString = (date: any): string => {
-  const validDate = safeDate(date);
-  if (!validDate) return '';
+  const dateObj = toDate(date);
+  if (!dateObj) return '';
   
-  try {
-    return validDate.toISOString();
-  } catch (e) {
-    console.warn('Error converting to ISO string', e);
-    return '';
-  }
+  return dateObj.toISOString();
+};
+
+/**
+ * Comprueba si dos fechas corresponden al mismo día
+ * @param date1 Primera fecha a comparar
+ * @param date2 Segunda fecha a comparar
+ * @returns true si ambas fechas son del mismo día, false en caso contrario
+ */
+export const isSameDay = (date1: any, date2: any): boolean => {
+  const d1 = normalizarFecha(date1);
+  const d2 = normalizarFecha(date2);
+  
+  if (!d1 || !d2) return false;
+  
+  return d1.getTime() === d2.getTime();
 };

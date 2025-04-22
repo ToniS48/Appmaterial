@@ -19,19 +19,13 @@ import {
   SimpleGrid,
   Tag,
   TagLabel,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   useToast,
   Stack,
+  Tooltip,
 } from '@chakra-ui/react';
-import { CalendarIcon, InfoIcon } from '@chakra-ui/icons';
+import { CalendarIcon, InfoIcon, CheckIcon } from '@chakra-ui/icons';
 import { Actividad } from '../../types/actividad';
 import PrestamoForm from '../prestamos/PrestamoForm';
-import { cancelarActividad } from '../../services/actividadService';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 import { listarUsuariosPorIds } from '../../services/usuarioService';
@@ -45,9 +39,7 @@ interface ActividadDetalleProps {
 }
 
 const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose, onActividadUpdated }) => {
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  const [addedToCalendar, setAddedToCalendar] = useState<boolean>(false);
   const toast = useToast();
   const { userProfile } = useAuth();
   const [participantes, setParticipantes] = useState<Usuario[]>([]);
@@ -59,6 +51,21 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
      actividad.responsableMaterialId === userProfile.uid);
   
   const esParticipante = userProfile && actividad.participanteIds?.includes(userProfile.uid);
+
+  // Añadir useEffect para verificar si ya se ha añadido al calendario
+  useEffect(() => {
+    if (actividad.id) {
+      const addedActivities = localStorage.getItem('calendarActivities');
+      if (addedActivities) {
+        try {
+          const activitiesArray = JSON.parse(addedActivities);
+          setAddedToCalendar(activitiesArray.includes(actividad.id));
+        } catch (e) {
+          console.error('Error parsing calendar activities from localStorage', e);
+        }
+      }
+    }
+  }, [actividad.id]);
 
   // Formatear fecha para mostrar
   const formatDate = (date: any) => {
@@ -74,7 +81,7 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
   };
 
   // Función para crear URL de Google Calendar
-  const addToGoogleCalendar = (actividad: Actividad) => {
+  const addToGoogleCalendar = () => {
     const inicio = actividad.fechaInicio instanceof Date 
       ? actividad.fechaInicio 
       : actividad.fechaInicio.toDate();
@@ -92,42 +99,29 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
     url.searchParams.append('details', actividad.descripcion || '');
     url.searchParams.append('location', actividad.lugar || '');
     
+    // Abrir la ventana
     window.open(url.toString(), '_blank');
-  };
-
-  // Función para cancelar actividad
-  const handleCancelActividad = async () => {
-    try {
-      setIsCancelling(true);
-      await cancelarActividad(actividad.id as string);
-      
-      toast({
-        title: "Actividad cancelada",
-        description: "La actividad ha sido cancelada correctamente",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Si se proporcionó función de actualización, ejecutarla
-      if (onActividadUpdated) {
-        onActividadUpdated();
+    
+    // Guardar en localStorage
+    if (actividad.id) {
+      try {
+        const addedActivities = localStorage.getItem('calendarActivities') || '[]';
+        const activitiesArray = JSON.parse(addedActivities);
+        if (!activitiesArray.includes(actividad.id)) {
+          activitiesArray.push(actividad.id);
+          localStorage.setItem('calendarActivities', JSON.stringify(activitiesArray));
+          setAddedToCalendar(true);
+          
+          toast({
+            title: "Actividad añadida al calendario",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      } catch (e) {
+        console.error('Error saving to localStorage', e);
       }
-      
-      // Cerrar diálogo y detalle
-      setIsConfirmOpen(false);
-      if (onClose) onClose();
-    } catch (error) {
-      console.error("Error al cancelar actividad:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cancelar la actividad. Inténtalo de nuevo.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsCancelling(false);
     }
   };
 
@@ -188,34 +182,6 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
         <Text>{actividad.descripcion}</Text>
       </Box>
       
-      {actividad.necesidadMaterial && (esResponsable || esParticipante) ? (
-        <Box mt={4}>
-          <Heading size="sm" mb={2}>Material</Heading>
-          {actividad.materiales && actividad.materiales.length > 0 ? (
-            <List>
-              {actividad.materiales.map((mat, index) => (
-                <ListItem key={index}>
-                  {mat.nombre} - Cantidad: {mat.cantidad}
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Text fontSize="sm">No se ha especificado material</Text>
-          )}
-          
-          {/* Solo mostrar botón de gestionar préstamo si es responsable */}
-          {esResponsable && (
-            <Button 
-              size="sm" 
-              colorScheme="brand" 
-              mt={2}
-            >
-              Gestionar Préstamo
-            </Button>
-          )}
-        </Box>
-      ) : null}
-      
       {/* En la sección que muestra los participantes */}
       <Box mt={4}>
         <Heading size="sm" mb={2}>Participantes</Heading>
@@ -239,82 +205,44 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
               </Stack>                
             </Flex>
           ))}
-          {/* Botón de calendario a la derecha */}
-          <Button
-          leftIcon={<CalendarIcon />}
-          onClick={() => addToGoogleCalendar(actividad)}
-          colorScheme="blue"
-          size="sm">
-          Añadir a Google Calendar
-        </Button>
+          
+          {/* Botón de calendario con estado */}
+          {!addedToCalendar ? (
+            <Button
+              leftIcon={<CalendarIcon />}
+              onClick={addToGoogleCalendar}
+              colorScheme="blue"
+              size="sm">
+              Añadir a Google Calendar
+            </Button>
+          ) : (
+            <Tooltip label="Ya añadido al calendario">
+              <Button
+                leftIcon={<CheckIcon />}
+                size="sm"
+                colorScheme="green"
+                variant="outline"
+                isDisabled={true}
+              >
+                Añadido a calendario
+              </Button>
+            </Tooltip>
+          )}
         </Stack>
-        
       </Box>
 
       {/* Botones de acción - Alineados a la derecha */}
       <Flex justify="flex-end" mt={4} alignItems="center">
-        {/* Mostrar botón cancelar solo si no está ya cancelada o finalizada */}
-        {esResponsable && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
-          <Button 
-            colorScheme="red"
-            onClick={() => setIsConfirmOpen(true)} 
-            mr={3}
-          >
-            Cancelar actividad
-          </Button>
-        )}
-
         {/* Nuevo botón para ver en página completa */}
         <Button
           as={RouterLink}
           to={`/activities/${actividad.id}`}
           colorScheme="blue"
           variant="outline"
-          mr={3}
         >
           Ver completo
         </Button>
-
-        {onClose && (
-          <Button onClick={onClose} variant="outline">
-            Cerrar
-          </Button>
-        )}
       </Flex>
-
-      {/* Diálogo de confirmación para cancelar actividad */}
-      <AlertDialog
-        isOpen={isConfirmOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsConfirmOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Cancelar actividad
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              ¿Estás seguro de que deseas cancelar esta actividad? 
-              Esta acción no se puede deshacer.
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsConfirmOpen(false)}>
-                No, mantener
-              </Button>
-              <Button 
-                colorScheme="red" 
-                onClick={handleCancelActividad} 
-                ml={3}
-                isLoading={isCancelling}
-              >
-                Sí, cancelar actividad
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
     </Box>
   );
 };

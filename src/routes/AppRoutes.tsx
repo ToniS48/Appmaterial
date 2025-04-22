@@ -14,6 +14,7 @@ import GestionUsuariosPage from '../pages/common/GestionUsuariosPage';
 import PrestamosAdminPage from '../pages/admin/PrestamosAdminPage';
 import ConfiguracionPage from '../pages/admin/ConfiguracionPage';
 import NotificacionesAdminPage from '../pages/admin/NotificacionesAdminPage';
+import ReportesAdminPage from '../pages/admin/ReportesAdminPage';
 import PrestamosVocalPage from '../pages/vocal/PrestamosVocalPage';
 import NotificacionesPage from '../pages/common/NotificacionesPage';
 import MisPrestamosPag from '../pages/common/MisPrestamosPag';
@@ -56,6 +57,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesAdminPage /></ProtectedRoute>} />
+      <Route path="/admin/reportes" element={<ProtectedRoute allowedRoles={['admin']}><ReportesAdminPage /></ProtectedRoute>} />
       
       {/* Rutas específicas para vocal */}
       <Route path="/vocal/usuarios" element={<ProtectedRoute allowedRoles={['vocal']}><GestionUsuariosPage /></ProtectedRoute>} />

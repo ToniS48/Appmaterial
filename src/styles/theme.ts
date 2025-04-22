@@ -174,12 +174,14 @@ const components = {
     },
   },
   Card: {
-    baseStyle: {
+    baseStyle: (props: any) => ({
       container: {
         borderRadius: "md",
         overflow: "hidden",
+        bg: props.colorMode === "dark" ? "gray.700" : "white",
+        borderColor: props.colorMode === "dark" ? "gray.600" : "gray.200",
       },
-    },
+    }),
   },
   Alert: {
     baseStyle: {
@@ -187,6 +189,25 @@ const components = {
         fontFamily: "'Noto Sans', sans-serif",
         fontWeight: 600,
       },
+    },
+  },
+  Tabs: {
+    variants: {
+      enclosed: (props: any) => ({
+        tab: {
+          _selected: {
+            bg: props.colorMode === "dark" ? "brand.500" : "brand.500",
+            color: "white",
+          },
+          _hover: {
+            bg: props.colorMode === "dark" ? "rgba(147, 43, 113, 0.3)" : "rgba(147, 43, 113, 0.1)",
+          },
+        },
+        tabpanel: {
+          bg: props.colorMode === "dark" ? "gray.700" : "white",
+          borderColor: props.colorMode === "dark" ? "gray.600" : "brand.500",
+        },
+      }),
     },
   },
 };
