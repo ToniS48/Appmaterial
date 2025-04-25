@@ -23,6 +23,7 @@ export interface Actividad {
   tipo: TipoActividad[];
   subtipo: SubtipoActividad[];
   descripcion: string;
+  // Estandarizar el tipo para facilitar la manipulación interna
   fechaInicio: Date | Timestamp;
   fechaFin: Date | Timestamp;
   lugar: string;
@@ -36,7 +37,7 @@ export interface Actividad {
   creadorId: string;
   fechaCreacion?: Timestamp;
   fechaActualizacion?: Timestamp;
-  // Enlaces categorizados (nuevos campos)
+  // Enlaces categorizados
   enlacesWikiloc: { url: string, esEmbed: boolean }[];
   enlacesTopografias: string[];
   enlacesDrive: string[];
