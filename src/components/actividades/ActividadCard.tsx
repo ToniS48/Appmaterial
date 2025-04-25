@@ -11,7 +11,12 @@ import {
   CardBody,
   Divider
 } from '@chakra-ui/react';
-import { FiCalendar, FiPackage, FiEye, FiEdit, FiTrash, FiUserPlus } from 'react-icons/fi';
+import { 
+  FiCalendar, FiEdit, FiTrash, FiPackage, FiEye, 
+  FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
+  FiAlertCircle, FiXCircle, FiUserPlus 
+} from 'react-icons/fi';
+import IconBadge from '../common/IconBadge';
 import { Actividad } from '../../types/actividad';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
@@ -125,27 +130,64 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
             
             <Flex mt={1} gap={2} wrap="wrap">
               {esCreador && (
-                <Badge colorScheme="purple" size="sm">Creador</Badge>
+                <IconBadge 
+                  icon={FiStar} 
+                  label="Creador" 
+                  color="purple" 
+                  size={variant === 'simple' ? 3.5 : 4} 
+                />
               )}
               {esResponsableActividad && !esCreador && (
-                <Badge colorScheme="blue" size="sm">Responsable</Badge>
+                <IconBadge 
+                  icon={FiUser} 
+                  label="Responsable" 
+                  color="blue" 
+                  size={variant === 'simple' ? 3.5 : 4} 
+                />
               )}
               {esResponsableMaterial && !esCreador && !esResponsableActividad && (
-                <Badge colorScheme="cyan" size="sm">R. Material</Badge>
-              )}
-              <Badge colorScheme={estado.color} size="sm">{estado.label}</Badge>
-              {actividad.dificultad && (
-                <Badge colorScheme={
-                  actividad.dificultad === 'baja' ? 'green' : 
-                  actividad.dificultad === 'media' ? 'blue' : 'orange'
-                } size="sm">
-                  {actividad.dificultad}
-                </Badge>
+                <IconBadge 
+                  icon={FiPackage} 
+                  label="R. Material" 
+                  color="cyan" 
+                  size={variant === 'simple' ? 3.5 : 4} 
+                />
               )}
               
-              {/* Mostrar indicador de material solo si es participante o responsable */}
-              {(esParticipante || esResponsable) && actividad.materiales && actividad.materiales.length > 0 && (
-                <Badge colorScheme="orange" size="sm">Material</Badge>
+              {/* Estado de la actividad como IconBadge */}
+              <IconBadge 
+                icon={
+                  actividad.estado === 'planificada' ? FiClock :
+                  actividad.estado === 'en_curso' ? FiCheckCircle :
+                  actividad.estado === 'finalizada' ? FiCheckCircle :
+                  FiXCircle
+                } 
+                label={estado.label} 
+                color={
+                  actividad.estado === 'planificada' ? 'yellow' :
+                  actividad.estado === 'en_curso' ? 'green' :
+                  actividad.estado === 'finalizada' ? 'blue' :
+                  'red'
+                } 
+                size={variant === 'simple' ? 3.5 : 4} 
+              />
+              
+              {/* Dificultad si existe */}
+              {actividad.dificultad && (
+                <IconBadge 
+                  icon={
+                    actividad.dificultad === 'baja' ? FiCheckCircle :
+                    actividad.dificultad === 'media' ? FiClock :
+                    FiAlertCircle
+                  } 
+                  label={`Dificultad: ${actividad.dificultad}`} 
+                  color={
+                    actividad.dificultad === 'baja' ? 'green' :
+                    actividad.dificultad === 'media' ? 'blue' :
+                    'orange'
+                  } 
+                  size={variant === 'simple' ? 3.5 : 4} 
+                />
               )}
             </Flex>
           </Box>

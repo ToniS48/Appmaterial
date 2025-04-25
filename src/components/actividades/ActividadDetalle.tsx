@@ -1,27 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, 
-  Button,
-  Heading,
+  Box,
   Text,
-  Flex,
+  Heading,
   Badge,
-  Divider,
-  List,
-  ListItem,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  SimpleGrid,
-  Tag,
-  TagLabel,
-  useToast,
+  Flex,
+  Button,
   Stack,
-  Tooltip,
+  Card,
+  CardBody,
+  Divider,
+  Avatar,
+  HStack,
+  useToast,  // Añadido para resolver el error en la línea 39
+  Tooltip    // Añadido para resolver los errores en las líneas 248 y 258
 } from '@chakra-ui/react';
 import { CalendarIcon, InfoIcon, CheckIcon } from '@chakra-ui/icons';
 import { Actividad } from '../../types/actividad';
@@ -31,6 +23,12 @@ import messages from '../../constants/messages';
 import { listarUsuariosPorIds } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
 import { Link as RouterLink } from 'react-router-dom';
+import { 
+  FiCalendar, FiEdit, FiTrash, FiPackage, FiEye, 
+  FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
+  FiAlertCircle, FiXCircle 
+} from 'react-icons/fi';
+import IconBadge from '../common/IconBadge';
 
 interface ActividadDetalleProps {
   actividad: Actividad;
@@ -153,25 +151,53 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
       {/* Mantener la sección de badges */}
       <Flex wrap="wrap" gap={2} mb={3}>
         {actividad.tipo?.map(tipo => (
-          <Badge key={tipo} colorScheme="blue">{tipo}</Badge>
+          <IconBadge 
+            key={tipo} 
+            icon={FiCheckCircle} 
+            label={tipo} 
+            color="blue" 
+          />
         ))}
+        
         {actividad.subtipo?.map(subtipo => (
-          <Badge key={subtipo} colorScheme="purple" ml={1}>{subtipo}</Badge>
+          <IconBadge 
+            key={subtipo} 
+            icon={FiCheckCircle} 
+            label={subtipo} 
+            color="purple" 
+          />
         ))}
-        <Badge colorScheme={
-          actividad.estado === 'planificada' ? 'yellow' : 
-          actividad.estado === 'en_curso' ? 'green' : 
-          actividad.estado === 'finalizada' ? 'blue' : 'red'
-        }>
-          {actividad.estado}
-        </Badge>
+        
+        <IconBadge 
+          icon={
+            actividad.estado === 'planificada' ? FiClock :
+            actividad.estado === 'en_curso' ? FiCheckCircle :
+            actividad.estado === 'finalizada' ? FiCheckCircle :
+            FiXCircle
+          } 
+          label={actividad.estado} 
+          color={
+            actividad.estado === 'planificada' ? 'yellow' :
+            actividad.estado === 'en_curso' ? 'green' :
+            actividad.estado === 'finalizada' ? 'blue' :
+            'red'
+          } 
+        />
+        
         {actividad.dificultad && (
-          <Badge colorScheme={
-            actividad.dificultad === 'baja' ? 'green' : 
-            actividad.dificultad === 'media' ? 'blue' : 'orange'
-          }>
-            Dificultad: {actividad.dificultad}
-          </Badge>
+          <IconBadge 
+            icon={
+              actividad.dificultad === 'baja' ? FiCheckCircle :
+              actividad.dificultad === 'media' ? FiClock :
+              FiAlertCircle
+            } 
+            label={`Dificultad: ${actividad.dificultad}`} 
+            color={
+              actividad.dificultad === 'baja' ? 'green' :
+              actividad.dificultad === 'media' ? 'blue' :
+              'orange'
+            } 
+          />
         )}
       </Flex>
       
@@ -186,23 +212,28 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
       <Box mt={4}>
         <Heading size="sm" mb={2}>Participantes</Heading>
         <Stack>
-          {participantes.map((participante: Usuario) => (
-            <Flex key={participante.uid} justify="space-between" align="center" p={2} bg="gray.50" borderRadius="md">
-              <Text>{participante.nombre} {participante.apellidos}</Text>
-              <Stack direction="row" spacing={1}>
-                {participante.uid === actividad.creadorId && (
-                  <Badge colorScheme="purple">Creador</Badge>
-                )}
-                {participante.uid === actividad.responsableActividadId && (
-                  <Badge colorScheme="blue">Responsable</Badge>
-                )}
-                {participante.uid === actividad.responsableMaterialId && (
-                  <Badge colorScheme="cyan">R. Material</Badge>
-                )}
-                {!isResponsable(participante.uid) && (
-                  <Badge colorScheme="gray">Participante</Badge>
-                )}
-              </Stack>                
+          {participantes.map((participante) => (
+            <Flex key={participante.uid} align="center" mb={2}>
+              <Avatar size="sm" name={`${participante.nombre} ${participante.apellidos}`} mr={2} />
+              <Box>
+                <Text fontWeight="medium">
+                  {participante.nombre} {participante.apellidos}
+                </Text>
+                <HStack mt={1}>
+                  {participante.uid === actividad.creadorId && (
+                    <IconBadge icon={FiStar} label="Creador" color="purple" size={4} />
+                  )}
+                  {participante.uid === actividad.responsableActividadId && (
+                    <IconBadge icon={FiUser} label="Responsable" color="blue" size={4} />
+                  )}
+                  {participante.uid === actividad.responsableMaterialId && (
+                    <IconBadge icon={FiPackage} label="R. Material" color="cyan" size={4} />
+                  )}
+                  {!isResponsable(participante.uid) && (
+                    <IconBadge icon={FiUsers} label="Participante" color="gray" size={4} />
+                  )}
+                </HStack>
+              </Box>
             </Flex>
           ))}
           
