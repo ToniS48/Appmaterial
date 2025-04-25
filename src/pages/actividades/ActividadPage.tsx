@@ -8,7 +8,12 @@ import {
   AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter, Icon
 } from '@chakra-ui/react';
 import { CalendarIcon, ExternalLinkIcon, DownloadIcon, LinkIcon, CheckIcon } from '@chakra-ui/icons';
-import { FiCalendar, FiUsers, FiPackage, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave, FiX } from 'react-icons/fi';
+import { 
+  FiCalendar, FiUsers, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave, FiX, 
+  FiStar, FiUser, FiPackage, FiClock, FiCheckCircle, 
+  FiXCircle, FiAlertCircle 
+} from 'react-icons/fi';
+import IconBadge from '../../components/common/IconBadge';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import ActividadDetalle from '../../components/actividades/ActividadDetalle';
 import MaterialEditor from '../../components/actividades/MaterialEditor';
@@ -202,7 +207,21 @@ const ActividadPage: React.FC = () => {
       default: return 'gray';
     }
   };
-
+// Añadir esta función después de la función getEstadoColor existente
+const getEstadoLabel = (estado: string): string => {
+  switch (estado) {
+    case 'planificada':
+      return 'Planificada';
+    case 'en_curso':
+      return 'En curso';
+    case 'finalizada':
+      return 'Finalizada';
+    case 'cancelada':
+      return 'Cancelada';
+    default:
+      return estado;
+  }
+};
   // Añadir esta función auxiliar después de getEstadoColor
   // Sistema común para manejar actualizaciones
   const handleActualizacionActividad = async (
@@ -400,21 +419,37 @@ const ActividadPage: React.FC = () => {
                 
                 <Box>
                   <Flex wrap="wrap" gap={2}>
-                    <Badge colorScheme={getEstadoColor(actividad.estado)} fontSize="md" px={2} py={1}>
-                      {actividad.estado}
-                    </Badge>
+                    <IconBadge 
+                      icon={
+                        actividad.estado === 'planificada' ? FiClock :
+                        actividad.estado === 'en_curso' ? FiCheckCircle :
+                        actividad.estado === 'finalizada' ? FiCheckCircle :
+                        FiXCircle
+                      } 
+                      label={getEstadoLabel(actividad.estado)} 
+                      color={getEstadoColor(actividad.estado)} 
+                      size={5} 
+                    />
                     
                     {actividad.tipo?.map(tipo => (
-                      <Badge key={tipo} colorScheme="blue">{tipo}</Badge>
+                      <IconBadge key={tipo} icon={FiCheckCircle} label={tipo} color="blue" size={5} />
                     ))}
                     
                     {actividad.dificultad && (
-                      <Badge colorScheme={
-                        actividad.dificultad === 'baja' ? 'green' : 
-                        actividad.dificultad === 'media' ? 'blue' : 'orange'
-                      }>
-                        Dificultad: {actividad.dificultad}
-                      </Badge>
+                      <IconBadge 
+                        icon={
+                          actividad.dificultad === 'baja' ? FiCheckCircle :
+                          actividad.dificultad === 'media' ? FiClock :
+                          FiAlertCircle
+                        } 
+                        label={`Dificultad: ${actividad.dificultad}`} 
+                        color={
+                          actividad.dificultad === 'baja' ? 'green' :
+                          actividad.dificultad === 'media' ? 'blue' :
+                          'orange'
+                        } 
+                        size={5} 
+                      />
                     )}
                   </Flex>
                   
