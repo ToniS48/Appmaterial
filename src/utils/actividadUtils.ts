@@ -2,47 +2,43 @@ import { Actividad } from '../types/actividad';
 import { toDate } from './dateUtils';
 
 export const validateActividad = (actividad: Partial<Actividad>): string | null => {
+  // Añadir log para depurar valores
+  console.log("Validando actividad:", {
+    nombre: actividad.nombre,
+    nombreLength: actividad.nombre?.length,
+    nombreTrim: actividad.nombre?.trim(),
+    lugar: actividad.lugar,
+    tipo: actividad.tipo,
+    subtipo: actividad.subtipo
+  });
+  
+  // Añade esto a la función validateActividad
+  console.log("Validando tipo:", actividad.tipo);
+  console.log("Validando subtipo:", actividad.subtipo);
+  
   // Validación de campos básicos
   if (!actividad.nombre?.trim()) {
+    console.warn("Validación fallida: nombre vacío o undefined");
     return "El nombre de la actividad es obligatorio";
   }
+  
   if (!actividad.lugar?.trim()) {
+    console.warn("Validación fallida: lugar vacío o undefined");
     return "El lugar de la actividad es obligatorio";
   }
-  if (!actividad.tipo?.length) {
-    return "Debes seleccionar al menos un tipo de actividad";
-  }
-  if (!actividad.subtipo?.length) {
-    return "Debes seleccionar al menos un subtipo de actividad";
-  }
-  if (!actividad.responsableActividadId) {
-    return "El responsable de la actividad es obligatorio";
-  }
-  if (!actividad.fechaInicio) {
-    return "La fecha de inicio es obligatoria";
-  }
-  if (!actividad.fechaFin) {
-    return "La fecha de fin es obligatoria";
+  
+  if (!actividad.tipo || actividad.tipo.length === 0) {
+    console.warn("Validación fallida: tipo vacío");
+    return "Debe seleccionar al menos un tipo de actividad";
   }
   
-  // Validación de fechas
-  if (actividad.fechaInicio && actividad.fechaFin) {
-    // Usar la función toDate que maneja correctamente objetos Timestamp
-    const inicio = toDate(actividad.fechaInicio);
-    const fin = toDate(actividad.fechaFin);
-    
-    // Verificar que ambas fechas son válidas
-    if (!inicio || !fin) {
-      return "Las fechas proporcionadas no son válidas";
-    }
-    
-    if (inicio > fin) {
-      return "La fecha de fin debe ser posterior a la fecha de inicio";
-    }
+  if (!actividad.subtipo || actividad.subtipo.length === 0) {
+    console.warn("Validación fallida: subtipo vacío");
+    return "Debe seleccionar al menos un subtipo de actividad";
   }
   
-  return null; // No hay errores
-}
+  return null;
+};
 
 /**
  * Validación específica para enlaces de actividades

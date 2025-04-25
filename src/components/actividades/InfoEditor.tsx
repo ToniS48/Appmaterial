@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Box, Button, FormControl, FormLabel, FormErrorMessage,
   Input, Textarea, SimpleGrid, Stack, HStack, Text,
@@ -16,7 +16,10 @@ interface InfoEditorProps {
   mostrarBotones?: boolean;
 }
 
-const InfoEditor: React.FC<InfoEditorProps> = ({ actividad, onSave, onCancel, mostrarBotones = true }) => {
+const InfoEditor = forwardRef<
+  { submitForm: () => void },
+  InfoEditorProps
+>(({ actividad, onSave, onCancel, mostrarBotones = false }, ref) => {
   const [selectedTipos, setSelectedTipos] = useState<TipoActividad[]>(actividad.tipo || []);
   const [selectedSubtipos, setSelectedSubtipos] = useState<SubtipoActividad[]>(actividad.subtipo || []);
   
@@ -54,12 +57,38 @@ const InfoEditor: React.FC<InfoEditorProps> = ({ actividad, onSave, onCancel, mo
   };
 
   const onSubmit = (data: any) => {
-    onSave({
+    // Asegurarse de que los datos básicos estén presentes y validados antes de enviar
+    console.log("InfoEditor - Datos recibidos del formulario:", data);
+    
+    // Verificación de datos críticos
+    if (!selectedTipos.length) {
+      console.warn("Debe seleccionar al menos un tipo de actividad");
+      return; // No enviar datos incompletos
+    }
+    
+    if (!selectedSubtipos.length) {
+      console.warn("Debe seleccionar al menos un subtipo de actividad");
+      return; // No enviar datos incompletos
+    }
+    
+    const datosValidados = {
       ...data,
+      nombre: data.nombre?.trim() || "",
+      lugar: data.lugar?.trim() || "",
       tipo: selectedTipos,
       subtipo: selectedSubtipos
-    });
+    };
+    
+    // Enviar datos al componente padre
+    onSave(datosValidados);
   };
+
+  // 3. Exponer el método submitForm usando useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      handleSubmit(onSubmit)();
+    }
+  }));
 
   return (
     <Box as="form" onSubmit={handleSubmit(onSubmit)}>
@@ -108,21 +137,25 @@ const InfoEditor: React.FC<InfoEditorProps> = ({ actividad, onSave, onCancel, mo
         )}
       </FormControl>
 
-      <Box mb={6}>
-        <Text fontWeight="bold" mb={2}>Tipo de actividad</Text>
-        <HStack spacing={4} mb={4} wrap="wrap">
-          {TIPOS_ACTIVIDAD.map(tipo => (
+      <FormControl isRequired>
+        <FormLabel>Tipo de actividad</FormLabel>
+        <Box mb={2}>
+          <Text fontSize="sm" color="red.500" mb={1}>
+            Debes seleccionar al menos un tipo de actividad
+          </Text>
+          {TIPOS_ACTIVIDAD.map((tipo) => (
             <Button
               key={tipo.value}
-              colorScheme={selectedTipos.includes(tipo.value) ? "brand" : "gray"}
-              onClick={() => handleTipoChange(tipo.value)}
               size="sm"
-              mb={2}
+              m={1}
+              variant={selectedTipos.includes(tipo.value as TipoActividad) ? "solid" : "outline"}
+              colorScheme={selectedTipos.includes(tipo.value as TipoActividad) ? "brand" : "gray"}
+              onClick={() => handleTipoChange(tipo.value as TipoActividad)}
             >
               {tipo.label}
             </Button>
           ))}
-        </HStack>
+        </Box>
         
         <Text fontWeight="bold" mb={2}>Subtipo de actividad</Text>
         <HStack spacing={4} wrap="wrap">
@@ -158,7 +191,7 @@ const InfoEditor: React.FC<InfoEditorProps> = ({ actividad, onSave, onCancel, mo
             <FormErrorMessage>{errors.dificultad.message?.toString()}</FormErrorMessage>
           )}
         </FormControl>
-      </Box>
+      </FormControl>
 
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5} mb={6}>
         <FormControl isRequired isInvalid={!!errors.fechaInicio}>
@@ -211,6 +244,9 @@ const InfoEditor: React.FC<InfoEditorProps> = ({ actividad, onSave, onCancel, mo
       )}
     </Box>
   );
-};
+});
+
+// 5. Agregar displayName para debugging
+InfoEditor.displayName = 'InfoEditor';
 
 export default InfoEditor;

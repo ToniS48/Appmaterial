@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, 
@@ -39,7 +39,8 @@ import { normalizarFecha, toDate, toTimestamp, compareDates } from '../../utils/
 import { validateActividad } from '../../utils/actividadUtils';
 import { determinarEstadoActividad } from '../../utils/dateUtils';
 import { validateActividadEnlaces } from '../../utils/actividadUtils';
-
+import { verificarConexionFirebase } from '../../utils/firebaseUtils';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ActividadFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ const ActividadFormPage: React.FC = () => {
     duration: 5000,
     isClosable: true,
   });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { userProfile } = useAuth();
   const [actividad, setActividad] = useState<Actividad | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
@@ -61,10 +63,10 @@ const ActividadFormPage: React.FC = () => {
   const [materialEdited, setMaterialEdited] = useState<boolean>(false);
   const [enlacesEdited, setEnlacesEdited] = useState<boolean>(false);
 
-  // Añade este estado
+  // Añades este estado
   const [isSaving, setIsSaving] = useState(false);
 
-  // Añade esto antes del condicional alrededor de la línea 70
+  // Añades esto antes del condicional alrededor de la línea 70
   const [isUserResponsable, setIsUserResponsable] = useState<boolean>(false);
 
   // Dentro del componente, antes de usar hasResponsableMaterial
@@ -81,7 +83,25 @@ const ActividadFormPage: React.FC = () => {
   // Modifica el condicional existente
   useEffect(() => {
     setIsUserResponsable(checkIsUserResponsable());
-  }, [userProfile, formData.responsableMaterialId]);
+  }, [userProfile, formData.responsableMaterialId, checkIsUserResponsable]); // Añadir la dependencia
+
+  // Verificar la conexión a Firebase al cargar el componente
+  useEffect(() => {
+    const verificarConexion = async () => {
+      const conectado = await verificarConexionFirebase();
+      if (!conectado) {
+        toast({
+          title: "Error de conexión",
+          description: "No se pudo conectar con la base de datos. Verifica tu conexión a internet.",
+          status: "error",
+          duration: 5000,
+          isClosable: true
+        });
+      }
+    };
+    
+    verificarConexion();
+  }, [toast]);
 
   // Cargar actividad si estamos en modo edición
   useEffect(() => {
@@ -110,6 +130,7 @@ const ActividadFormPage: React.FC = () => {
       const mañana = new Date();
       mañana.setDate(mañana.getDate() + 1);
       
+      // Configurar valores iniciales explícitos para todos los campos requeridos
       setFormData({
         nombre: '',
         lugar: '',
@@ -133,6 +154,12 @@ const ActividadFormPage: React.FC = () => {
         comentarios: [],
         enlaces: []
       });
+      
+      // Marcar todas las secciones como no editadas al comenzar
+      setInfoEdited(false);
+      setParticipantesEdited(false);
+      setMaterialEdited(false);
+      setEnlacesEdited(false);
     }
   }, [id, userProfile]);
 
@@ -165,19 +192,75 @@ const ActividadFormPage: React.FC = () => {
     };
   };
 
+  // Función auxiliar para guardar datos en localStorage
+  const saveToLocalStorage = (data: Partial<Actividad>) => {
+    try {
+      console.log("Guardando en localStorage:", data);
+      localStorage.setItem('actividad_temp_data', JSON.stringify(data));
+    } catch (e) {
+      console.error("Error guardando datos en localStorage:", e);
+    }
+  };
+
+  // Asegurar que las fechas se convierten correctamente
   const handleInfoSave = (infoData: Partial<Actividad>) => {
-    setFormData((prev: Partial<Actividad>) => ({
-      ...prev,
-      ...infoData
-    }));
+    console.log("handleInfoSave - Datos recibidos:", infoData);
+    
+    // Verificar que tipo y subtipo estén presentes
+    if (!infoData.tipo?.length) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar al menos un tipo de actividad",
+        status: "error",
+        duration: 3000
+      });
+      return;
+    }
+    
+    if (!infoData.subtipo?.length) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar al menos un subtipo de actividad",
+        status: "error",
+        duration: 3000
+      });
+      return;
+    }
+    
+    // Convertir fechas a objetos Date si vienen como Timestamp
+    const fechaInicio = infoData.fechaInicio instanceof Timestamp ? 
+      infoData.fechaInicio.toDate() : infoData.fechaInicio;
+    
+    const fechaFin = infoData.fechaFin instanceof Timestamp ? 
+      infoData.fechaFin.toDate() : infoData.fechaFin;
+    
+    // Actualizar estado
+    setFormData(prevFormData => {
+      const updatedData = {
+        ...prevFormData,
+        ...infoData,
+        nombre: infoData.nombre?.trim() || '',
+        lugar: infoData.lugar?.trim() || '',
+        tipo: infoData.tipo || [],
+        subtipo: infoData.subtipo || [],
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin
+      };
+      
+      // Guardar en localStorage
+      saveToLocalStorage(updatedData);
+      
+      return updatedData;
+    });
+    
+    // Resto del código...
+    // Marcar como editado y avanzar
     setInfoEdited(true);
     toast({
       title: "Información guardada",
-      description: "Los datos básicos se han guardado. Puedes continuar con la siguiente sección.",
       status: "success",
       duration: 3000
     });
-    // Avanzar a la siguiente pestaña
     setTabIndex(1);
   };
 
@@ -195,19 +278,37 @@ const ActividadFormPage: React.FC = () => {
     setTabIndex(2);
   };
 
-  const handleMaterialSave = (materiales: Array<{materialId: string; nombre: string; cantidad: number}>) => {
-    setFormData((prev: Partial<Actividad>) => ({
-      ...prev,
-      necesidadMaterial: materiales.length > 0,
-      materiales
-    }));
+  // Modificar la función handleMaterialSave para que actualice correctamente el estado
+  const handleMaterialSave = (materiales: any[]) => {
+    console.log("handleMaterialSave - Recibidos materiales:", materiales);
+    
+    // Actualizar el estado con los nuevos materiales
+    setFormData((prev: Partial<Actividad>) => {
+      const updatedData = {
+        ...prev,
+        materiales: materiales,
+        // Actualizar también la bandera de necesidad de material
+        necesidadMaterial: materiales.length > 0
+      };
+      console.log("FormData actualizado con materiales:", updatedData);
+      
+      // Guardar en localStorage para persistencia
+      saveToLocalStorage(updatedData);
+      
+      return updatedData;
+    });
+    
     setMaterialEdited(true);
     toast({
       title: "Material guardado",
       status: "success",
       duration: 3000
     });
-    setTabIndex(3);
+    
+    // Avanzar a la siguiente pestaña si estamos en el flujo secuencial
+    if (tabIndex === 2) {
+      setTabIndex(3);
+    }
   };
 
   const handleEnlacesSave = async (enlaces: Partial<Actividad>) => {
@@ -230,17 +331,22 @@ const ActividadFormPage: React.FC = () => {
         return;
       }
 
-      // Determinar estado según fechas con las nuevas funciones
-      const hoy = normalizarFecha(new Date())!;
-      const fechaInicio = normalizarFecha(toDate(formData.fechaInicio))!;
-      const fechaFin = normalizarFecha(toDate(formData.fechaFin))!;
-      
-      let estadoAutomatico = formData.estado as EstadoActividad;
-      
-      if (formData.estado !== 'cancelada') {
-        if ((compareDates(hoy, fechaFin) ?? 0) > 0) {
+      // Determinar estado según fechas de forma segura
+      const hoy = normalizarFecha(new Date());
+      const fechaInicio = normalizarFecha(toDate(formData.fechaInicio));
+      const fechaFin = normalizarFecha(toDate(formData.fechaFin));
+
+      // AÑADIR ESTA LÍNEA: Declara la variable con un valor predeterminado
+      let estadoAutomatico: EstadoActividad = 'planificada';
+
+      // Solo cambiar estado si todas las fechas son válidas
+      if (hoy && fechaInicio && fechaFin && formData.estado !== 'cancelada') {
+        const compFin = compareDates(hoy, fechaFin);
+        const compInicio = compareDates(hoy, fechaInicio);
+        
+        if (compFin !== null && compFin > 0) {
           estadoAutomatico = 'finalizada';
-        } else if ((compareDates(hoy, fechaInicio) ?? 0) >= 0) {
+        } else if (compInicio !== null && compInicio >= 0) {
           estadoAutomatico = 'en_curso';
         } else {
           estadoAutomatico = 'planificada';
@@ -261,8 +367,6 @@ const ActividadFormPage: React.FC = () => {
         estado: estadoAutomatico,
         comentarios: formData.comentarios || [],
         creadorId: formData.creadorId || userProfile?.uid || '',
-        enlaces: formData.enlaces || [],
-        ...formData,
         fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
         fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
         fechaActualizacion: Timestamp.fromDate(new Date()),
@@ -271,7 +375,13 @@ const ActividadFormPage: React.FC = () => {
         enlacesDrive: formData.enlacesDrive || [],
         enlacesWeb: formData.enlacesWeb || [],
         imagenesTopografia: formData.imagenesTopografia || [],
-        archivosAdjuntos: formData.archivosAdjuntos || []
+        archivosAdjuntos: formData.archivosAdjuntos || [],
+        enlaces: [
+          ...(formData.enlacesWikiloc?.map(e => e.url) || []),
+          ...(formData.enlacesTopografias || []),
+          ...(formData.enlacesDrive || []),
+          ...(formData.enlacesWeb || [])
+        ]
       };
 
       let resultado: Actividad;
@@ -310,18 +420,97 @@ const ActividadFormPage: React.FC = () => {
     navigate(id ? `/activities/${id}` : '/activities');
   };
 
+  // Añadir estas referencias para acceder a los componentes
+  const infoEditorRef = useRef<any>(null);
+  const participantesEditorRef = useRef<any>(null);
+  const materialEditorRef = useRef<any>(null);
+  const enlacesEditorRef = useRef<any>(null);
+
+  // Modificar la función handleTabButtons para utilizar las refs
+  const handleTabButtons = (action: 'prev' | 'next' | 'save') => {
+    switch(action) {
+      case 'prev':
+        setTabIndex(Math.max(0, tabIndex - 1));
+        break;
+        
+      case 'next':
+        // Solo avanzar si la pestaña actual tiene datos válidos
+        if (tabIndex === 0 && !infoEdited) {
+          // Usar la referencia para invocar el método del componente
+          if (infoEditorRef.current?.submitForm) {
+            infoEditorRef.current.submitForm();
+          } else {
+            // Fallback a la manipulación DOM si la ref no está disponible
+            const formElement = document.querySelector('form');
+            if (formElement) formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+          return; // No avanzar hasta que los datos estén guardados
+        }
+        setTabIndex(Math.min(3, tabIndex + 1));
+        break;
+        
+      case 'save':
+        // Guardar según la pestaña activa usando refs
+        switch(tabIndex) {
+          case 0: // Info
+            if (infoEditorRef.current?.submitForm) {
+              infoEditorRef.current.submitForm();
+            } else {
+              // Fallback si no tenemos acceso al método
+              const formElement = document.querySelector('form');
+              if (formElement) formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+            break;
+            
+          case 1: // Participantes
+            if (participantesEditorRef.current?.submitForm) {
+              participantesEditorRef.current.submitForm();
+            } else {
+              // Si el componente no expone el método, usar el handler directo
+              if (formData.participanteIds) {
+                handleParticipantesSave(formData.participanteIds);
+              }
+            }
+            break;
+            
+          case 2: // Material
+            if (materialEditorRef.current?.submitForm) {
+              materialEditorRef.current.submitForm();
+            } else {
+              // Si el componente no expone el método, usar el handler directo
+              if (formData.materiales) {
+                handleMaterialSave(formData.materiales);
+              }
+            }
+            break;
+            
+          case 3: // Enlaces
+            if (enlacesEditorRef.current?.submitForm) {
+              enlacesEditorRef.current.submitForm();
+            } else {
+              // Para la última pestaña, guardar todo
+              handleSaveAll();
+            }
+            break;
+        }
+        break;
+    }
+  };
+
   const handleSaveAll = async () => {
     try {
       setIsSaving(true);
-      // Mostrar feedback visual de inicio de proceso
-      toast({
-        title: "Procesando",
-        description: "Guardando datos de la actividad...",
-        status: "info",
-        duration: 2000
-      });
-
-      // Usar la función de validación centralizada
+      console.log("handleSaveAll - Iniciando guardado completo");
+      
+      // Establecer el estado automático basado en las fechas
+      let estadoAutomatico: EstadoActividad = 'planificada';
+      estadoAutomatico = determinarEstadoActividad(
+        formData.fechaInicio,
+        formData.fechaFin,
+        formData.estado
+      );
+      
+      // Validar que todos los campos requeridos existan
       const validationError = validateActividad(formData);
       if (validationError) {
         toast({
@@ -330,58 +519,25 @@ const ActividadFormPage: React.FC = () => {
           status: "error",
           duration: 5000
         });
+        setTabIndex(0); // Volver a la pestaña de información
+        setIsSaving(false);
         return;
       }
-
-      // Validación específica para enlaces
-      if (enlacesEdited) {
-        const enlacesError = validateActividadEnlaces(formData);
-        if (enlacesError) {
-          toast({
-            title: "Error en enlaces",
-            description: enlacesError,
-            status: "error",
-            duration: 5000
-          });
-          setTabIndex(3); // Ir a la pestaña de enlaces
-          return;
-        }
-      }
-
-      // Determinar estado automático usando la función centralizada
-      const estadoAutomatico = determinarEstadoActividad(
-        formData.fechaInicio,
-        formData.fechaFin,
-        formData.estado
-      );
-
-      // Comprobar disponibilidad del usuario actual
-      const usuarioActual = userProfile?.uid;
-      if (!usuarioActual) {
-        toast({
-          title: "Error de autenticación",
-          description: "No se pudo identificar al usuario actual. Por favor, inicia sesión nuevamente.",
-          status: "error",
-          duration: 5000
-        });
-        return;
-      }
-
-      // Crear el objeto de actividad completo con valores seguros utilizando las funciones de conversión centralizada
+      
+      // Crear objeto actividad completo
       const actividadCompleta = {
         nombre: formData.nombre || '',
         tipo: formData.tipo || [],
         subtipo: formData.subtipo || [],
         descripcion: formData.descripcion || '',
         lugar: formData.lugar || '',
-        responsableActividadId: formData.responsableActividadId || usuarioActual,
-        participanteIds: formData.participanteIds || [usuarioActual],
+        responsableActividadId: formData.responsableActividadId || userProfile?.uid || '',
+        participanteIds: formData.participanteIds || [],
         necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
         materiales: formData.materiales || [],
         estado: estadoAutomatico,
         comentarios: formData.comentarios || [],
-        creadorId: formData.creadorId || usuarioActual,
-        // Usar funciones centralizadas para fechas
+        creadorId: formData.creadorId || userProfile?.uid || '',
         fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
         fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
         fechaActualizacion: Timestamp.fromDate(new Date()),
@@ -391,7 +547,6 @@ const ActividadFormPage: React.FC = () => {
         enlacesWeb: formData.enlacesWeb || [],
         imagenesTopografia: formData.imagenesTopografia || [],
         archivosAdjuntos: formData.archivosAdjuntos || [],
-        // Incluir un array de enlaces para compatibilidad
         enlaces: [
           ...(formData.enlacesWikiloc?.map(e => e.url) || []),
           ...(formData.enlacesTopografias || []),
@@ -399,41 +554,41 @@ const ActividadFormPage: React.FC = () => {
           ...(formData.enlacesWeb || [])
         ]
       };
-
-      // Mostrar feedback de guardado
-      let resultado: Actividad;
       
+      console.log("handleSaveAll - Objeto a guardar:", actividadCompleta);
+      
+      // Crear o actualizar según corresponda
+      let resultado: Actividad;
       if (id) {
-        // Actualizar actividad existente
+        console.log("handleSaveAll - Actualizando actividad existente:", id);
         resultado = await actualizarActividad(id, actividadCompleta);
         toast({
           title: "Actividad actualizada",
-          description: "La actividad se ha actualizado correctamente",
           status: "success",
           duration: 5000
         });
       } else {
-        // Crear nueva actividad
+        console.log("handleSaveAll - Creando nueva actividad");
         resultado = await crearActividad(actividadCompleta);
         toast({
           title: "Actividad creada",
-          description: "La actividad se ha creado correctamente",
           status: "success",
           duration: 5000
         });
       }
       
-      // Redirigir a la página de detalle después de un pequeño delay
-      // para que el usuario vea el mensaje de éxito
-      setTimeout(() => {
-        navigate(`/activities/${resultado.id}`);
-      }, 1500);
+      console.log("handleSaveAll - Guardado exitoso:", resultado);
       
+      // Limpiar localStorage tras guardar correctamente
+      localStorage.removeItem('actividad_temp_data');
+      
+      // Navegamos a la vista de detalle
+      navigate(`/activities/${resultado.id}`);
     } catch (error) {
       console.error("Error al guardar la actividad:", error);
       toast({
         title: "Error",
-        description: "No se pudo guardar la actividad. Por favor, inténtalo de nuevo.",
+        description: "Se produjo un error al guardar la actividad. Por favor, inténtelo de nuevo.",
         status: "error",
         duration: 5000
       });
@@ -441,6 +596,11 @@ const ActividadFormPage: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  // Añade este useEffect para ver los cambios en formData
+  useEffect(() => {
+    console.log("Estado actual de formData:", formData);
+  }, [formData]);
 
   if (loading) {
     return (
@@ -499,38 +659,48 @@ const ActividadFormPage: React.FC = () => {
               <TabPanels>
                 <TabPanel>
                   <InfoEditor 
+                    ref={infoEditorRef}
                     actividad={getCompleteActivity(formData)}
                     onSave={handleInfoSave} 
                     onCancel={handleCancel}
-                    mostrarBotones={false}
+                    mostrarBotones={false} // Desactivar botones propios
                   />
+                  {!infoEdited && (
+                    <Alert status="warning" mt={4}>
+                      <AlertIcon />
+                      Completa la información básica antes de continuar
+                    </Alert>
+                  )}
                 </TabPanel>
                 
                 <TabPanel>
                   <ParticipantesEditor 
+                    ref={participantesEditorRef}
                     actividad={getCompleteActivity(formData)}
                     onSave={handleParticipantesSave}
                     onCancel={handleCancel}
-                    mostrarBotones={false}
+                    mostrarBotones={false} // Desactivar botones propios
                   />
                 </TabPanel>
                 
                 <TabPanel>
                   <MaterialEditor 
+                    ref={materialEditorRef}
                     actividad={getCompleteActivity(formData)}
                     onSave={handleMaterialSave}
                     onCancel={handleCancel}
-                    mostrarBotones={false}
+                    mostrarBotones={false} // Desactivar botones propios
                   />
                 </TabPanel>
                 
                 <TabPanel>
                   <EnlacesEditor 
+                    ref={enlacesEditorRef}
                     actividad={getCompleteActivity(formData)}
                     onSave={handleEnlacesSave}
                     onCancel={handleCancel}
                     esNuevo={!id}
-                    mostrarBotones={false}
+                    mostrarBotones={false} // Desactivar botones propios
                   />
                 </TabPanel>
               </TabPanels>
@@ -550,7 +720,7 @@ const ActividadFormPage: React.FC = () => {
             <HStack spacing={3}>
               <Button 
                 leftIcon={<FiChevronLeft />} 
-                onClick={() => setTabIndex(Math.max(0, tabIndex - 1))} 
+                onClick={() => handleTabButtons('prev')} 
                 isDisabled={tabIndex === 0}
                 variant="ghost"
               >
@@ -558,7 +728,7 @@ const ActividadFormPage: React.FC = () => {
               </Button>
               <Button 
                 rightIcon={<FiChevronRight />} 
-                onClick={() => setTabIndex(Math.min(3, tabIndex + 1))} 
+                onClick={() => handleTabButtons('next')} 
                 isDisabled={tabIndex === 3}
                 variant="ghost"
               >
@@ -567,11 +737,11 @@ const ActividadFormPage: React.FC = () => {
               <Button 
                 leftIcon={<FiSave />} 
                 colorScheme="brand" 
-                onClick={handleSaveAll}
+                onClick={() => tabIndex === 3 ? handleSaveAll() : handleTabButtons('save')}
                 isLoading={isSaving}
                 loadingText="Guardando..."
               >
-                {id ? "Actualizar actividad" : "Crear actividad"}
+                {tabIndex === 3 ? (id ? "Actualizar actividad" : "Crear actividad") : "Guardar y continuar"}
               </Button>
             </HStack>
           </Flex>

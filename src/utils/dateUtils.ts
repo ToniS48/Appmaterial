@@ -33,14 +33,15 @@ export const toDate = (date: any): Date | null => {
 export const toTimestamp = (date: any): Timestamp | null => {
   if (!date) return null;
   
-  if (date instanceof Timestamp) {
-    return date;
-  }
-  
   const dateObj = toDate(date);
   if (!dateObj) return null;
   
-  return Timestamp.fromDate(dateObj);
+  // Normalizar la fecha eliminando la hora si es necesario
+  // Esto evita problemas al comparar fechas
+  const normalizedDate = new Date(dateObj);
+  normalizedDate.setHours(0, 0, 0, 0);
+  
+  return Timestamp.fromDate(normalizedDate);
 };
 
 /**

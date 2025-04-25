@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
 import {
   Box, Button, FormControl, FormLabel, FormErrorMessage,
   Stack, Text, useColorModeValue, Alert, AlertIcon
@@ -14,12 +14,10 @@ interface MaterialEditorProps {
   mostrarBotones?: boolean;
 }
 
-const MaterialEditor: React.FC<MaterialEditorProps> = ({ 
-  actividad, 
-  onSave, 
-  onCancel,
-  mostrarBotones = true // Valor predeterminado
-}) => {
+const MaterialEditor = forwardRef<
+  { submitForm: () => void },
+  MaterialEditorProps
+>(({ actividad, onSave, onCancel, mostrarBotones = true }, ref) => {
   const { control, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: {
       materiales: actividad.materiales || []
@@ -29,11 +27,21 @@ const MaterialEditor: React.FC<MaterialEditorProps> = ({
   const cardBg = useColorModeValue("white", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
 
+  // Añadir el tipo correcto para materiales
   const onSubmit = (data: { materiales: any[] }) => {
+    console.log("MaterialEditor - Formulario enviado:", data);
     onSave(data.materiales);
   };
 
   const materialesList = watch('materiales');
+
+  // Asegurar que useImperativeHandle está correctamente implementado
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      console.log("MaterialEditor - submitForm llamado");
+      handleSubmit(onSubmit)();
+    }
+  }));
 
   return (
     <Box
@@ -87,6 +95,9 @@ const MaterialEditor: React.FC<MaterialEditorProps> = ({
       )}
     </Box>
   );
-};
+});
+
+// Agregar displayName para debugging
+MaterialEditor.displayName = 'MaterialEditor';
 
 export default MaterialEditor;

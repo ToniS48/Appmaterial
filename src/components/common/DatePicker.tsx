@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { forwardRef, useEffect, useState } from 'react';
 import { Input, useColorModeValue } from '@chakra-ui/react';
 import ReactDatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { es } from 'date-fns/locale';
 
 // Componente CustomInput que recibe la referencia
-const CustomInput = React.forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, ...props }, ref) => {
-  // Siempre llamamos a los hooks, sin condiciones
+const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, ...props }, ref) => {
+  // Usar hooks para obtener colores según el tema
   const defaultBg = useColorModeValue("white", "gray.700");
   const defaultBorderColor = useColorModeValue("gray.200", "gray.600");
   
-  // Luego podemos usar esos valores o los proporcionados como props
+  // Usar valores proporcionados o los valores por defecto
   const bg = bgColor || defaultBg;
   const borderColor = defaultBorderColor;
   
   return (
     <Input
-      value={value}
+      value={value || ''}
       onClick={onClick}
       onChange={onChange}
       ref={ref}
@@ -28,35 +29,62 @@ const CustomInput = React.forwardRef<HTMLInputElement, any>(({ value, onClick, o
 
 CustomInput.displayName = 'CustomInput';
 
-// Extendemos las props para incluir cualquier prop que ReactDatePicker pueda recibir
+// Extender las props para incluir cualquier prop que ReactDatePicker pueda recibir
 interface DatePickerProps {
   name?: string;
   value?: Date | null; 
-  onChange: (date: Date | null, event?: React.SyntheticEvent<any> | undefined) => void;
+  onChange?: (date: Date | null, event?: React.SyntheticEvent<any> | undefined) => void;
   control?: any;
   bgColor?: string;
   [x: string]: any;
 }
 
-const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ 
-  value, 
-  onChange, 
+const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(({
+  value,
+  onChange,
   bgColor,
   ...rest
 }, ref) => {
-  // La función wrapped garantiza compatibilidad con react-hook-form
+  // Estado local para manejar la fecha seleccionada
+  const [selectedDate, setSelectedDate] = useState<Date | null>(value || null);
+  
+  // Actualizar el estado local cuando la prop value cambia
+  useEffect(() => {
+    // Solo actualizar si hay cambio real
+    if (value !== selectedDate) {
+      setSelectedDate(value || null);
+    }
+  }, [value, selectedDate]);
+  
+  // Manejar cambios en la fecha
   const handleChange = (date: Date | null, event?: React.SyntheticEvent<any>) => {
-    onChange(date, event);
+    // Actualizar estado local
+    setSelectedDate(date);
+    
+    // Llamar a onChange si existe
+    if (onChange) {
+      onChange(date, event);
+    }
   };
+  
+  // Depuración
+  useEffect(() => {
+    console.debug('[DatePicker] Renderizando con fecha:', selectedDate);
+  }, [selectedDate]);
   
   // Eliminar explícitamente la referencia de las props restantes
   const { ref: _, ...restProps } = rest as any;
 
   return (
     <ReactDatePicker
-      selected={value}
+      selected={selectedDate}
       onChange={handleChange}
       dateFormat="dd/MM/yyyy"
+      locale={es}
+      isClearable={false}
+      showMonthDropdown
+      showYearDropdown
+      dropdownMode="select"
       {...restProps}
       customInput={
         <CustomInput 
