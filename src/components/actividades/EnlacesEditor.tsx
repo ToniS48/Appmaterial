@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import {
   Box, Button, Text, Stack, Heading, Tabs, TabList, Tab,
   TabPanels, TabPanel, Input, Checkbox, Flex, Badge,
@@ -18,13 +18,10 @@ interface EnlacesEditorProps {
   mostrarBotones?: boolean; // Añadida propiedad opcional
 }
 
-const EnlacesEditor: React.FC<EnlacesEditorProps> = ({ 
-  actividad, 
-  onSave, 
-  onCancel,
-  esNuevo = false,
-  mostrarBotones = true // Valor predeterminado
-}) => {
+const EnlacesEditor = forwardRef<
+  { submitForm: () => void },
+  EnlacesEditorProps
+>(({ actividad, onSave, onCancel, mostrarBotones = true, esNuevo = false }, ref) => {
   // Estados para cada tipo de enlace
   const [enlacesWikiloc, setEnlacesWikiloc] = useState(actividad.enlacesWikiloc || []);
   const [enlacesTopografias, setEnlacesTopografias] = useState(actividad.enlacesTopografias || []);
@@ -64,24 +61,6 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
     return url.includes('drive.google.com') || url.includes('docs.google.com');
   };
 
-  const handleSubmit = () => {
-    onSave({
-      enlacesWikiloc,
-      enlacesTopografias,
-      enlacesDrive,
-      enlacesWeb,
-      // Mantener la compatibilidad con el campo enlaces
-      enlaces: [
-        ...enlacesWikiloc.map(e => e.url),
-        ...enlacesTopografias,
-        ...enlacesDrive,
-        ...enlacesWeb
-      ],
-      // Usar Timestamp en lugar de Date
-      fechaActualizacion: Timestamp.fromDate(new Date())
-    });
-  };
-
   // Función para eliminar enlaces de Wikiloc
   const eliminarEnlaceWikiloc = (index: number) => {
     const nuevosEnlaces = [...enlacesWikiloc];
@@ -108,6 +87,49 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
     const nuevosEnlaces = [...enlacesWeb];
     nuevosEnlaces.splice(index, 1);
     setEnlacesWeb(nuevosEnlaces);
+  };
+
+  // 3. Exponer el método submitForm usando useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      // Recolectar y enviar los datos de los enlaces
+      const enlaces = {
+        enlacesWikiloc,
+        enlacesTopografias,
+        enlacesDrive,
+        enlacesWeb,
+        // Mantener la compatibilidad con el campo enlaces
+        enlaces: [
+          ...enlacesWikiloc.map(e => e.url),
+          ...enlacesTopografias,
+          ...enlacesDrive,
+          ...enlacesWeb
+        ],
+        // Usar Timestamp en lugar de Date
+        fechaActualizacion: Timestamp.fromDate(new Date())
+      };
+      onSave(enlaces);
+    }
+  }));
+
+  const handleSubmit = () => {
+    // Reutilizar la misma lógica que ya tienes en useImperativeHandle
+    const enlaces = {
+      enlacesWikiloc,
+      enlacesTopografias,
+      enlacesDrive,
+      enlacesWeb,
+      // Mantener la compatibilidad con el campo enlaces
+      enlaces: [
+        ...enlacesWikiloc.map(e => e.url),
+        ...enlacesTopografias,
+        ...enlacesDrive,
+        ...enlacesWeb
+      ],
+      // Usar Timestamp en lugar de Date
+      fechaActualizacion: Timestamp.fromDate(new Date())
+    };
+    onSave(enlaces);
   };
 
   return (
@@ -373,6 +395,9 @@ const EnlacesEditor: React.FC<EnlacesEditorProps> = ({
       )}
     </Box>
   );
-};
+});
+
+// 4. Agregar displayName para debugging
+EnlacesEditor.displayName = 'EnlacesEditor';
 
 export default EnlacesEditor;

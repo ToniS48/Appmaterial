@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Box, Button, Stack, Text, Grid, GridItem, Flex,
   Heading, Card, CardBody, Checkbox, Input, InputGroup, InputLeftElement, Divider,
@@ -16,12 +16,10 @@ interface ParticipantesEditorProps {
   mostrarBotones?: boolean; // Nueva propiedad opcional
 }
 
-const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({ 
-  actividad, 
-  onSave, 
-  onCancel,
-  mostrarBotones = true // Valor predeterminado para la nueva propiedad
-}) => {
+const ParticipantesEditor = forwardRef<
+  { submitForm: () => void },
+  ParticipantesEditorProps
+>(({ actividad, onSave, onCancel, mostrarBotones = false }, ref) => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>(actividad.participanteIds || []);
   const [loading, setLoading] = useState<boolean>(true);
@@ -58,6 +56,15 @@ const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({
   const handleSubmit = () => {
     onSave(selectedIds);
   };
+
+  // 3. Exponer el método submitForm usando useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      // Si tienes un método específico para enviar el formulario, úsalo aquí
+      // Si no, simplemente ejecuta onSave con los participantes seleccionados
+      onSave(selectedIds);
+    }
+  }));
   
   return (
     <Box>
@@ -106,6 +113,9 @@ const ParticipantesEditor: React.FC<ParticipantesEditorProps> = ({
       )}
     </Box>
   );
-};
+});
+
+// 4. Agregar displayName para debugging
+ParticipantesEditor.displayName = 'ParticipantesEditor';
 
 export default ParticipantesEditor;
