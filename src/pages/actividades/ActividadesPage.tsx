@@ -74,7 +74,7 @@ const ActividadesPage: React.FC = () => {
       
       // Cargar actividades clasificadas
       const { actividadesResponsable, actividadesParticipante } = 
-        await obtenerActividadesClasificadas(userProfile.uid);
+        await obtenerActividadesClasificadas(userProfile?.uid || '');
       
       setActividadesResponsable(actividadesResponsable);
       setActividadesParticipante(actividadesParticipante);
@@ -92,8 +92,49 @@ const ActividadesPage: React.FC = () => {
     }
   };
   
+  // Nueva función que ignora caché explícitamente
+  const cargarActividadesForzado = async () => {
+    try {
+      setIsLoading(true);
+      // Pasar true para indicar que debe ignorar caché
+      const todasActividades = await listarActividades(undefined, true);
+      setActividades(todasActividades);
+      
+      // También actualizar las demás listas
+      const actividadesProximas = await obtenerActividadesProximas(5, { ignoreCache: true });
+      setProximasActividades(actividadesProximas);
+      
+      // Cargar actividades clasificadas
+      const { actividadesResponsable, actividadesParticipante } = 
+        await obtenerActividadesClasificadas(userProfile?.uid || '');
+      
+      setActividadesResponsable(actividadesResponsable);
+      setActividadesParticipante(actividadesParticipante);
+    } catch (error) {
+      console.error("Error al cargar actividades:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las actividades",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    cargarActividades();
+    const needsRefresh = sessionStorage.getItem('actividades_cache_invalidated') === 'true';
+    if (needsRefresh) {
+      // Eliminar el flag
+      sessionStorage.removeItem('actividades_cache_invalidated');
+      // Forzar carga ignorando caché
+      cargarActividadesForzado();
+    } else {
+      // Carga normal
+      cargarActividades();
+    }
   }, [userProfile?.uid]);
 
   // Función para unirse a una actividad

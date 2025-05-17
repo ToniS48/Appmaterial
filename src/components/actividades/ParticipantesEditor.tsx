@@ -7,21 +7,14 @@ import {
 import { listarUsuarios } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
 import { Actividad } from '../../types/actividad';
-
-// Actualizar la interfaz ParticipantesEditorProps
-interface ParticipantesEditorProps {
-  actividad: Actividad;
-  onSave: (participanteIds: string[]) => void;
-  onCancel: () => void;
-  mostrarBotones?: boolean; // Nueva propiedad opcional
-}
+import { ParticipantesEditorProps } from '../../types/editor';
 
 const ParticipantesEditor = forwardRef<
   { submitForm: () => void },
   ParticipantesEditorProps
->(({ actividad, onSave, onCancel, mostrarBotones = false }, ref) => {
+>(({ data, onSave, onCancel, mostrarBotones = true }, ref) => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>(actividad.participanteIds || []);
+  const [selectedIds, setSelectedIds] = useState<string[]>(data.participanteIds || []);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   
@@ -57,12 +50,16 @@ const ParticipantesEditor = forwardRef<
     onSave(selectedIds);
   };
 
-  // 3. Exponer el método submitForm usando useImperativeHandle
+  // Exponer el método submitForm usando useImperativeHandle
   useImperativeHandle(ref, () => ({
     submitForm: () => {
-      // Si tienes un método específico para enviar el formulario, úsalo aquí
-      // Si no, simplemente ejecuta onSave con los participantes seleccionados
-      onSave(selectedIds);
+      console.log("ParticipantesEditor - submitForm llamado, selectedIds:", selectedIds);
+      // Asegurar que siempre haya al menos el usuario actual como participante
+      const idsToSave = selectedIds.length > 0 ? 
+        selectedIds : 
+        (data.creadorId ? [data.creadorId] : []);
+      
+      onSave(idsToSave);
     }
   }));
   
@@ -101,7 +98,7 @@ const ParticipantesEditor = forwardRef<
       </Grid>
       
       {/* Renderizado condicional de los botones */}
-      {mostrarBotones !== false && (
+      {mostrarBotones && (
         <Stack direction="row" spacing={4} justify="flex-end">
           <Button variant="outline" onClick={onCancel}>
             Cancelar
@@ -115,7 +112,7 @@ const ParticipantesEditor = forwardRef<
   );
 });
 
-// 4. Agregar displayName para debugging
+// Agregar displayName para debugging
 ParticipantesEditor.displayName = 'ParticipantesEditor';
 
 export default ParticipantesEditor;

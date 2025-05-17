@@ -307,7 +307,12 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
             control={control}
             name="fechaPrestamo"
             render={({ field }) => (
-              <DatePicker {...field} control={control} />
+              <DatePicker 
+                {...field} 
+                control={control}
+                selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
+                onChange={(date: Date | null) => field.onChange(date ? Timestamp.fromDate(date) : null)}
+              />
             )}
           />
           {errors.fechaPrestamo && (
@@ -321,7 +326,12 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
             control={control}
             name="fechaDevolucionPrevista"
             render={({ field }) => (
-              <DatePicker {...field} control={control} />
+              <DatePicker 
+                {...field} 
+                control={control} 
+                selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
+                onChange={(date: Date | null) => field.onChange(date ? Timestamp.fromDate(date) : null)}
+              />
             )}
           />
           {errors.fechaDevolucionPrevista && (

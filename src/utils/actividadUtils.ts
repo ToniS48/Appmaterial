@@ -1,4 +1,5 @@
-import { Actividad } from '../types/actividad';
+import { Actividad, EstadoActividad, MaterialAsignado } from '../types/actividad';
+import { Timestamp } from 'firebase/firestore';
 import { toDate } from './dateUtils';
 
 export const validateActividad = (actividad: Partial<Actividad>): string | null => {
@@ -73,3 +74,119 @@ const isValidUrl = (urlString: string): boolean => {
     return false;
   }
 }
+
+/**
+ * Estandariza los materiales para garantizar formato consistente
+ */
+export const standardizeMaterials = (
+  materials: Array<{ materialId: string; nombre?: string; cantidad?: number | string }>
+): MaterialAsignado[] => {
+  return Array.isArray(materials)
+    ? materials
+        .filter(m => m && m.materialId)
+        .map(m => ({
+          materialId: m.materialId,
+          nombre: m.nombre || '',
+          cantidad: typeof m.cantidad === 'number' 
+            ? m.cantidad 
+            : parseInt(String(m.cantidad), 10) || 1
+        }))
+    : [];
+};
+
+/**
+ * Estandariza los enlaces para garantizar consistencia
+ */
+export const standardizeLinks = (data: Partial<Actividad>): Partial<Actividad> => {
+  // Asegurar que todos los arrays estén inicializados
+  return {
+    ...data, // Preservar todos los campos originales
+    enlacesWikiloc: data.enlacesWikiloc || [],
+    enlacesTopografias: data.enlacesTopografias || [],
+    enlacesDrive: data.enlacesDrive || [],
+    enlacesWeb: data.enlacesWeb || [],
+    // Regenerar el array de enlaces combinados para compatibilidad
+    enlaces: [
+      ...(data.enlacesWikiloc || []).map(e => e.url),
+      ...(data.enlacesTopografias || []),
+      ...(data.enlacesDrive || []),
+      ...(data.enlacesWeb || [])
+    ]
+  };
+};
+
+/**
+ * Genera un objeto actividad estandarizado ya sea desde una actividad existente o como nueva
+ * @param existingActivity Actividad existente (si es edición)
+ * @param currentUserId ID del usuario actual
+ */
+export const getStandardizedActivityData = (existingActivity: Partial<Actividad> | null, currentUserId?: string): Partial<Actividad> => {
+  // Si hay una actividad existente, usamos esa como base
+  if (existingActivity && Object.keys(existingActivity).length > 0) {
+    return {
+      ...existingActivity,
+      // Asegurar que estos campos siempre existan
+      materiales: existingActivity.materiales || [],
+      participanteIds: existingActivity.participanteIds || (currentUserId ? [currentUserId] : []),
+      enlacesWikiloc: existingActivity.enlacesWikiloc || [],
+      enlacesTopografias: existingActivity.enlacesTopografias || [],
+      enlacesDrive: existingActivity.enlacesDrive || [],
+      enlacesWeb: existingActivity.enlacesWeb || [],
+      comentarios: existingActivity.comentarios || [],
+      enlaces: existingActivity.enlaces || []
+    };
+  }
+  
+  // Para nueva actividad - valores por defecto consistentes
+  const mañana = new Date();
+  mañana.setDate(mañana.getDate() + 1);
+  
+  return {
+    nombre: '',
+    lugar: '',
+    descripcion: '',
+    fechaInicio: new Date(),
+    fechaFin: mañana,
+    tipo: [],
+    subtipo: [],
+    dificultad: 'media' as 'baja' | 'media' | 'alta',
+    responsableActividadId: currentUserId || '',
+    responsableMaterialId: currentUserId || '',
+    participanteIds: currentUserId ? [currentUserId] : [],
+    materiales: [],
+    estado: 'planificada' as EstadoActividad,
+    creadorId: currentUserId || '',
+    enlacesWikiloc: [],
+    enlacesTopografias: [],
+    enlacesDrive: [],
+    enlacesWeb: [],
+    comentarios: [],
+    enlaces: []
+  };
+};
+
+/**
+ * Realiza una validación completa de la actividad antes de guardar
+ * @param data Datos de la actividad a validar
+ * @returns String con mensaje de error o null si es válida
+ */
+export const validateActividadComplete = (data: Partial<Actividad>): string | null => {
+  if (!data.nombre || data.nombre.trim() === '') {
+    return 'El nombre de la actividad es obligatorio';
+  }
+  
+  if (!data.fechaInicio) {
+    return 'La fecha de inicio es obligatoria';
+  }
+  
+  if (!data.fechaFin) {
+    return 'La fecha de finalización es obligatoria';
+  }
+
+  // Añadir validación para necesidadMaterial (antes faltaba)
+  if (data.necesidadMaterial === undefined || data.necesidadMaterial === null) {
+    return 'Debe indicar si la actividad requiere material';
+  }
+  
+  return null;
+};
