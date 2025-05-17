@@ -83,7 +83,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   const [materiales, setMateriales] = useState<MaterialItem[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<string>('');
   const [cantidad, setCantidad] = useState<number>(1);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Inicializamos como true para mostrar cargando
   const [errorState, setErrorState] = useState<string | null>(null);
   
   // Nuevos estados para el selector visual
@@ -100,23 +100,31 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   
   // Inicializar con materiales existentes si se proporcionan
   useEffect(() => {
+    // Verificamos si hay materiales actuales para cargar
     if (materialesActuales && materialesActuales.length > 0) {
-      // Verificar si ya están cargados en fields para evitar duplicados
-      const existingIds = fields.map((field: any) => field.materialId);
-      const newMaterials = materialesActuales.filter(mat => !existingIds.includes(mat.materialId));
+      console.log("Inicializando materiales preexistentes:", materialesActuales);
       
-      if (newMaterials.length > 0) {
-        // Usar un setTimeout para asegurar que este código se ejecute después de que React haya actualizado el DOM
-        setTimeout(() => {
-          newMaterials.forEach(material => {
-            append(material);
-          });
-        }, 0);
-      }
+      // Limpiamos cualquier material existente primero para evitar duplicados
+      fields.forEach((_, index) => remove(index));
+      
+      // Agregamos todos los materiales actuales validados
+      const materialesValidados = materialesActuales.filter(m => m && m.materialId).map(m => ({
+        id: m.id || `temp-${m.materialId}-${Date.now()}`,
+        materialId: m.materialId,
+        nombre: m.nombre || 'Material sin nombre',
+        cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
+      }));
+      
+      // Usamos setTimeout para evitar problemas de timing con React
+      setTimeout(() => {
+        materialesValidados.forEach(material => {
+          append(material);
+        });
+      }, 0);
     }
-  }, [materialesActuales]); 
+  }, [materialesActuales, append, remove, fields.length]);
   
-  // Cargar materiales disponibles en tiempo real
+  // Actualizar el useEffect que carga los materiales
   useEffect(() => {
     let unsubscribe: () => void;
     
@@ -125,26 +133,39 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
         setIsLoading(true);
         setErrorState(null);
         
-        // Crear una consulta que filtre por materiales disponibles
+        console.log("Iniciando consulta a material_deportivo...");
+        
+        // Consulta a la colección material_deportivo
+        const materialesRef = collection(db, 'material_deportivo');
         const materialesQuery = query(
-          collection(db, 'material_deportivo'),
+          materialesRef,
           where('estado', '==', 'disponible')
         );
         
-        // Configurar el listener en tiempo real
         unsubscribe = onSnapshot(
           materialesQuery,
           (snapshot) => {
-            // Cuando lleguen datos nuevos, actualizar el estado
+            console.log(`Materiales obtenidos: ${snapshot.docs.length}`);
+            
             const materialesTransformados = snapshot.docs.map(doc => {
               const data = doc.data();
+              
+              // Log detallado para debug
+              console.log(`Material ID: ${doc.id}, Nombre: ${data.nombre}, Tipo: ${data.tipo}`);
+              
+              // Manejar tanto materiales con cantidad como materiales únicos
+              const cantidadDisp = data.tipo === 'cuerda' 
+                ? (data.estado === 'disponible' ? 1 : 0)  // Para cuerdas
+                : (typeof data.cantidadDisponible === 'number' 
+                  ? data.cantidadDisponible 
+                  : parseInt(String(data.cantidadDisponible || 0), 10));
+                  
               return {
                 id: doc.id,
                 nombre: data.nombre || 'Sin nombre',
                 tipo: data.tipo || 'varios',
                 estado: data.estado || 'disponible',
-                // Convertir explícitamente a número
-                cantidadDisponible: parseInt(data.cantidadDisponible, 10) || 1,
+                cantidadDisponible: cantidadDisp,
                 codigo: data.codigo || '',
                 descripcion: data.descripcion || ''
               } as MaterialItem;
@@ -155,28 +176,19 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
           },
           (error) => {
             console.error('Error en el listener de materiales:', error);
-            setErrorState(`Error al monitorear materiales: ${error.message || 'Error desconocido'}`);
+            setErrorState(`Error al cargar materiales: ${error.message}`);
             setIsLoading(false);
-            
-            toast({
-              title: 'Error',
-              description: messages.material.selector.errorCargarMateriales,
-              status: 'error',
-              duration: 5000,
-              isClosable: true,
-            });
           }
         );
       } catch (error: any) {
         console.error('Error al configurar listener de materiales:', error);
-        setErrorState(`Error al configurar monitoreo: ${error.message || 'Error desconocido'}`);
+        setErrorState(`Error de configuración: ${error.message}`);
         setIsLoading(false);
       }
     };
     
     setupMaterialesListener();
     
-    // Función de limpieza para desuscribirse del listener cuando el componente se desmonte
     return () => {
       if (unsubscribe) {
         unsubscribe();
@@ -187,20 +199,38 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   // Convertir fields para tipado seguro
   const typedFields = fields as MaterialField[];
 
-  // Función para calcular la disponibilidad real
+  // Función para calcular la disponibilidad real con manejo de errores mejorado
   const calcularDisponibilidadReal = (material: MaterialItem): number => {
-    // Obtener cuántas unidades ya están seleccionadas en la sesión actual
-    const seleccionadasActualmente = typedFields
-      .filter(field => field.materialId === material.id)
-      .reduce((total, field) => total + (typeof field.cantidad === 'number' ? field.cantidad : parseInt(field.cantidad as any, 10) || 0), 0);
+    if (!material || !material.id) return 0;
     
-    // Asegurar que cantidadDisponible sea un número
-    const cantidadDisp = typeof material.cantidadDisponible === 'number' ? 
-      material.cantidadDisponible : 
-      parseInt(material.cantidadDisponible as any, 10) || 0;
-    
-    // Usar precisión entera para evitar problemas de decimales
-    return Math.max(0, cantidadDisp - seleccionadasActualmente);
+    try {
+      // Obtener cuántas unidades ya están seleccionadas en la sesión actual
+      const seleccionadasActualmente = typedFields
+        .filter(field => field.materialId === material.id)
+        .reduce((total, field) => {
+          const cantidad = typeof field.cantidad === 'number' ? 
+            field.cantidad : parseInt(String(field.cantidad || 0), 10);
+          return total + cantidad;
+        }, 0);
+      
+      console.log(`Material: ${material.nombre}, Disponible original: ${material.cantidadDisponible}, Ya seleccionadas: ${seleccionadasActualmente}`);
+      
+      // Para cuerdas individuales (que no tienen cantidadDisponible)
+      if (material.tipo === 'cuerda' && typeof material.cantidadDisponible !== 'number') {
+        return material.estado === 'disponible' && seleccionadasActualmente === 0 ? 1 : 0;
+      }
+      
+      // Para materiales con cantidad
+      const cantidadDisp = typeof material.cantidadDisponible === 'number' ? 
+        material.cantidadDisponible : parseInt(String(material.cantidadDisponible || 0), 10);
+      
+      const resultado = Math.max(0, cantidadDisp - seleccionadasActualmente);
+      console.log(`Disponibilidad real de ${material.nombre}: ${resultado}`);
+      return resultado;
+    } catch (error) {
+      console.error("Error al calcular disponibilidad:", error, material);
+      return 0; // En caso de error, devolver 0 como fallback seguro
+    }
   };
 
   // Filtrar materiales ya seleccionados de forma segura
@@ -253,7 +283,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   );
 
   // Manejar la adición de un material a la lista con validación adicional
-  const handleAddMaterial = (selectedId: string, qty: number = 1) => {
+  const handleAddMaterial = React.useCallback((selectedId: string, qty: number = 1) => {
     if (!selectedId) {
       toast({
         title: 'Error',
@@ -301,17 +331,13 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     }
     
     try {
-      // Agregar el material a la lista
+      // Agregar el material a la lista con un ID estable
       append({
-        id: Date.now().toString(), // Generar un ID único
+        id: `material-${material.id}`,
         materialId: material.id,
         nombre: material.nombre,
         cantidad: qty
       });
-      
-      // Resetear selección
-      setSelectedMaterial('');
-      setCantidad(1);
       
       // Mostrar mensaje de éxito
       toast({
@@ -329,7 +355,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
         duration: 3000,
       });
     }
-  };
+  }, [materiales, toast, calcularDisponibilidadReal, append]);
 
   // Componente de tarjeta de material
   const MaterialCard = React.memo(({ material }: { material: MaterialItem }) => {
@@ -398,7 +424,9 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                 color={disponibilidadReal === 0 ? "red.600" : 
                       disponibilidadReal < 5 ? "orange.600" : "green.600"}
               >
-                {disponibilidadReal} {messages.material.selector.disponible}{disponibilidadReal !== 1 ? 's' : ''}
+                {disponibilidadReal} {disponibilidadReal === 1 ? 
+                  messages.material.selector.disponible : 
+                  "disponibles"}
               </Text>
             </Flex>
             
@@ -428,6 +456,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                 size="sm"
                 colorScheme="brand"
                 isDisabled={disponibilidadReal <= 0 || qty <= 0}
+                onClick={() => handleAddMaterial(material.id, qty)} // Añadir esta línea
               >
                 {messages.material.selector.botonAnadir}
               </Button>
