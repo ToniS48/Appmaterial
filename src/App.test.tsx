@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from './styles/theme';
+import messages from './constants/messages'; // Añadir esta importación
 
 // Mock de Firebase
 jest.mock('./services/firebase', () => ({
@@ -56,7 +57,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-test('renders login page', async () => {
+test('renders login page title', async () => {
   render(
     <TestWrapper>
       <App />
@@ -85,7 +86,7 @@ test('renders login form elements', async () => {
   expect(submitButton).toBeInTheDocument();
 });
 
-test('renders login page', () => {
+test('renders login UI elements', () => {
   render(
     <TestWrapper>
       <App />
@@ -94,5 +95,8 @@ test('renders login page', () => {
   
   const loginTitle = screen.getByText(/Iniciar sesión/i);
   expect(loginTitle).toBeInTheDocument();
+  
+  // Usar la variable o eliminarla
   const emailInput = screen.getByLabelText(/Email/i);
+  expect(emailInput).toBeInTheDocument(); // Añadir este expect para usar la variable
 });
