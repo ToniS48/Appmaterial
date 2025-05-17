@@ -2,12 +2,14 @@ import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orde
 import { db } from '../config/firebase';
 import { Actividad, Comentario } from '../types/actividad';
 import { handleFirebaseError } from '../utils/errorHandling';
-import { Usuario } from '../types/usuario';
+// Eliminar la importación no utilizada o añadir el tipo
+import type { Usuario } from '../types/usuario';
 import { actividadCache } from './actividadCache';
-import { crearPrestamo, actualizarPrestamo, registrarDevolucion, obtenerPrestamosPorActividad } from './prestamoService';
-import { enviarNotificacionMasiva } from './notificacionService'; // Importamos el servicio de notificaciones
-import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService'; // Importamos el servicio de usuarios
-import { obtenerMaterial } from './materialService'; // Importamos el servicio de materiales
+// Eliminar registrarDevolucion de la importación
+import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from './prestamoService';
+import { enviarNotificacionMasiva } from './notificacionService';
+import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService';
+import { obtenerMaterial } from './materialService';
 import messages from '../constants/messages';
 import { determinarEstadoActividad } from '../utils/dateUtils';
 

@@ -29,6 +29,19 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
-    "semi": ["error", "always"]  // o ["error", "never"] si prefieres no usar punto y coma
+    "semi": ["error", "always"],  // o ["error", "never"] si prefieres no usar punto y coma
+    "@typescript-eslint/no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "caughtErrorsIgnorePattern": "^_"
+    }],
   },
+  overrides: [
+    {
+      files: ["*.test.tsx", "*.test.ts"],
+      rules: {
+        "jest/no-identical-title": "error"
+      }
+    }
+  ]
 };
