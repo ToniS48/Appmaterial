@@ -16,18 +16,31 @@ import { determinarEstadoActividad } from '../utils/dateUtils';
 // Crear una nueva actividad
 export const crearActividad = async (actividadData: Omit<Actividad, 'id' | 'fechaCreacion' | 'fechaActualizacion'>): Promise<Actividad> => {
   try {
+    // Verificar nombre duplicado
+    const nombreDuplicado = await existeActividadConNombre(actividadData.nombre);
+    if (nombreDuplicado) {
+      throw new Error('Ya existe una actividad con este nombre. Por favor, use un nombre diferente.');
+    }
+    
     // Validar que necesidadMaterial tenga un valor definido
     const necesidadMaterial = actividadData.necesidadMaterial ?? false;
+    
+    // Asegurar que el creador esté incluido como participante
+    const participanteIds = actividadData.participanteIds || [];
+    if (actividadData.creadorId && !participanteIds.includes(actividadData.creadorId)) {
+      participanteIds.push(actividadData.creadorId);
+    }
     
     const actividadesRef = collection(db, 'actividades');
     const now = Timestamp.now();
     
-    // Si no hay responsable de actividad asignado, usar el creador como responsable
+    // Añadir campo normalizado para búsquedas insensibles a mayúsculas/minúsculas
     const dataToSave = {
       ...actividadData,
-      // Asignar el creador como responsable si no se especificó un responsable
+      participanteIds, // Usar el array actualizado con el creador incluido
+      nombreNormalizado: actividadData.nombre.trim().toLowerCase(),
       responsableActividadId: actividadData.responsableActividadId || actividadData.creadorId,
-      necesidadMaterial, // Usar el valor validado
+      necesidadMaterial,
       fechaCreacion: now,
       fechaActualizacion: now,
       comentarios: [],
@@ -631,12 +644,19 @@ export const guardarActividad = async (actividadData: Actividad): Promise<Activi
     
     const now = Timestamp.now();
     
+    // Asegurar que el creador esté incluido como participante
+    const participanteIds = actividadData.participanteIds || [];
+    if (actividadData.creadorId && !participanteIds.includes(actividadData.creadorId)) {
+      participanteIds.push(actividadData.creadorId);
+    }
+    
     // Determinar estado automáticamente basado en fechas
     const estado = determinarEstadoActividad(fechaInicio, fechaFin, actividadData.estado);
     
     // Crear objeto base para guardar
     let dataToSave: any = {
       ...actividadData,
+      participanteIds, // Usar el array actualizado con el creador incluido
       fechaInicio,
       fechaFin,
       estado,
@@ -685,5 +705,32 @@ export const invalidateActividadesCache = async (): Promise<void> => {
     window.dispatchEvent(event);
   } catch (error) {
     console.error('Error al invalidar caché de actividades:', error);
+  }
+};
+
+// Añadir esta función nueva
+export const existeActividadConNombre = async (nombre: string, idExcluir?: string): Promise<boolean> => {
+  try {
+    const nombreNormalizado = nombre.trim().toLowerCase();
+    
+    // Consulta para buscar actividades con el mismo nombre
+    const actividadesQuery = query(
+      collection(db, 'actividades'),
+      where('nombreNormalizado', '==', nombreNormalizado)
+    );
+    
+    const snapshot = await getDocs(actividadesQuery);
+    
+    // Si estamos actualizando, excluimos la propia actividad
+    if (idExcluir) {
+      return snapshot.docs.some(doc => doc.id !== idExcluir);
+    }
+    
+    // Para nuevas actividades, cualquier resultado indica duplicado
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error al verificar nombre de actividad:', error);
+    // En caso de error, permitimos continuar pero lo registramos
+    return false;
   }
 };

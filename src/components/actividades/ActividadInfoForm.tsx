@@ -10,6 +10,7 @@ import {
   Button,
   Text,
   useColorModeValue,
+  Flex,
 } from '@chakra-ui/react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { TipoActividad } from '../../types/actividad';
@@ -18,16 +19,20 @@ import DatePicker from '../common/DatePicker';
 import { Timestamp } from 'firebase/firestore';
 
 export const ActividadInfoForm = () => {
-  const { register, control, formState: { errors } } = useFormContext();
+  const { register, control, formState: { errors }, watch, setValue } = useFormContext();
 
   const [selectedTipos, setSelectedTipos] = useState<TipoActividad[]>([]);
 
-  const handleTipoChange = (tipo: { value: TipoActividad; label: string }) => {
-    setSelectedTipos(prevTipos => {
-      const isSelected = prevTipos.includes(tipo.value);
-      const newTipos = isSelected ? prevTipos.filter(t => t !== tipo.value) : [...prevTipos, tipo.value];
-      return newTipos;
-    });
+  // Asegúrate que esta función esté actualizada
+  const handleTipoChange = (tipo: any) => {
+    const currentValues = watch('tipo') || [];
+    const isSelected = currentValues.includes(tipo.value);
+    
+    const newValue = isSelected
+      ? currentValues.filter((value: string) => value !== tipo.value)
+      : [...currentValues, tipo.value];
+    
+    setValue('tipo', newValue, { shouldValidate: true });
   };
 
   return (
@@ -79,19 +84,25 @@ export const ActividadInfoForm = () => {
 
         <FormControl isRequired isInvalid={!!errors.tipo}>
           <FormLabel>Tipo</FormLabel>
-          {TIPOS_ACTIVIDAD.map((tipo) => (
-            <div key={tipo.value}>
-              <label>
-                <input 
-                  type="checkbox" 
-                  value={tipo.value}
-                  {...register('tipo')}
-                  onChange={() => handleTipoChange(tipo)}
-                />
-                {tipo.label}
-              </label>
-            </div>
-          ))}
+          <Flex gap={2} flexWrap="wrap">
+            {TIPOS_ACTIVIDAD.map((tipo) => {
+              // Verificar si este tipo está seleccionado
+              const isSelected = watch('tipo')?.includes(tipo.value);
+              
+              return (
+                <Button
+                  key={tipo.value}
+                  size="sm"
+                  variant={isSelected ? "solid" : "outline"}
+                  colorScheme={isSelected ? "brand" : "gray"}
+                  onClick={() => handleTipoChange(tipo)}
+                  mb={2}
+                >
+                  {tipo.label}
+                </Button>
+              );
+            })}
+          </Flex>
           <FormErrorMessage>{errors.tipo?.message?.toString()}</FormErrorMessage>
         </FormControl>
       </SimpleGrid>

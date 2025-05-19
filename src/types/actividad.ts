@@ -20,6 +20,7 @@ export interface Comentario {
 export interface Actividad {
   id?: string;
   nombre: string;
+  nombreNormalizado?: string; // Campo nuevo para búsquedas insensibles a mayúsculas/minúsculas
   tipo: TipoActividad[];
   subtipo: SubtipoActividad[];
   descripcion: string;

@@ -10,6 +10,8 @@ export interface Usuario {
   rol: RolUsuario;
   activo: boolean;
   pendienteVerificacion: boolean;
+  eliminado?: boolean; // Añadir este campo
+  fechaEliminacion?: Timestamp | Date | FieldValue; // Añadir este campo
   telefono?: string;
   telefonosEmergencia?: string[];
   observaciones?: string;

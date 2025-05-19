@@ -8,14 +8,16 @@ export const messages = {
   auth: {
     login: {
       title: 'Iniciar sesión',
-      emailLabel: 'Email',
+      emailLabel: 'Correo electrónico',
       passwordLabel: 'Contraseña',
-      submitButton: 'Iniciar sesión',
-      loadingButton: 'Iniciando sesión...',
+      submitButton: 'Acceder',
+      loadingButton: 'Accediendo...',
       forgotPassword: '¿Olvidaste tu contraseña?',
-      noAccount: '¿No tienes cuenta? Regístrate',
-      emailSent: 'Se ha enviado un correo para restablecer tu contraseña',
-      emailRequired: 'Por favor, introduce tu email para restablecer la contraseña'
+      noAccount: '¿No tienes una cuenta? Regístrate',
+      emailSent: 'Email enviado correctamente',
+      emailRequired: 'Debes introducir un email para recuperar tu contraseña',
+      invalidEmail: 'El formato de email no es válido',
+      passwordTooShort: 'La contraseña debe tener al menos 6 caracteres'
     },
     register: {
       title: 'Crear nueva cuenta',
@@ -38,13 +40,21 @@ export const messages = {
       sessionWarningDescription: 'Por inactividad, su sesión se cerrará automáticamente en 5 minutos. ¿Desea continuar conectado?',
       continueSession: 'Continuar conectado',
       closeSession: 'Cerrar sesión',
-      accountDisabled: 'Tu cuenta está desactivada. Contacta con un administrador.'
+      accountDisabled: 'Tu cuenta está desactivada. Contacta con un administrador.',
+      loginError: 'Error al iniciar sesión',
+      registerError: 'Error al registrar usuario',
+      passwordResetEmailSent: 'Se ha enviado un email con instrucciones para restablecer tu contraseña',
+      passwordResetError: 'Error al enviar el email de restablecimiento de contraseña'
     },
     security: {
       loginBlocked: 'Demasiados intentos fallidos. Tu cuenta ha sido bloqueada temporalmente.',
       attemptsRemaining: 'Intento fallido. Te quedan {attempts} intentos.',
       blockedTime: 'Podrás intentarlo nuevamente en {minutes} minutos.',
       temporaryBlock: 'Por seguridad, se ha bloqueado temporalmente el acceso.'
+    },
+    resetPassword: {
+      emailSent: 'Se ha enviado un email con instrucciones para restablecer tu contraseña',
+      error: 'Error al enviar el email de restablecimiento de contraseña'
     }
   },
   

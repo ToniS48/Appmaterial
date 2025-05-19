@@ -178,30 +178,35 @@ const ActividadesPage: React.FC = () => {
 
   // Renderizar tarjeta de actividad
   const renderActividadCard = (actividad: Actividad) => {
+    // Determinar si el usuario actual es responsable de la actividad
+    const esResponsable = 
+      actividad.creadorId === userProfile?.uid || 
+      actividad.responsableActividadId === userProfile?.uid || 
+      actividad.responsableMaterialId === userProfile?.uid;
+    
+    // Determinar si el usuario es participante pero no responsable
+    const esParticipante = 
+      userProfile?.uid && 
+      actividad.participanteIds?.includes(userProfile?.uid) &&
+      !esResponsable;
+
     return (
-      <ActividadCard
+      <ActividadCard 
         key={actividad.id}
         actividad={actividad}
-        onVerDetalles={() => {
-          setSelectedActividad(actividad);
-          onDetailOpen();
-        }}
-        onUnirse={
-          // Solo mostrar unirse si no es responsable ni participante
-          userProfile && 
-          actividad.creadorId !== userProfile.uid && 
-          actividad.responsableActividadId !== userProfile.uid &&
-          actividad.responsableMaterialId !== userProfile.uid &&
-          !actividad.participanteIds?.includes(userProfile.uid) &&
-          actividad.estado !== 'finalizada' && 
-          actividad.estado !== 'cancelada'
-            ? () => handleUnirseActividad(actividad.id as string)
-            : undefined
-        }
+        onVerDetalles={() => handleVerDetalle(actividad)}
+        onEditar={() => navigate(`/activities/${actividad.id}`)}
+        onGestionarMaterial={() => navigate(`/activities/${actividad.id}/material`)}
+        onUnirse={() => handleUnirseActividad(actividad.id as string)}
+        variant="complete"
         mostrarBotones={true}
-        mostrarDescripcion={true}
       />
     );
+  };
+
+  const handleVerDetalle = (actividad: Actividad) => {
+    setSelectedActividad(actividad);
+    onDetailOpen();
   };
 
   return (

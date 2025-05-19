@@ -1,41 +1,24 @@
 import { NavigateFunction } from 'react-router-dom';
 import { Usuario, RolUsuario } from '../types/usuario';
 
-/**
- * Mapa de rutas por rol de usuario
- */
+// Mapeo de roles a rutas (dashboard)
 export const ROL_ROUTES: Record<RolUsuario, string> = {
   admin: '/admin',
   vocal: '/vocal',
   socio: '/socio',
-  invitado: '/invitado'  // Antes era "/usuario"
-};
-
-// Mapa de rutas de gestión de usuario por rol
-export const USER_MANAGEMENT_ROUTES: Record<string, string> = {
-  admin: '/admin/usuarios',
-  vocal: '/vocal/usuarios', // Añadimos ruta para gestión de usuarios por vocales
+  invitado: '/invitado'  // Asegurar consistencia con la ruta en AppRoutes
 };
 
 /**
- * Verifica si un rol tiene permisos para gestionar usuarios
- * @param rol - Rol del usuario
- * @returns boolean indicando si tiene permisos
+ * Obtiene la ruta correspondiente al rol del usuario
+ * @param rol Rol del usuario
+ * @returns Ruta correspondiente al dashboard de ese rol
  */
-export const hasUserManagementPermission = (rol?: RolUsuario): boolean => {
-  return rol === 'admin' || rol === 'vocal';
-};
-
-/**
- * Obtiene la ruta para un rol específico
- * @param rol - Rol del usuario
- * @returns Ruta correspondiente al rol
- */
-export const getRutaPorRol = (rol?: RolUsuario): string => {
-  if (!rol || !ROL_ROUTES[rol]) {
-    return '/login';
+export const getRutaPorRol = (rol: string): string => {
+  if (rol in ROL_ROUTES) {
+    return ROL_ROUTES[rol as RolUsuario];
   }
-  return ROL_ROUTES[rol];
+  return '/login'; // Default fallback
 };
 
 /**

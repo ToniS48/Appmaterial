@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   VStack, 
   Box, 
@@ -148,6 +148,11 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
   const filteredItems = navItems.filter(item => 
     item.roles.includes(userRole)
   );
+
+  // Añade un console.log para depurar
+  useEffect(() => {
+    console.log('Ruta actual:', location.pathname);
+  }, [location]);
 
   return (
     <VStack spacing={0} align="stretch">

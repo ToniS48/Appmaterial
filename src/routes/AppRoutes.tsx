@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  Route, 
-  Routes,
-  Navigate
-} from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getRutaPorRol } from '../utils/navigation';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
+
+// Importaciones de componentes (mantener las existentes)
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import Dashboard from '../pages/Dashboard';
@@ -14,77 +14,56 @@ import ActividadPage from '../pages/actividades/ActividadPage';
 import { ActividadFormPage } from '../pages/actividades/ActividadFormPage';
 import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
 import GestionMaterialPage from '../pages/material/GestionMaterialPage';
-import PerfilPage from '../pages/usuario/PerfilPage';
+import ProfilePage from '../pages/usuario/ProfilePage';
 import GestionUsuariosPage from '../pages/common/GestionUsuariosPage';
 import DevolucionMaterialPage from '../pages/material/DevolucionMaterialPage';
 import MisActividadesPage from '../pages/MisActividadesPage';
-import { RolUsuario } from '../types/usuario';
-
-// Definir interfaz para las props de ProtectedRoute
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  allowedRoles: RolUsuario[];
-}
-
-// Componente para rutas protegidas
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { userProfile, loading } = useAuth();
-  
-  if (loading) return <div>Cargando...</div>;
-  
-  if (!userProfile) return <Navigate to="/login" replace />;
-  
-  if (allowedRoles && !allowedRoles.includes(userProfile.rol)) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-};
+import MaterialDetallePage from '../pages/material/MaterialDetallePage';
+import QRPrintPage from '../pages/material/QRPrintPage';
+import NotificacionesPage from '../pages/common/NotificacionesPage';
+import ConfiguracionPage from '../pages/admin/ConfiguracionPage';
+import ReportesAdminPage from '../pages/reportes/ReportesAdminPage';
+import PrestamosAdminPage from '../pages/prestamos/PrestamosAdminPage';
+import PrestamosVocalPage from '../pages/prestamos/PrestamosVocalPage';
+import MisPrestamosPage from '../pages/prestamos/MisPrestamosPage';
 
 const AppRoutes: React.FC = () => {
+  const location = useLocation();
   const { userProfile } = useAuth();
 
   return (
     <Routes>
+      {/* RUTAS PÚBLICAS */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      
-      {/* Dashboard principal y rutas por rol */}
-      <Route path="/" element={
-        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      
-      {/* Dashboards específicos por rol */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* RUTAS DE DASHBOARDS (por rol) */}
       <Route path="/admin" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <Dashboard />
         </ProtectedRoute>
       } />
-      
       <Route path="/vocal" element={
         <ProtectedRoute allowedRoles={['vocal']}>
           <Dashboard />
         </ProtectedRoute>
       } />
-      
       <Route path="/socio" element={
         <ProtectedRoute allowedRoles={['socio']}>
           <Dashboard />
         </ProtectedRoute>
       } />
-      
       <Route path="/invitado" element={
         <ProtectedRoute allowedRoles={['invitado']}>
           <Dashboard />
         </ProtectedRoute>
       } />
-
-      {/* Rutas de Actividades */}
-      <Route path="/activities" element={
+      
+      {/* RUTAS ESPECÍFICAS Y ESTÁTICAS (antes de las dinámicas) */}
+      <Route path="/activities/calendario" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <ActividadesPage />
+          <CalendarioPage />
         </ProtectedRoute>
       } />
       <Route path="/activities/create" element={
@@ -92,45 +71,109 @@ const AppRoutes: React.FC = () => {
           <ActividadFormPage />
         </ProtectedRoute>
       } />
-      <Route path="/activities/:id" element={
-        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <ActividadPage />
-        </ProtectedRoute>
-      } />
+
+      {/* RUTAS DINÁMICAS */}
       <Route path="/activities/:id/material" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <ActividadMaterialPage />
         </ProtectedRoute>
       } />
-      <Route path="/activities/calendario" element={
+      <Route path="/activities/:id" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <CalendarioPage />
+          <ActividadPage />
         </ProtectedRoute>
       } />
       
-      {/* Rutas de Usuarios - Solo Admin */}
-      <Route path="/usuarios" element={
-        <ProtectedRoute allowedRoles={['admin']}>
-          <GestionUsuariosPage />
+      {/* RESTO DE RUTAS (mantener las existentes en el mismo orden) */}
+      <Route path="/activities" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
+          <ActividadesPage />
         </ProtectedRoute>
       } />
-      
-      {/* Rutas de Material - Requiere autenticación */}
+
+      {/* Rutas de material */}
       <Route path="/material" element={
-        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
+        <ProtectedRoute allowedRoles={['admin', 'vocal']}>
           <GestionMaterialPage />
         </ProtectedRoute>
       } />
-      <Route path="/material/devoluciones" element={
+      <Route path="/material/detalle/:id" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
+          <MaterialDetallePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/material/qr/:id" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal']}>
+          <QRPrintPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/material/devolucion/:prestamoId" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
           <DevolucionMaterialPage />
         </ProtectedRoute>
       } />
-      
-      <Route path="/perfil" element={
+
+      {/* Rutas de usuario */}
+      <Route path="/profile" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <PerfilPage />
+          <ProfilePage />
         </ProtectedRoute>
+      } />
+      <Route path="/admin/usuarios" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <GestionUsuariosPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/vocal/usuarios" element={
+        <ProtectedRoute allowedRoles={['vocal']}>
+          <GestionUsuariosPage />
+        </ProtectedRoute>
+      } />
+
+      {/* Rutas de préstamos */}
+      <Route path="/mis-prestamos" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
+          <MisPrestamosPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/prestamos" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <PrestamosAdminPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/vocal/prestamos" element={
+        <ProtectedRoute allowedRoles={['vocal']}>
+          <PrestamosVocalPage />
+        </ProtectedRoute>
+      } />
+
+      {/* Otras rutas */}
+      <Route path="/mis-actividades" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
+          <MisActividadesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/notificaciones" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
+          <NotificacionesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/settings" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ConfiguracionPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/reportes" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ReportesAdminPage />
+        </ProtectedRoute>
+      } />
+
+      {/* RUTA DE FALLBACK */}
+      <Route path="*" element={
+        userProfile ? 
+          <Navigate to={getRutaPorRol(userProfile.rol)} replace /> : 
+          <Navigate to="/login" replace />
       } />
     </Routes>
   );

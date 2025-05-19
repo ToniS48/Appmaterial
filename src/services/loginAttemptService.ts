@@ -10,8 +10,15 @@ export const hashEmail = (email: string): string => {
   return crypto.SHA256(email).toString();
 };
 
+// Definir correctamente la interfaz de retorno para checkLoginStatus
+export interface LoginStatus {
+  blocked: boolean;
+  attemptsRemaining: number;
+  blockedUntil?: Date;
+}
+
 // Verifica el estado actual de bloqueo
-export const checkLoginStatus = async (email: string) => {
+export const checkLoginStatus = async (email: string): Promise<LoginStatus> => {
   try {
     const emailHash = hashEmail(email);
     const attemptsRef = doc(db, "loginAttempts", emailHash);
@@ -26,30 +33,50 @@ export const checkLoginStatus = async (email: string) => {
     
     const userData = docSnap.data() || {};
     
-    // Verificar si la cuenta está bloqueada
-    if (userData.blockedUntil && userData.blockedUntil.toMillis() > Date.now()) {
+    if (userData.attempts < MAX_LOGIN_ATTEMPTS) {
       return {
-        blocked: true,
-        blockedUntil: userData.blockedUntil,
-        attemptsRemaining: 0,
+        blocked: false,
+        attemptsRemaining: MAX_LOGIN_ATTEMPTS - userData.attempts,
       };
     }
     
-    // Si había un bloqueo pero ya expiró
-    if (userData.blockedUntil && userData.blockedUntil.toMillis() <= Date.now()) {
-      await updateDoc(attemptsRef, {
-        attempts: 0,
-        blockedUntil: null,
-      });
+    // Verificar si el bloqueo ha expirado
+    if (userData.blockedUntil) {
+      const blockedUntil = new Date(userData.blockedUntil.toDate());
+      const now = new Date();
+      
+      if (blockedUntil > now) {
+        return {
+          blocked: true,
+          attemptsRemaining: 0,
+          blockedUntil: blockedUntil
+        };
+      } else {
+        // El bloqueo ha expirado, reiniciar contador
+        await updateDoc(attemptsRef, {
+          attempts: 0,
+          blockedUntil: null,
+          lastAttempt: serverTimestamp()
+        });
+        
+        return {
+          blocked: false,
+          attemptsRemaining: MAX_LOGIN_ATTEMPTS,
+        };
+      }
     }
     
     return {
       blocked: false,
-      attemptsRemaining: MAX_LOGIN_ATTEMPTS - (userData.attempts || 0),
+      attemptsRemaining: MAX_LOGIN_ATTEMPTS - userData.attempts,
     };
   } catch (error) {
-    console.error("Error checking login status:", error);
-    throw error;
+    console.error("Error al verificar intentos de login:", error);
+    // En caso de error, permitir el acceso
+    return {
+      blocked: false,
+      attemptsRemaining: MAX_LOGIN_ATTEMPTS,
+    };
   }
 };
 
@@ -66,20 +93,29 @@ export const recordLoginAttempt = async (email: string, success: boolean, isRegi
     
     const emailHash = hashEmail(email);
     const attemptsRef = doc(db, "loginAttempts", emailHash);
-    const docSnap = await getDoc(attemptsRef);
-    const now = new Date();
     
     // Si el inicio de sesión es exitoso, resetear intentos
     if (success) {
-      if (docSnap.exists()) {
-        await updateDoc(attemptsRef, {
-          attempts: 0,
-          blockedUntil: null,
-          lastAttemptTimestamp: serverTimestamp(),
-        });
-      }
-      return {blocked: false, attemptsRemaining: MAX_LOGIN_ATTEMPTS};
+      await setDoc(attemptsRef, {
+        email,
+        attempts: 0,
+        lastAttemptTimestamp: serverTimestamp(),
+        blockedUntil: null,
+        lastSuccessfulLogin: serverTimestamp()
+      }, { merge: true });
+      
+      console.log('Intentos de login reseteados por login exitoso');
+      
+      return {
+        blocked: false, 
+        attemptsRemaining: MAX_LOGIN_ATTEMPTS
+      };
     }
+    
+    // Si es un intento fallido, seguir con el proceso normal
+    // pero con mejor manejo de errores
+    const docSnap = await getDoc(attemptsRef);
+    const now = new Date();
     
     // Primer intento fallido
     if (!docSnap.exists()) {
@@ -147,6 +183,10 @@ export const recordLoginAttempt = async (email: string, success: boolean, isRegi
     }
   } catch (error) {
     console.error("Error recording login attempt:", error);
-    throw error;
+    // En caso de error, no bloquear el acceso
+    return {
+      blocked: false,
+      attemptsRemaining: MAX_LOGIN_ATTEMPTS - 1
+    };
   }
 };
