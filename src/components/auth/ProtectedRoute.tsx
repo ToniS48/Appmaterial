@@ -1,11 +1,12 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Center, Spinner } from '@chakra-ui/react';
+import { getRutaPorRol } from '../../utils/navigation';
 
-// Actualizar la interfaz para incluir children
 interface ProtectedRouteProps {
   allowedRoles: string[];
-  children: React.ReactNode; // Añadir la propiedad children
+  children: React.ReactNode;
   redirectTo?: string;
 }
 
@@ -14,19 +15,42 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   redirectTo = '/login' 
 }) => {
-  const { userProfile, isLoading } = useAuth();
+  const { userProfile, loading } = useAuth(); // Cambiado isLoading por loading
+  const location = useLocation();
   
-  // Mostrar loading o nada mientras se carga el perfil
-  if (isLoading) {
-    return null; // O un componente de carga
+  // Log único al renderizar
+  const logInfo = () => {
+    console.log(`ProtectedRoute - Ruta: ${location.pathname}, Rol: ${userProfile?.rol}, Permitidos: ${allowedRoles.join(', ')}`);
+  };
+  
+  // Solo mostrar spinner durante la carga inicial
+  if (loading) { // Usando loading en lugar de isLoading
+    logInfo();
+    return (
+      <Center h="80vh">
+        <Spinner size="xl" color="brand.500" />
+      </Center>
+    );
   }
   
-  // Redireccionar si no hay usuario o no tiene el rol permitido
-  if (!userProfile || !allowedRoles.includes(userProfile.rol)) {
+  // Si no hay usuario, redirigir al login
+  if (!userProfile) {
+    logInfo();
+    console.log('ProtectedRoute - Redirigiendo a login: sin usuario autenticado');
     return <Navigate to={redirectTo} replace />;
   }
   
-  // Renderizar el contenido si está autorizado
+  // Si el usuario no tiene los permisos necesarios
+  if (!allowedRoles.includes(userProfile.rol)) {
+    logInfo();
+    const redirectPath = getRutaPorRol(userProfile.rol);
+    console.log(`ProtectedRoute - Redirigiendo a ${redirectPath}: rol no permitido`);
+    return <Navigate to={redirectPath} replace />;
+  }
+  
+  // Acceso permitido
+  logInfo();
+  console.log('ProtectedRoute - Acceso permitido');
   return <>{children}</>;
 };
 

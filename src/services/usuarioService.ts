@@ -116,6 +116,10 @@ export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Pro
     const usuario = await obtenerUsuarioPorId(uid);
     
     if (usuario) {
+      // Verificar si el usuario fue marcado como eliminado
+      if (usuario.eliminado === true) {
+        throw new Error('Esta cuenta ha sido eliminada. Contacta con un administrador.');
+      }
       return usuario;
     } else {
       // Si no existe el perfil, crear uno básico
@@ -127,9 +131,10 @@ export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Pro
         email,
         nombre: email.split('@')[0],
         apellidos: '',
-        rol: 'invitado' as RolUsuario, // Cambiado de 'usuario' a 'invitado'
-        activo: true,
-        pendienteVerificacion: true, // Por defecto requiere verificación
+        rol: 'invitado' as RolUsuario,
+        activo: true, // CAMBIAR A true para permitir el login inicial
+        pendienteVerificacion: true,
+        eliminado: false, // Inicializar como no eliminado
         fechaCreacion: ahora,
         fechaRegistro: ahora,
         ultimaConexion: ahora
@@ -239,8 +244,9 @@ export const crearUsuario = async (userData: {
       nombre: userData.nombre,
       apellidos: userData.apellidos,
       rol: userData.rol,
-      activo: false, // Por defecto inactivo hasta aprobación
-      pendienteVerificacion: true, // Por defecto requiere verificación
+      activo: true, // CAMBIAR A true para permitir el login inicial
+      pendienteVerificacion: true,
+      eliminado: false, // Añadir este campo para controlar usuarios eliminados
       fechaCreacion: Timestamp.now(),
       fechaRegistro: Timestamp.now(),
       ultimaConexion: Timestamp.now()
@@ -274,20 +280,28 @@ export const crearUsuario = async (userData: {
 // Eliminar usuario
 export const eliminarUsuario = async (uid: string): Promise<void> => {
   try {
-    // Eliminar de Firestore
-    await deleteDoc(doc(db, 'usuarios', uid));
+    // En lugar de eliminar el documento, actualizarlo con estado eliminado
+    const usuarioRef = doc(db, 'usuarios', uid);
+    const docSnap = await getDoc(usuarioRef);
     
-    // Intentar eliminar de Authentication si es posible
-    // Nota: Esto puede requerir privilegios de admin o que el usuario esté autenticado
-    try {
-      // Esta función requeriría implementación con Firebase Admin SDK en un entorno seguro
-      // o utilizando Cloud Functions
-      console.log('Se debe eliminar el usuario de Authentication usando Firebase Admin SDK');
-    } catch (authError) {
-      console.error('No se pudo eliminar el usuario de Authentication:', authError);
+    if (!docSnap.exists()) {
+      throw new Error('El usuario no existe');
     }
+    
+    // Marcar como eliminado
+    await updateDoc(usuarioRef, {
+      activo: false,
+      eliminado: true,
+      fechaEliminacion: Timestamp.now()
+    });
+    
+    console.log('Usuario marcado como eliminado en Firestore');
+    
+    // Comentario informativo sobre la necesidad de eliminar en Auth
+    console.log('IMPORTANTE: Recuerda eliminar también el usuario en Firebase Auth desde la consola');
+    
   } catch (error) {
-    handleFirebaseError(error, 'Error al eliminar usuario');
+    handleFirebaseError(error, 'Error al marcar usuario como eliminado');
     throw error;
   }
 };
