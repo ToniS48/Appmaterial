@@ -1,111 +1,255 @@
 import React, { useState } from 'react';
 import {
-  Box,
-  FormControl,
-  FormLabel,
-  Input,
-  SimpleGrid,
-  FormErrorMessage,
-  HStack,
-  Button,
-  Text,
-  useColorModeValue,
-  Flex,
+  FormControl, FormLabel, FormErrorMessage, Input,
+  Checkbox, SimpleGrid, Textarea, Box, Button, Wrap, WrapItem,
+  HStack, Tag, TagLabel, TagCloseButton, Flex
 } from '@chakra-ui/react';
-import { useFormContext, Controller } from 'react-hook-form';
-import { TipoActividad } from '../../types/actividad';
-import { TIPOS_ACTIVIDAD } from '../../constants/actividadOptions';
+import { Controller, useFormContext } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
-import { Timestamp } from 'firebase/firestore';
+import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
+import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD } from '../../constants/actividadOptions';
+import { TipoActividad, SubtipoActividad, TipoActividadOption, SubtipoActividadOption } from '../../types/actividad';
+import { FiX } from 'react-icons/fi';
+import validationMessages from '../../constants/validationMessages';
 
-export const ActividadInfoForm = () => {
-  const { register, control, formState: { errors }, watch, setValue } = useFormContext();
+// Definir tipos específicos para mejorar la seguridad de tipo
+type FilterCallback<T> = (value: T) => boolean;
+type FindOptionCallback<T extends string, U extends {value: T, label: string}> = (option: U) => boolean;
 
-  const [selectedTipos, setSelectedTipos] = useState<TipoActividad[]>([]);
+// Interfaz para las propiedades del componente
+interface ActividadInfoFormProps {
+  onCancel?: () => void;
+}
 
-  // Asegúrate que esta función esté actualizada
-  const handleTipoChange = (tipo: any) => {
-    const currentValues = watch('tipo') || [];
-    const isSelected = currentValues.includes(tipo.value);
+export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }) => {
+  const { register, control, watch, setValue } = useFormContext();
+  const validation = useActividadInfoValidation();
+  
+  // Observar fechas y tipos seleccionados para validación cruzada
+  const fechaInicio = watch('fechaInicio');
+  const fechaFin = watch('fechaFin');
+  const tiposSeleccionados = watch('tipo') || [];
+  const subtiposSeleccionados = watch('subtipo') || [];
+    // Validar fechas relacionadas cuando ambas están presentes
+  React.useEffect(() => {
+    if (fechaInicio && fechaFin) {
+      validation.validateFechas(fechaInicio, fechaFin, true); // validación silenciosa
+    }
+  }, [fechaInicio, fechaFin, validation]);
+
+  // Función helper tipada para filtrar valores no válidos (null/undefined)
+  const isValidValue = <T extends string>(value: unknown): value is T => {
+    return value !== null && value !== undefined && typeof value === 'string';
+  };
+
+  // Función helper tipada para encontrar opciones en arrays
+  const findOptionByValue = <T extends string, U extends {value: T, label: string}>(
+    options: ReadonlyArray<U>,
+    value: T
+  ): U | undefined => {
+    return options.find((option) => option.value === value);
+  };
+
+  // Manejar selección de tipo con tipado correcto
+  const handleTipoToggle = (value: TipoActividad): void => {
+    let newValues: TipoActividad[];
     
-    const newValue = isSelected
-      ? currentValues.filter((value: string) => value !== tipo.value)
-      : [...currentValues, tipo.value];
+    // Filtrar valores con tipo explícito
+    const filterValidTipos: FilterCallback<TipoActividad> = 
+      (tipo) => tipo !== value && isValidValue(tipo);
+      
+    if (tiposSeleccionados.includes(value)) {
+      // Si ya está seleccionado, lo quitamos (filtrando valores nulos/indefinidos)
+      newValues = tiposSeleccionados.filter(filterValidTipos);
+    } else {
+      // Si no está seleccionado, lo añadimos (filtrando valores nulos/indefinidos)
+      newValues = [...tiposSeleccionados.filter(isValidValue), value];
+    }
+    setValue('tipo', newValues);
+    validation.validateTipo(newValues);
+  };
+
+  // Manejar selección de subtipo con tipado correcto
+  const handleSubtipoToggle = (value: SubtipoActividad): void => {
+    let newValues: SubtipoActividad[];
     
-    setValue('tipo', newValue, { shouldValidate: true });
+    // Filtrar valores con tipo explícito
+    const filterValidSubtipos: FilterCallback<SubtipoActividad> = 
+      (subtipo) => subtipo !== value && isValidValue(subtipo);
+      
+    if (subtiposSeleccionados.includes(value)) {
+      // Si ya está seleccionado, lo quitamos (filtrando valores nulos/indefinidos)
+      newValues = subtiposSeleccionados.filter(filterValidSubtipos);
+    } else {
+      // Si no está seleccionado, lo añadimos (filtrando valores nulos/indefinidos)
+      newValues = [...subtiposSeleccionados.filter(isValidValue), value];
+    }
+    setValue('subtipo', newValues);
+    validation.validateSubtipo(newValues);
+  };
+
+  // Añadir estado para control de campos tocados
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+
+  // Marcar un campo como tocado cuando el usuario interactúa con él
+  const handleFieldTouched = (fieldName: string) => {
+    setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
   };
 
   return (
     <Box>
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-        <FormControl isRequired isInvalid={!!errors.nombre}>
-          <FormLabel>Nombre</FormLabel>
-          <Input {...register('nombre', { required: 'Nombre obligatorio' })} />
-          <FormErrorMessage>{errors.nombre?.message?.toString()}</FormErrorMessage>
-        </FormControl>
+      <FormControl isRequired isInvalid={!!validation.errors.nombre} mb={4}>
+        <FormLabel>Nombre de la actividad</FormLabel>
+        <Input          {...register('nombre', {
+            required: true,
+            onBlur: (e) => {
+              handleFieldTouched('nombre');
+              // Validación silenciosa (mostrar error inline pero no toast)
+              validation.validateNombre(e.target.value, true);
+            }
+          })}
+          placeholder="Ejemplo: Exploración Cueva del Agua"
+        />
+        {validation.errors.nombre && (
+          <FormErrorMessage>{validation.errors.nombre}</FormErrorMessage>
+        )}
+      </FormControl>
 
-        <FormControl isRequired isInvalid={!!errors.lugar}>
-          <FormLabel>Lugar</FormLabel>
-          <Input {...register('lugar', { required: 'Lugar obligatorio' })} />
-          <FormErrorMessage>{errors.lugar?.message?.toString()}</FormErrorMessage>
-        </FormControl>
+      <FormControl isRequired isInvalid={!!validation.errors.lugar} mb={4}>
+        <FormLabel>Lugar</FormLabel>
+        <Input          {...register('lugar', {
+            required: true,
+            onBlur: (e) => {
+              handleFieldTouched('lugar');
+              validation.validateLugar(e.target.value, true);
+            }
+          })}
+          placeholder="Ejemplo: Montanejos, Castellón"
+        />
+        {validation.errors.lugar && (
+          <FormErrorMessage>{validation.errors.lugar}</FormErrorMessage>
+        )}
+      </FormControl>
 
-        <FormControl isRequired isInvalid={!!errors.fechaInicio}>
-          <FormLabel>Fecha Inicio</FormLabel>
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
+        <FormControl isRequired isInvalid={!!validation.errors.fechaInicio}>
+          <FormLabel>Fecha de inicio</FormLabel>
           <Controller
-            control={control}
             name="fechaInicio"
-            rules={{ required: 'Fecha de inicio obligatoria' }}
-            render={({ field }) => (
-              <DatePicker
-                selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
-                onChange={(date: Date | null) => field.onChange(date ? Timestamp.fromDate(date) : null)}
-              />
-            )}
-          />
-          <FormErrorMessage>{errors.fechaInicio?.message?.toString()}</FormErrorMessage>
-        </FormControl>
-
-        <FormControl isRequired isInvalid={!!errors.fechaFin}>
-          <FormLabel>Fecha Fin</FormLabel>
-          <Controller
             control={control}
-            name="fechaFin"
-            rules={{ required: 'Fecha de fin obligatoria' }}
-            render={({ field }) => (
-              <DatePicker
-                selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
-                onChange={(date: Date | null) => field.onChange(date ? Timestamp.fromDate(date) : null)}
+            rules={{ required: true }}
+            render={({ field }) => (              <DatePicker
+                selectedDate={field.value}
+                onChange={(date: Date | null) => {
+                  field.onChange(date);
+                  if (date) {
+                    handleFieldTouched('fechaInicio');
+                    validation.validateFechaInicio(date, true);
+                  }
+                }}
               />
             )}
           />
-          <FormErrorMessage>{errors.fechaFin?.message?.toString()}</FormErrorMessage>
+          {validation.errors.fechaInicio && (
+            <FormErrorMessage>{validation.errors.fechaInicio}</FormErrorMessage>
+          )}
         </FormControl>
 
-        <FormControl isRequired isInvalid={!!errors.tipo}>
-          <FormLabel>Tipo</FormLabel>
-          <Flex gap={2} flexWrap="wrap">
-            {TIPOS_ACTIVIDAD.map((tipo) => {
-              // Verificar si este tipo está seleccionado
-              const isSelected = watch('tipo')?.includes(tipo.value);
-              
-              return (
-                <Button
-                  key={tipo.value}
-                  size="sm"
-                  variant={isSelected ? "solid" : "outline"}
-                  colorScheme={isSelected ? "brand" : "gray"}
-                  onClick={() => handleTipoChange(tipo)}
-                  mb={2}
-                >
-                  {tipo.label}
-                </Button>
-              );
-            })}
-          </Flex>
-          <FormErrorMessage>{errors.tipo?.message?.toString()}</FormErrorMessage>
+        <FormControl isRequired isInvalid={!!validation.errors.fechaFin}>
+          <FormLabel>Fecha de finalización</FormLabel>
+          <Controller
+            name="fechaFin"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (              <DatePicker
+                selectedDate={field.value}
+                onChange={(date: Date | null) => {
+                  field.onChange(date);
+                  if (date) {
+                    handleFieldTouched('fechaFin');
+                    validation.validateFechaFin(date, true);
+                  }
+                }}
+              />
+            )}
+          />
+          {validation.errors.fechaFin && (
+            <FormErrorMessage>{validation.errors.fechaFin}</FormErrorMessage>
+          )}
         </FormControl>
       </SimpleGrid>
+      
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
+        {/* Selección de tipo por botones */}
+        <FormControl isRequired isInvalid={!!validation.errors.tipo}>
+          <FormLabel>Tipo de actividad</FormLabel>
+          <Controller
+            name="tipo"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Wrap spacing={2}>
+                {TIPOS_ACTIVIDAD.map((tipo) => (
+                  <WrapItem key={tipo.value}>
+                    <Button
+                      size="sm"
+                      variant={tiposSeleccionados.includes(tipo.value) ? "solid" : "outline"}
+                      colorScheme={tiposSeleccionados.includes(tipo.value) ? "brand" : "gray"}
+                      onClick={() => handleTipoToggle(tipo.value)}
+                      mb={1}
+                    >
+                      {tipo.label}
+                    </Button>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+          />
+          {validation.errors.tipo && (
+            <FormErrorMessage>{validation.errors.tipo}</FormErrorMessage>
+          )}
+        </FormControl>
+
+        {/* Selección de subtipo por botones */}
+        <FormControl isRequired isInvalid={!!validation.errors.subtipo}>
+          <FormLabel>Subtipo</FormLabel>
+          <Controller
+            name="subtipo"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Wrap spacing={2}>
+                {SUBTIPOS_ACTIVIDAD.map((subtipo) => (
+                  <WrapItem key={subtipo.value}>
+                    <Button
+                      size="sm"
+                      variant={subtiposSeleccionados.includes(subtipo.value) ? "solid" : "outline"}
+                      colorScheme={subtiposSeleccionados.includes(subtipo.value) ? "brand" : "gray"}
+                      onClick={() => handleSubtipoToggle(subtipo.value)}
+                      mb={1}
+                    >
+                      {subtipo.label}
+                    </Button>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+          />
+          {validation.errors.subtipo && (
+            <FormErrorMessage>{validation.errors.subtipo}</FormErrorMessage>
+          )}
+        </FormControl>
+      </SimpleGrid>
+
+      <FormControl mb={4}>
+        <FormLabel>Descripción</FormLabel>
+        <Textarea 
+          id="descripcion"  // Añadir esta línea
+          {...register('descripcion')}
+          placeholder="Descripción de la actividad..."
+          rows={3}
+        />
+      </FormControl>
     </Box>
   );
 };

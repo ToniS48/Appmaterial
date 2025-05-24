@@ -99,10 +99,10 @@ const RegisterForm: React.FC = () => {
           <FormLabel htmlFor="name" className="form-label">Nombre completo</FormLabel>
           <Input
             id="name"
-            name="name"
+            name="name"             // Cambiar 'nombre' a 'name'
             type="text"
             placeholder="Tu nombre completo"
-            value={formData.name}
+            value={formData.name}   // Cambiar 'nombre' a 'name'
             onChange={handleChange}
             className="form-control"
             focusBorderColor="brand.400"

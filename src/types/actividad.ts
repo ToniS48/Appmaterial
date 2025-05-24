@@ -49,3 +49,14 @@ export interface Actividad {
   archivosAdjuntos: string[];
   dificultad?: 'baja' | 'media' | 'alta';
 }
+
+// Añadir estas interfaces
+export interface TipoActividadOption {
+  value: TipoActividad;
+  label: string;
+}
+
+export interface SubtipoActividadOption {
+  value: SubtipoActividad;
+  label: string;
+}

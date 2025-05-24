@@ -4,7 +4,11 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged, 
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { obtenerOCrearUsuarioPorId, actualizarUltimoAcceso } from '../services/usuarioService';
@@ -39,9 +43,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Configurar persistencia al cargar el componente
+  useEffect(() => {
+    const configurarPersistencia = async () => {
+      try {
+        // Usar persistencia local para mantener la sesión incluso cuando se cierra el navegador
+        await setPersistence(auth, browserLocalPersistence);
+        console.log('Persistencia de autenticación configurada como LOCAL');
+      } catch (error) {
+        console.error('Error al configurar persistencia de autenticación:', error);
+      }
+    };
+    
+    configurarPersistencia();
+  }, []);
+
   // Función simple para iniciar sesión - usa directamente Firebase
   const login = async (email: string, password: string): Promise<void> => {
     try {
+      // La persistencia ya está configurada globalmente, así que simplemente iniciamos sesión
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error('Error en login:', error);
@@ -127,6 +147,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return unsubscribe;
   }, []);
+
+  // Reemplazar el useEffect de reconexión por uno que maneje el estado de conexión
+  useEffect(() => {
+    const handleConnectionChange = () => {
+      // Solo mostrar mensaje cuando recuperamos la conexión
+      if (navigator.onLine) {
+        console.log("Conexión a Internet restaurada, Firebase Auth sincronizará automáticamente");
+        
+        // No necesitamos hacer nada aquí explícitamente
+        // Firebase Auth intentará automáticamente usar las credenciales persistentes
+        // gracias a la configuración de persistencia
+        
+        // Si el usuario sigue sin estar autenticado después de recuperar la conexión,
+        // podríamos mostrar un mensaje para que inicie sesión manualmente
+        setTimeout(() => {
+          if (!currentUser) {
+            console.log('La reconexión automática no restauró la sesión, puede que necesite iniciar sesión nuevamente');
+          }
+        }, 3000); // Dar tiempo a Firebase para intentar reconectar
+      } else {
+        console.log("Conexión a Internet perdida");
+      }
+    };
+    
+    window.addEventListener('online', handleConnectionChange);
+    window.addEventListener('offline', handleConnectionChange);
+    
+    return () => {
+      window.removeEventListener('online', handleConnectionChange);
+      window.removeEventListener('offline', handleConnectionChange);
+    };
+  }, [currentUser]);
 
   const value = {
     currentUser,

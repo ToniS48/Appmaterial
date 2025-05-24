@@ -70,6 +70,7 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
         <FormLabel>Longitud (metros)</FormLabel>
         <NumberInput min={1} max={200} defaultValue={50}>
           <NumberInputField
+            id="longitud"  // Añadir esta línea
             {...register('longitud', {
               required: 'La longitud es obligatoria',
               min: { value: 1, message: 'La longitud mínima es 1m' },
