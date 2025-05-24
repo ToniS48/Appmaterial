@@ -17,7 +17,7 @@ import {
   updateProfile, 
   sendEmailVerification
 } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { db, auth } from '../config/firebase';
 import { Usuario, RolUsuario } from '../types/usuario'; // Importar RolUsuario
 import { handleFirebaseError } from '../utils/errorHandling';
 import { checkEmailAvailability } from '../utils/validationUtils';

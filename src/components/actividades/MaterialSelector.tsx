@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Heading,
@@ -43,6 +43,70 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import messages from '../../constants/messages';  // Añadir esta importación
 
+// OPTIMIZACIONES DE RENDIMIENTO
+// ==============================
+
+// Función para diferir callbacks pesados
+const deferCallback = (callback: () => void, priority: 'high' | 'normal' | 'low' = 'normal') => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    const timeout = priority === 'high' ? 100 : priority === 'normal' ? 300 : 1000;
+    (window as any).requestIdleCallback(callback, { timeout });
+  } else {
+    const delay = priority === 'high' ? 16 : priority === 'normal' ? 100 : 300;
+    setTimeout(callback, delay);
+  }
+};
+
+// Hook para throttling de búsquedas
+const useThrottledSearch = (value: string, delay: number = 300) => {
+  const [throttledValue, setThrottledValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setThrottledValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return throttledValue;
+};
+
+// Hook para optimizar operaciones de adición/eliminación
+const useOptimizedFieldOperations = (append: any, remove: any) => {
+  const [isOperating, setIsOperating] = useState(false);
+
+  const optimizedAppend = useCallback((material: any) => {
+    if (isOperating) return;
+    
+    setIsOperating(true);
+    deferCallback(() => {
+      try {
+        append(material);
+      } finally {
+        setIsOperating(false);
+      }
+    }, 'high');
+  }, [append, isOperating]);
+
+  const optimizedRemove = useCallback((index: number) => {
+    if (isOperating) return;
+    
+    setIsOperating(true);
+    deferCallback(() => {
+      try {
+        remove(index);
+      } finally {
+        setIsOperating(false);
+      }
+    }, 'high');
+  }, [remove, isOperating]);
+
+  return { optimizedAppend, optimizedRemove, isOperating };
+};
+
 interface MaterialSelectorProps {
   control: Control<any>;
   name: string;
@@ -85,10 +149,12 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   const [cantidad, setCantidad] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<string | null>(null);
-  
-  // Nuevos estados para el selector visual
+    // Nuevos estados para el selector visual
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  
+  // Aplicar throttling a la búsqueda para mejorar rendimiento
+  const throttledSearchTerm = useThrottledSearch(searchTerm, 300);
   
   const toast = useToast();
   
@@ -217,16 +283,16 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     // Para materiales individuales como cuerdas, verificar que no estén ya seleccionados
     return !typedFields.some(field => field.materialId === material.id);
   });
-
   // Memoiza los resultados del filtrado para evitar cálculos repetitivos
   const materialesFiltrados = React.useMemo(() => {
     return materialesDisponibles.filter(material => {
       // Calcular disponibilidad real
       const disponibilidadReal = calcularDisponibilidadReal(material);
       
-      // Filtrar por término de búsqueda
-      const matchesSearch = material.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (material.codigo && material.codigo.toLowerCase().includes(searchTerm.toLowerCase()));
+      // Filtrar por término de búsqueda throttled
+      const matchesSearch = throttledSearchTerm.trim() === '' ||
+                          material.nombre.toLowerCase().includes(throttledSearchTerm.toLowerCase()) ||
+                          (material.codigo && material.codigo.toLowerCase().includes(throttledSearchTerm.toLowerCase()));
       
       // Filtrar por tipo
       const matchesTipo = filtroTipo === 'todos' || material.tipo === filtroTipo;
@@ -234,7 +300,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       // Solo incluir si tiene disponibilidad real y coincide con los filtros
       return disponibilidadReal > 0 && matchesSearch && matchesTipo;
     });
-  }, [materialesDisponibles, typedFields, searchTerm, filtroTipo]);
+  }, [materialesDisponibles, typedFields, throttledSearchTerm, filtroTipo, calcularDisponibilidadReal]);
   
   // También memoiza las listas por tipo
   const materialesCuerda = React.useMemo(() => 
@@ -251,9 +317,8 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     materialesFiltrados.filter(m => m.tipo === 'varios'),
     [materialesFiltrados]
   );
-
   // Manejar la adición de un material a la lista con validación adicional
-  const handleAddMaterial = (selectedId: string, qty: number = 1) => {
+  const handleAddMaterialBase = useCallback((selectedId: string, qty: number = 1) => {
     if (!selectedId) {
       toast({
         title: 'Error',
@@ -276,60 +341,77 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       return;
     }
     
-    // Calcular disponibilidad real
-    const disponibilidadReal = calcularDisponibilidadReal(material);
-    
-    // Validar cantidad con la disponibilidad real
-    if (qty <= 0) {
-      toast({
-        title: messages.errors.general,
-        description: messages.material.selector.errorCantidad,
-        status: 'warning',
-        duration: 3000,
-      });
-      return;
-    }
-    
-    if (disponibilidadReal < qty) {
-      toast({
-        title: messages.errors.general,
-        description: messages.material.selector.errorDisponibilidad.replace('{cantidad}', disponibilidadReal.toString()),
-        status: 'warning',
-        duration: 3000,
-      });
-      return;
-    }
-    
-    try {
-      // Agregar el material a la lista
-      append({
-        id: Date.now().toString(), // Generar un ID único
-        materialId: material.id,
-        nombre: material.nombre,
-        cantidad: qty
-      });
-      
-      // Resetear selección
-      setSelectedMaterial('');
-      setCantidad(1);
-      
-      // Mostrar mensaje de éxito
-      toast({
-        title: messages.material.selector.materialAnadido,
-        description: messages.material.selector.materialAnadidoDesc.replace('{nombre}', material.nombre),
-        status: 'success',
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error('Error al añadir material:', error);
-      toast({
-        title: messages.errors.general,
-        description: messages.material.selector.errorAnadir,
-        status: 'error',
-        duration: 3000,
-      });
-    }
-  };
+    // Diferir la validación y operación para evitar bloqueos
+    deferCallback(() => {
+      try {
+        // Calcular disponibilidad real
+        const disponibilidadReal = calcularDisponibilidadReal(material);
+        
+        // Validar cantidad con la disponibilidad real
+        if (qty <= 0) {
+          toast({
+            title: messages.errors.general,
+            description: messages.material.selector.errorCantidad,
+            status: 'warning',
+            duration: 3000,
+          });
+          return;
+        }
+        
+        if (disponibilidadReal < qty) {
+          toast({
+            title: messages.errors.general,
+            description: messages.material.selector.errorDisponibilidad.replace('{cantidad}', disponibilidadReal.toString()),
+            status: 'warning',
+            duration: 3000,
+          });
+          return;
+        }
+        
+        // Agregar el material a la lista
+        append({
+          id: Date.now().toString(), // Generar un ID único
+          materialId: material.id,
+          nombre: material.nombre,
+          cantidad: qty
+        });
+        
+        // Resetear selección
+        setSelectedMaterial('');
+        setCantidad(1);
+        
+        // Mostrar mensaje de éxito
+        toast({
+          title: messages.material.selector.materialAnadido,
+          description: messages.material.selector.materialAnadidoDesc.replace('{nombre}', material.nombre),
+          status: 'success',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Error al añadir material:', error);
+        toast({
+          title: messages.errors.general,
+          description: messages.material.selector.errorAnadir,
+          status: 'error',
+          duration: 3000,
+        });
+      }
+    }, 'high');
+  }, [materiales, toast, append, setSelectedMaterial, setCantidad, calcularDisponibilidadReal]);
+
+  // Throttle del handler para evitar múltiples ejecuciones rápidas
+  const handleAddMaterial = useMemo(() => {
+    let lastCall = 0;
+    const throttleDelay = 300; // 300ms de throttle
+
+    return (selectedId: string, qty: number = 1) => {
+      const now = Date.now();
+      if (now - lastCall >= throttleDelay) {
+        lastCall = now;
+        handleAddMaterialBase(selectedId, qty);
+      }
+    };
+  }, [handleAddMaterialBase]);
 
   // Componente de tarjeta de material
   const MaterialCard = React.memo(({ material }: { material: MaterialItem }) => {
@@ -423,11 +505,11 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   isDisabled={qty >= disponibilidadReal}
                   onClick={() => setQty(prev => Math.min(disponibilidadReal, prev + 1))}
                 />
-              </Flex>
-              <Button 
+              </Flex>              <Button 
                 size="sm"
                 colorScheme="brand"
                 isDisabled={disponibilidadReal <= 0 || qty <= 0}
+                onClick={() => handleAddMaterial(material.id, qty)}
               >
                 {messages.material.selector.botonAnadir}
               </Button>
