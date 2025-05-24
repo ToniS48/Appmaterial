@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, 
@@ -22,25 +22,183 @@ import {
   HStack
 } from '@chakra-ui/react';
 import { FiFileText, FiUsers, FiPackage, FiLink, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave } from 'react-icons/fi';
+import { Timestamp } from 'firebase/firestore';
+
+// Imports de componentes y servicios
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { obtenerActividad, crearActividad, actualizarActividad } from '../../services/actividadService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Timestamp } from 'firebase/firestore';
 import { Actividad, EstadoActividad } from '../../types/actividad';
 
-// Importar los componentes de edición modular
-import InfoEditor from '../../components/actividades/InfoEditor';
-import ParticipantesEditor from '../../components/actividades/ParticipantesEditor';
-import MaterialEditor from '../../components/actividades/MaterialEditor';
-import EnlacesEditor from '../../components/actividades/EnlacesEditor';
-
-// Importar las nuevas funciones
+// Importar utilidades
 import { normalizarFecha, toDate, toTimestamp, compareDates } from '../../utils/dateUtils';
 import { validateActividad } from '../../utils/actividadUtils';
 import { determinarEstadoActividad } from '../../utils/dateUtils';
-import { validateActividadEnlaces } from '../../utils/actividadUtils';
 import { verificarConexionFirebase } from '../../utils/firebaseUtils';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+// Lazy loading para componentes pesados
+const InfoEditor = lazy(() => import('../../components/actividades/InfoEditor'));
+const ParticipantesEditor = lazy(() => import('../../components/actividades/ParticipantesEditor'));
+const MaterialEditor = lazy(() => import('../../components/actividades/MaterialEditor'));
+const EnlacesEditor = lazy(() => import('../../components/actividades/EnlacesEditor'));
+
+// OPTIMIZACIONES DE RENDIMIENTO INTEGRADAS
+// ========================================
+
+// Función para configurar optimizaciones del scheduler de React
+const setupSchedulerOptimizer = (): (() => void) => {
+  // Almacenar referencias originales sin modificar las APIs nativas
+  // Usaremos observadores de rendimiento en su lugar
+  
+  const performanceObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (entry.duration > 50) {
+        // Detectar operaciones largas y registrarlas
+        console.debug('Operación larga detectada:', entry.name, entry.duration);
+      }
+    }
+  });
+
+  try {
+    performanceObserver.observe({ entryTypes: ['measure', 'navigation'] });
+  } catch (error) {
+    console.debug('PerformanceObserver no disponible');
+  }
+
+  // Función de limpieza
+  return () => {
+    try {
+      performanceObserver.disconnect();
+    } catch (error) {
+      console.debug('Error al desconectar PerformanceObserver');
+    }
+  };
+};
+
+// Función para diferir operaciones costosas
+const deferCallback = async <T,>(operation: () => T | Promise<T>): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const executeOperation = async () => {
+      try {
+        const result = await operation();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        executeOperation();
+      }, { timeout: 200 });
+    } else {
+      setTimeout(executeOperation, 0);
+    }
+  });
+};
+
+// Hook para optimizar click handlers
+const useOptimizedClickHandler = <T extends any[]>(
+  handler: (...args: T) => void | Promise<void>
+) => {
+  const lastExecutionRef = useRef<number>(0);
+  const throttleDelay = 100;
+
+  return useCallback((...args: T) => {
+    const now = performance.now();
+    const timeSinceLastExecution = now - lastExecutionRef.current;
+
+    if (timeSinceLastExecution < throttleDelay) {
+      setTimeout(() => {
+        handler(...args);
+        lastExecutionRef.current = performance.now();
+      }, throttleDelay - timeSinceLastExecution);
+      return;
+    }
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(async () => {
+        await handler(...args);
+      });
+    } else {
+      setTimeout(() => handler(...args), 0);
+    }
+    
+    lastExecutionRef.current = now;
+  }, [handler]);
+};
+
+// Optimizador de cambio de pestañas
+const optimizeTabChange = (originalHandler: (index: number) => void) => {
+  let lastChangeTime = 0;
+  const throttleDelay = 100;
+
+  return function(newIndex: number) {
+    const now = performance.now();
+    
+    if (now - lastChangeTime < throttleDelay) {
+      setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(() => originalHandler(newIndex));
+        } else {
+          originalHandler(newIndex);
+        }
+      }, throttleDelay);
+    } else {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => originalHandler(newIndex));
+      } else {
+        originalHandler(newIndex);
+      }
+    }
+    
+    lastChangeTime = now;
+  };
+};
+
+// Validador optimizado
+const createOptimizedValidator = <T,>(originalValidator: (data: T) => string | null | boolean) => {
+  return async function(data: T): Promise<boolean> {
+    return new Promise((resolve) => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          try {
+            const result = originalValidator(data);
+            if (typeof result === 'boolean') {
+              resolve(result);
+            } else if (typeof result === 'string') {
+              resolve(false);
+            } else {
+              // result es null, que significa válido
+              resolve(true);
+            }
+          } catch (error) {
+            console.warn('Error en validador optimizado:', error);
+            resolve(false);
+          }
+        });
+      } else {
+        setTimeout(() => {
+          try {
+            const result = originalValidator(data);
+            if (typeof result === 'boolean') {
+              resolve(result);
+            } else if (typeof result === 'string') {
+              resolve(false);
+            } else {
+              // result es null, que significa válido
+              resolve(true);
+            }
+          } catch (error) {
+            console.warn('Error en validador optimizado:', error);
+            resolve(false);
+          }
+        }, 0);
+      }
+    });
+  };
+};
+
 const ActividadFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -49,50 +207,80 @@ const ActividadFormPage: React.FC = () => {
     duration: 5000,
     isClosable: true,
   });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { userProfile } = useAuth();
+  
+  // Estados principales
   const [actividad, setActividad] = useState<Actividad | null>(null);
   const [loading, setLoading] = useState<boolean>(!!id);
   const [error, setError] = useState<string | null>(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [formData, setFormData] = useState<Partial<Actividad>>({});
 
-  // Indicadores para saber qué secciones han sido editadas
+  // Indicadores de secciones editadas
   const [infoEdited, setInfoEdited] = useState<boolean>(false);
   const [participantesEdited, setParticipantesEdited] = useState<boolean>(false);
   const [materialEdited, setMaterialEdited] = useState<boolean>(false);
   const [enlacesEdited, setEnlacesEdited] = useState<boolean>(false);
 
-  // Añades este estado
+  // Estados de control
   const [isSaving, setIsSaving] = useState(false);
 
-  // Añades esto antes del condicional alrededor de la línea 70
-  const [isUserResponsable, setIsUserResponsable] = useState<boolean>(false);
+  // Referencias para componentes
+  const infoEditorRef = useRef<any>(null);
+  const participantesEditorRef = useRef<any>(null);
+  const materialEditorRef = useRef<any>(null);
+  const enlacesEditorRef = useRef<any>(null);
+  // Optimizaciones de rendimiento
+  const optimizedValidator = useMemo(() => {
+    return createOptimizedValidator((data: Partial<Actividad>) => {
+      return validateActividad(data);
+    });
+  }, []);
 
-  // Dentro del componente, antes de usar hasResponsableMaterial
-  const hasResponsableMaterial = formData?.responsableMaterialId ? true : false;
+  const optimizedTabChange = useMemo(() => {
+    return optimizeTabChange((newIndex: number) => {
+      setTabIndex(newIndex);
+    });
+  }, []);
 
-  // Alternativa con comprobación explícita
-  const checkIsUserResponsable = () => {
-    if (!userProfile || !formData.responsableMaterialId) {
-      return false;
+  // Aplicar optimizador del scheduler al montar el componente
+  useEffect(() => {
+    const cleanup = setupSchedulerOptimizer();
+    return cleanup;
+  }, []);
+
+  // Función para guardar en localStorage de forma diferida
+  const saveToLocalStorage = (data: Partial<Actividad>) => {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        localStorage.setItem('actividad_temp_data', JSON.stringify(data));
+      });
+    } else {
+      setTimeout(() => {
+        localStorage.setItem('actividad_temp_data', JSON.stringify(data));
+      }, 0);
     }
-    return formData.responsableMaterialId === userProfile.uid;
   };
 
-  // Modifica el condicional existente
-  useEffect(() => {
-    setIsUserResponsable(checkIsUserResponsable());
-  }, [userProfile, formData.responsableMaterialId, checkIsUserResponsable]); // Añadir la dependencia
-
-  // Verificar la conexión a Firebase al cargar el componente
+  // Verificar conexión al cargar
   useEffect(() => {
     const verificarConexion = async () => {
-      const conectado = await verificarConexionFirebase();
-      if (!conectado) {
+      try {
+        const conectado = await verificarConexionFirebase();
+        if (!conectado) {
+          toast({
+            title: "Problema de conexión",
+            description: "No se pudo conectar con la base de datos. Revise su conexión a internet.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true
+          });
+        }
+      } catch (error) {
+        console.error('Error al verificar conexión:', error);
         toast({
           title: "Error de conexión",
-          description: "No se pudo conectar con la base de datos. Verifica tu conexión a internet.",
+          description: "Se produjo un error al verificar la conexión con la base de datos.",
           status: "error",
           duration: 5000,
           isClosable: true
@@ -103,16 +291,33 @@ const ActividadFormPage: React.FC = () => {
     verificarConexion();
   }, [toast]);
 
-  // Cargar actividad si estamos en modo edición
+  // Cargar actividad si estamos en modo edición - OPTIMIZADO
   useEffect(() => {
     const cargarActividad = async () => {
       if (!id) return;
       
       try {
         setLoading(true);
-        const actividadData = await obtenerActividad(id);
-        setActividad(actividadData);
-        setFormData(actividadData);
+        
+        // Diferir la carga usando deferCallback para evitar violaciones
+        await deferCallback(async () => {
+          const actividadData = await obtenerActividad(id);
+          
+          // Procesar datos en chunks para evitar bloquear UI
+          const processedData = {
+            ...actividadData,
+            // Asegurar que los arrays estén inicializados
+            participanteIds: actividadData.participanteIds || [],
+            materiales: actividadData.materiales || [],
+            enlacesWikiloc: actividadData.enlacesWikiloc || [],
+            enlacesTopografias: actividadData.enlacesTopografias || [],
+            enlacesDrive: actividadData.enlacesDrive || [],
+            enlacesWeb: actividadData.enlacesWeb || []
+          };
+          
+          setActividad(processedData);
+          setFormData(processedData);
+        });
       } catch (error) {
         console.error('Error al cargar la actividad:', error);
         setError('No se pudo cargar la actividad para editar');
@@ -130,32 +335,24 @@ const ActividadFormPage: React.FC = () => {
       const mañana = new Date();
       mañana.setDate(mañana.getDate() + 1);
       
-      // Configurar valores iniciales explícitos para todos los campos requeridos
-      setFormData({
-        nombre: '',
-        lugar: '',
-        descripcion: '',
-        fechaInicio: new Date(),
-        fechaFin: mañana,
+      const inicialData: Partial<Actividad> = {
+        creadorId: userProfile.uid,
+        responsableActividadId: userProfile.uid,
+        fechaInicio: mañana,
+        fechaFin: new Date(mañana.getTime() + 24 * 60 * 60 * 1000),
+        participanteIds: [userProfile.uid],
+        necesidadMaterial: false,
         tipo: [],
         subtipo: [],
-        dificultad: 'media',
-        responsableActividadId: userProfile.uid,
-        participanteIds: [userProfile.uid],
-        materiales: [], 
-        estado: 'planificada',
-        creadorId: userProfile.uid,
-        // Inicializar todos los arrays de enlaces vacíos explícitamente
+        estado: 'planificada' as EstadoActividad,
+        materiales: [],
         enlacesWikiloc: [],
         enlacesTopografias: [],
         enlacesDrive: [],
-        enlacesWeb: [],
-        // Inicializar otros arrays opcionales
-        comentarios: [],
-        enlaces: []
-      });
+        enlacesWeb: []
+      };
       
-      // Marcar todas las secciones como no editadas al comenzar
+      setFormData(inicialData);
       setInfoEdited(false);
       setParticipantesEdited(false);
       setMaterialEdited(false);
@@ -163,6 +360,7 @@ const ActividadFormPage: React.FC = () => {
     }
   }, [id, userProfile]);
 
+  // Función para obtener actividad completa
   const getCompleteActivity = (data: Partial<Actividad>): Actividad => {
     return {
       id: data.id,
@@ -180,307 +378,285 @@ const ActividadFormPage: React.FC = () => {
       estado: (data.estado as EstadoActividad) || 'planificada',
       creadorId: data.creadorId || (userProfile?.uid || ''),
       comentarios: data.comentarios || [],
-      enlaces: data.enlaces || [],
+      fechaActualizacion: Timestamp.fromDate(new Date()),
       enlacesWikiloc: data.enlacesWikiloc || [],
       enlacesTopografias: data.enlacesTopografias || [],
       enlacesDrive: data.enlacesDrive || [],
       enlacesWeb: data.enlacesWeb || [],
       imagenesTopografia: data.imagenesTopografia || [],
       archivosAdjuntos: data.archivosAdjuntos || [],
-      fechaCreacion: data.fechaCreacion,
-      fechaActualizacion: data.fechaActualizacion
-    };
+      enlaces: [
+        ...(data.enlacesWikiloc?.map(e => e.url) || []),
+        ...(data.enlacesTopografias || []),
+        ...(data.enlacesDrive || []),
+        ...(data.enlacesWeb || [])
+      ]
+    } as Actividad;
   };
 
-  // Función auxiliar para guardar datos en localStorage
-  const saveToLocalStorage = (data: Partial<Actividad>) => {
-    try {
-      console.log("Guardando en localStorage:", data);
-      localStorage.setItem('actividad_temp_data', JSON.stringify(data));
-    } catch (e) {
-      console.error("Error guardando datos en localStorage:", e);
-    }
-  };
-
-  // Asegurar que las fechas se convierten correctamente
-  const handleInfoSave = (infoData: Partial<Actividad>) => {
-    console.log("handleInfoSave - Datos recibidos:", infoData);
-    
-    // Verificar que tipo y subtipo estén presentes
-    if (!infoData.tipo?.length) {
-      toast({
-        title: "Error",
-        description: "Debes seleccionar al menos un tipo de actividad",
-        status: "error",
-        duration: 3000
-      });
-      return;
-    }
-    
-    if (!infoData.subtipo?.length) {
-      toast({
-        title: "Error",
-        description: "Debes seleccionar al menos un subtipo de actividad",
-        status: "error",
-        duration: 3000
-      });
-      return;
-    }
-    
-    // Convertir fechas a objetos Date si vienen como Timestamp
-    const fechaInicio = infoData.fechaInicio instanceof Timestamp ? 
-      infoData.fechaInicio.toDate() : infoData.fechaInicio;
-    
-    const fechaFin = infoData.fechaFin instanceof Timestamp ? 
-      infoData.fechaFin.toDate() : infoData.fechaFin;
-    
-    // Actualizar estado
-    setFormData(prevFormData => {
-      const updatedData = {
-        ...prevFormData,
-        ...infoData,
-        nombre: infoData.nombre?.trim() || '',
-        lugar: infoData.lugar?.trim() || '',
-        tipo: infoData.tipo || [],
-        subtipo: infoData.subtipo || [],
-        fechaInicio: fechaInicio,
-        fechaFin: fechaFin
-      };
+  // Handlers de guardado optimizados
+  const handleInfoSave = useOptimizedClickHandler(async (infoData: Partial<Actividad>) => {
+    await deferCallback(async () => {
+      // Convertir fechas de manera segura
+      const fechaInicio = infoData.fechaInicio instanceof Timestamp ? 
+        infoData.fechaInicio.toDate() : infoData.fechaInicio;
+      const fechaFin = infoData.fechaFin instanceof Timestamp ? 
+        infoData.fechaFin.toDate() : infoData.fechaFin;
       
-      // Guardar en localStorage
-      saveToLocalStorage(updatedData);
-      
-      return updatedData;
-    });
-    
-    // Resto del código...
-    // Marcar como editado y avanzar
-    setInfoEdited(true);
-    toast({
-      title: "Información guardada",
-      status: "success",
-      duration: 3000
-    });
-    setTabIndex(1);
-  };
-
-  const handleParticipantesSave = (participanteIds: string[]) => {
-    setFormData((prev: Partial<Actividad>) => ({
-      ...prev,
-      participanteIds
-    }));
-    setParticipantesEdited(true);
-    toast({
-      title: "Participantes guardados",
-      status: "success",
-      duration: 3000
-    });
-    setTabIndex(2);
-  };
-
-  // Modificar la función handleMaterialSave para que actualice correctamente el estado
-  const handleMaterialSave = (materiales: any[]) => {
-    console.log("handleMaterialSave - Recibidos materiales:", materiales);
-    
-    // Actualizar el estado con los nuevos materiales
-    setFormData((prev: Partial<Actividad>) => {
-      const updatedData = {
-        ...prev,
-        materiales: materiales,
-        // Actualizar también la bandera de necesidad de material
-        necesidadMaterial: materiales.length > 0
-      };
-      console.log("FormData actualizado con materiales:", updatedData);
-      
-      // Guardar en localStorage para persistencia
-      saveToLocalStorage(updatedData);
-      
-      return updatedData;
-    });
-    
-    setMaterialEdited(true);
-    toast({
-      title: "Material guardado",
-      status: "success",
-      duration: 3000
-    });
-    
-    // Avanzar a la siguiente pestaña si estamos en el flujo secuencial
-    if (tabIndex === 2) {
-      setTabIndex(3);
-    }
-  };
-
-  const handleEnlacesSave = async (enlaces: Partial<Actividad>) => {
-    setFormData((prev: Partial<Actividad>) => ({
-      ...prev,
-      ...enlaces
-    }));
-    setEnlacesEdited(true);
-    
-    // Si estamos en la última pestaña, guardar toda la actividad
-    try {
-      // Validaciones básicas
-      if (!formData.nombre || !formData.lugar || !formData.tipo?.length || !formData.subtipo?.length) {
-        toast({
-          title: "Datos incompletos",
-          description: "Por favor completa todos los campos requeridos",
-          status: "error",
-          duration: 5000
-        });
-        return;
-      }
-
-      // Determinar estado según fechas de forma segura
-      const hoy = normalizarFecha(new Date());
-      const fechaInicio = normalizarFecha(toDate(formData.fechaInicio));
-      const fechaFin = normalizarFecha(toDate(formData.fechaFin));
-
-      // AÑADIR ESTA LÍNEA: Declara la variable con un valor predeterminado
-      let estadoAutomatico: EstadoActividad = 'planificada';
-
-      // Solo cambiar estado si todas las fechas son válidas
-      if (hoy && fechaInicio && fechaFin && formData.estado !== 'cancelada') {
-        const compFin = compareDates(hoy, fechaFin);
-        const compInicio = compareDates(hoy, fechaInicio);
+      // Actualizar estado de forma optimizada
+      setFormData(prevFormData => {
+        const updatedData = {
+          ...prevFormData,
+          ...infoData,
+          nombre: infoData.nombre?.trim() || '',
+          lugar: infoData.lugar?.trim() || '',
+          tipo: infoData.tipo || [],
+          subtipo: infoData.subtipo || [],
+          fechaInicio: fechaInicio,
+          fechaFin: fechaFin
+        };
         
-        if (compFin !== null && compFin > 0) {
-          estadoAutomatico = 'finalizada';
-        } else if (compInicio !== null && compInicio >= 0) {
-          estadoAutomatico = 'en_curso';
-        } else {
-          estadoAutomatico = 'planificada';
+        // Guardar en localStorage de forma diferida
+        saveToLocalStorage(updatedData);
+        
+        return updatedData;
+      });
+      
+      setInfoEdited(true);
+      toast({
+        title: "Información guardada",
+        status: "success",
+        duration: 3000
+      });
+      
+      optimizedTabChange(1);
+    });
+  });
+
+  const handleParticipantesSave = useOptimizedClickHandler(async (participanteIds: string[]) => {
+    await deferCallback(async () => {
+      setFormData((prev: Partial<Actividad>) => ({
+        ...prev,
+        participanteIds
+      }));
+      
+      setParticipantesEdited(true);
+      toast({
+        title: "Participantes guardados",
+        status: "success",
+        duration: 3000
+      });
+      
+      optimizedTabChange(2);
+    });
+  });
+
+  const handleMaterialSave = useOptimizedClickHandler(async (materiales: any[]) => {
+    await deferCallback(async () => {
+      setFormData((prev: Partial<Actividad>) => {
+        const updatedData = {
+          ...prev,
+          materiales: materiales,
+          necesidadMaterial: materiales.length > 0
+        };
+        
+        saveToLocalStorage(updatedData);
+        return updatedData;
+      });
+      
+      setMaterialEdited(true);
+      toast({
+        title: "Material guardado",
+        status: "success",
+        duration: 3000
+      });
+      
+      if (tabIndex === 2) {
+        optimizedTabChange(3);
+      }
+    });
+  });
+
+  const handleEnlacesSave = useOptimizedClickHandler(async (enlaces: Partial<Actividad>) => {
+    await deferCallback(async () => {
+      setFormData((prev: Partial<Actividad>) => ({
+        ...prev,
+        ...enlaces
+      }));
+      setEnlacesEdited(true);
+      
+      // Si estamos en la última pestaña, guardar toda la actividad
+      try {
+        const isValid = await optimizedValidator({...formData, ...enlaces});
+        if (!isValid) {
+          toast({
+            title: "Datos incompletos",
+            description: "Por favor completa todos los campos requeridos",
+            status: "error",
+            duration: 5000
+          });
+          return;
         }
-      }
 
-      // Crear el objeto de actividad completo con los últimos enlaces y usar toTimestamp para guardar
-      const actividadCompleta = {
-        nombre: formData.nombre || '',
-        tipo: formData.tipo || [],
-        subtipo: formData.subtipo || [],
-        descripcion: formData.descripcion || '',
-        lugar: formData.lugar || '',
-        responsableActividadId: formData.responsableActividadId || userProfile?.uid || '',
-        participanteIds: formData.participanteIds || [],
-        necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
-        materiales: formData.materiales || [],
-        estado: estadoAutomatico,
-        comentarios: formData.comentarios || [],
-        creadorId: formData.creadorId || userProfile?.uid || '',
-        fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
-        fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
-        fechaActualizacion: Timestamp.fromDate(new Date()),
-        enlacesWikiloc: formData.enlacesWikiloc || [],
-        enlacesTopografias: formData.enlacesTopografias || [],
-        enlacesDrive: formData.enlacesDrive || [],
-        enlacesWeb: formData.enlacesWeb || [],
-        imagenesTopografia: formData.imagenesTopografia || [],
-        archivosAdjuntos: formData.archivosAdjuntos || [],
-        enlaces: [
-          ...(formData.enlacesWikiloc?.map(e => e.url) || []),
-          ...(formData.enlacesTopografias || []),
-          ...(formData.enlacesDrive || []),
-          ...(formData.enlacesWeb || [])
-        ]
-      };
-
-      let resultado: Actividad;
-      
-      if (id) {
-        // Actualizar actividad existente
-        resultado = await actualizarActividad(id, actividadCompleta);
+        await handleSaveAll();
+      } catch (error) {
+        console.error("Error al validar enlaces:", error);
         toast({
-          title: "Actividad actualizada",
-          status: "success",
-          duration: 5000
-        });
-      } else {
-        // Crear nueva actividad
-        resultado = await crearActividad(actividadCompleta);
-        toast({
-          title: "Actividad creada",
-          status: "success",
-          duration: 5000
+          title: "Error",
+          description: "Error al validar los datos",
+          status: "error",
+          duration: 3000
         });
       }
+    });
+  });
+
+  // Función de guardado final optimizada
+  const handleSaveAll = useOptimizedClickHandler(async () => {
+    try {
+      setIsSaving(true);
       
-      navigate(`/activities/${resultado.id}`);
+      await deferCallback(async () => {
+        // Determinar estado según fechas de forma segura
+        const hoy = normalizarFecha(new Date());
+        const fechaInicio = normalizarFecha(toDate(formData.fechaInicio));
+        const fechaFin = normalizarFecha(toDate(formData.fechaFin));
+
+        let estadoAutomatico: EstadoActividad = 'planificada';
+
+        // Solo cambiar estado si todas las fechas son válidas
+        if (hoy && fechaInicio && fechaFin && formData.estado !== 'cancelada') {
+          const compFin = compareDates(hoy, fechaFin);
+          const compInicio = compareDates(hoy, fechaInicio);
+          
+          if (compFin !== null && compFin > 0) {
+            estadoAutomatico = 'finalizada';
+          } else if (compInicio !== null && compInicio >= 0) {
+            estadoAutomatico = 'en_curso';
+          } else {
+            estadoAutomatico = 'planificada';
+          }
+        }
+
+        // Crear el objeto de actividad completo
+        const actividadCompleta = {
+          nombre: formData.nombre || '',
+          tipo: formData.tipo || [],
+          subtipo: formData.subtipo || [],
+          descripcion: formData.descripcion || '',
+          lugar: formData.lugar || '',
+          responsableActividadId: formData.responsableActividadId || userProfile?.uid || '',
+          participanteIds: formData.participanteIds || [],
+          necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
+          materiales: formData.materiales || [],
+          estado: estadoAutomatico,
+          comentarios: formData.comentarios || [],
+          creadorId: formData.creadorId || userProfile?.uid || '',
+          fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
+          fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
+          fechaActualizacion: Timestamp.fromDate(new Date()),
+          enlacesWikiloc: formData.enlacesWikiloc || [],
+          enlacesTopografias: formData.enlacesTopografias || [],
+          enlacesDrive: formData.enlacesDrive || [],
+          enlacesWeb: formData.enlacesWeb || [],
+          imagenesTopografia: formData.imagenesTopografia || [],
+          archivosAdjuntos: formData.archivosAdjuntos || [],
+          enlaces: [
+            ...(formData.enlacesWikiloc?.map(e => e.url) || []),
+            ...(formData.enlacesTopografias || []),
+            ...(formData.enlacesDrive || []),
+            ...(formData.enlacesWeb || [])
+          ]
+        };
+
+        let resultado: Actividad;
+        
+        if (id) {
+          resultado = await actualizarActividad(id, actividadCompleta);
+          toast({
+            title: "Actividad actualizada",
+            status: "success",
+            duration: 5000
+          });
+        } else {
+          resultado = await crearActividad(actividadCompleta);
+          toast({
+            title: "Actividad creada",
+            status: "success",
+            duration: 5000
+          });
+        }
+        
+        // Limpiar localStorage tras guardar correctamente
+        localStorage.removeItem('actividad_temp_data');
+        
+        navigate(`/activities/${resultado.id}`);
+      });
     } catch (error) {
       console.error("Error al guardar la actividad:", error);
       toast({
         title: "Error",
-        description: "No se pudo guardar la actividad",
+        description: "Se produjo un error al guardar la actividad. Por favor, inténtelo de nuevo.",
         status: "error",
         duration: 5000
       });
+    } finally {
+      setIsSaving(false);
     }
-  };
+  });
 
   const handleCancel = () => {
     navigate(id ? `/activities/${id}` : '/activities');
   };
 
-  // Añadir estas referencias para acceder a los componentes
-  const infoEditorRef = useRef<any>(null);
-  const participantesEditorRef = useRef<any>(null);
-  const materialEditorRef = useRef<any>(null);
-  const enlacesEditorRef = useRef<any>(null);
-
-  // Modificar la función handleTabButtons para utilizar las refs
-  const handleTabButtons = (action: 'prev' | 'next' | 'save') => {
-    switch(action) {
+  // Función optimizada para cambio de pestañas con validación
+  const handleTabButtons = async (action: 'prev' | 'next' | 'save') => {
+    switch (action) {
       case 'prev':
-        setTabIndex(Math.max(0, tabIndex - 1));
+        if (tabIndex > 0) {
+          optimizedTabChange(tabIndex - 1);
+        }
         break;
         
       case 'next':
-        // Solo avanzar si la pestaña actual tiene datos válidos
-        if (tabIndex === 0 && !infoEdited) {
-          // Usar la referencia para invocar el método del componente
-          if (infoEditorRef.current?.submitForm) {
-            infoEditorRef.current.submitForm();
-          } else {
-            // Fallback a la manipulación DOM si la ref no está disponible
-            const formElement = document.querySelector('form');
-            if (formElement) formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        if (tabIndex < 3) {
+          // Validar pestaña actual antes de avanzar
+          let canAdvance = true;
+          
+          if (tabIndex === 0 && !infoEdited) {
+            toast({
+              title: "Información incompleta",
+              description: "Por favor completa la información básica antes de continuar",
+              status: "warning",
+              duration: 3000
+            });
+            canAdvance = false;
           }
-          return; // No avanzar hasta que los datos estén guardados
+          
+          if (canAdvance) {
+            optimizedTabChange(tabIndex + 1);
+          }
         }
-        setTabIndex(Math.min(3, tabIndex + 1));
         break;
         
       case 'save':
-        // Guardar según la pestaña activa usando refs
-        switch(tabIndex) {
-          case 0: // Info
+        // Guardar la pestaña actual
+        switch (tabIndex) {
+          case 0: // Información
             if (infoEditorRef.current?.submitForm) {
               infoEditorRef.current.submitForm();
-            } else {
-              // Fallback si no tenemos acceso al método
-              const formElement = document.querySelector('form');
-              if (formElement) formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
             }
             break;
             
           case 1: // Participantes
             if (participantesEditorRef.current?.submitForm) {
               participantesEditorRef.current.submitForm();
-            } else {
-              // Si el componente no expone el método, usar el handler directo
-              if (formData.participanteIds) {
-                handleParticipantesSave(formData.participanteIds);
-              }
             }
             break;
             
           case 2: // Material
             if (materialEditorRef.current?.submitForm) {
               materialEditorRef.current.submitForm();
-            } else {
-              // Si el componente no expone el método, usar el handler directo
-              if (formData.materiales) {
-                handleMaterialSave(formData.materiales);
-              }
             }
             break;
             
@@ -496,111 +672,6 @@ const ActividadFormPage: React.FC = () => {
         break;
     }
   };
-
-  const handleSaveAll = async () => {
-    try {
-      setIsSaving(true);
-      console.log("handleSaveAll - Iniciando guardado completo");
-      
-      // Establecer el estado automático basado en las fechas
-      let estadoAutomatico: EstadoActividad = 'planificada';
-      estadoAutomatico = determinarEstadoActividad(
-        formData.fechaInicio,
-        formData.fechaFin,
-        formData.estado
-      );
-      
-      // Validar que todos los campos requeridos existan
-      const validationError = validateActividad(formData);
-      if (validationError) {
-        toast({
-          title: "Datos incompletos",
-          description: validationError,
-          status: "error",
-          duration: 5000
-        });
-        setTabIndex(0); // Volver a la pestaña de información
-        setIsSaving(false);
-        return;
-      }
-      
-      // Crear objeto actividad completo
-      const actividadCompleta = {
-        nombre: formData.nombre || '',
-        tipo: formData.tipo || [],
-        subtipo: formData.subtipo || [],
-        descripcion: formData.descripcion || '',
-        lugar: formData.lugar || '',
-        responsableActividadId: formData.responsableActividadId || userProfile?.uid || '',
-        participanteIds: formData.participanteIds || [],
-        necesidadMaterial: formData.materiales ? formData.materiales.length > 0 : false,
-        materiales: formData.materiales || [],
-        estado: estadoAutomatico,
-        comentarios: formData.comentarios || [],
-        creadorId: formData.creadorId || userProfile?.uid || '',
-        fechaInicio: toTimestamp(formData.fechaInicio) || Timestamp.fromDate(new Date()),
-        fechaFin: toTimestamp(formData.fechaFin) || Timestamp.fromDate(new Date()),
-        fechaActualizacion: Timestamp.fromDate(new Date()),
-        enlacesWikiloc: formData.enlacesWikiloc || [],
-        enlacesTopografias: formData.enlacesTopografias || [],
-        enlacesDrive: formData.enlacesDrive || [],
-        enlacesWeb: formData.enlacesWeb || [],
-        imagenesTopografia: formData.imagenesTopografia || [],
-        archivosAdjuntos: formData.archivosAdjuntos || [],
-        enlaces: [
-          ...(formData.enlacesWikiloc?.map(e => e.url) || []),
-          ...(formData.enlacesTopografias || []),
-          ...(formData.enlacesDrive || []),
-          ...(formData.enlacesWeb || [])
-        ]
-      };
-      
-      console.log("handleSaveAll - Objeto a guardar:", actividadCompleta);
-      
-      // Crear o actualizar según corresponda
-      let resultado: Actividad;
-      if (id) {
-        console.log("handleSaveAll - Actualizando actividad existente:", id);
-        resultado = await actualizarActividad(id, actividadCompleta);
-        toast({
-          title: "Actividad actualizada",
-          status: "success",
-          duration: 5000
-        });
-      } else {
-        console.log("handleSaveAll - Creando nueva actividad");
-        resultado = await crearActividad(actividadCompleta);
-        toast({
-          title: "Actividad creada",
-          status: "success",
-          duration: 5000
-        });
-      }
-      
-      console.log("handleSaveAll - Guardado exitoso:", resultado);
-      
-      // Limpiar localStorage tras guardar correctamente
-      localStorage.removeItem('actividad_temp_data');
-      
-      // Navegamos a la vista de detalle
-      navigate(`/activities/${resultado.id}`);
-    } catch (error) {
-      console.error("Error al guardar la actividad:", error);
-      toast({
-        title: "Error",
-        description: "Se produjo un error al guardar la actividad. Por favor, inténtelo de nuevo.",
-        status: "error",
-        duration: 5000
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Añade este useEffect para ver los cambios en formData
-  useEffect(() => {
-    console.log("Estado actual de formData:", formData);
-  }, [formData]);
 
   if (loading) {
     return (
@@ -632,7 +703,7 @@ const ActividadFormPage: React.FC = () => {
               {id ? "Editar Actividad" : "Crear Nueva Actividad"}
             </Heading>
             
-            <Tabs index={tabIndex} onChange={setTabIndex} variant="enclosed" colorScheme="brand" isFitted>
+            <Tabs index={tabIndex} onChange={(index) => optimizedTabChange(index)} variant="enclosed" colorScheme="brand" isFitted>
               <TabList>
                 <Tab>
                   <FiFileText style={{marginRight: '8px'}} /> 
@@ -658,13 +729,15 @@ const ActividadFormPage: React.FC = () => {
               
               <TabPanels>
                 <TabPanel>
-                  <InfoEditor 
-                    ref={infoEditorRef}
-                    actividad={getCompleteActivity(formData)}
-                    onSave={handleInfoSave} 
-                    onCancel={handleCancel}
-                    mostrarBotones={false} // Desactivar botones propios
-                  />
+                  <Suspense fallback={<Spinner />}>
+                    <InfoEditor 
+                      ref={infoEditorRef}
+                      actividad={getCompleteActivity(formData)}
+                      onSave={handleInfoSave} 
+                      onCancel={handleCancel}
+                      mostrarBotones={false}
+                    />
+                  </Suspense>
                   {!infoEdited && (
                     <Alert status="warning" mt={4}>
                       <AlertIcon />
@@ -674,39 +747,47 @@ const ActividadFormPage: React.FC = () => {
                 </TabPanel>
                 
                 <TabPanel>
-                  <ParticipantesEditor 
-                    ref={participantesEditorRef}
-                    actividad={getCompleteActivity(formData)}
-                    onSave={handleParticipantesSave}
-                    onCancel={handleCancel}
-                    mostrarBotones={false} // Desactivar botones propios
-                  />
+                  <Suspense fallback={<Spinner />}>
+                    <ParticipantesEditor 
+                      ref={participantesEditorRef}
+                      actividad={getCompleteActivity(formData)}
+                      onSave={handleParticipantesSave}
+                      onCancel={handleCancel}
+                      mostrarBotones={false}
+                    />
+                  </Suspense>
                 </TabPanel>
                 
                 <TabPanel>
-                  <MaterialEditor 
-                    ref={materialEditorRef}
-                    actividad={getCompleteActivity(formData)}
-                    onSave={handleMaterialSave}
-                    onCancel={handleCancel}
-                    mostrarBotones={false} // Desactivar botones propios
-                  />
+                  <Suspense fallback={<Spinner />}>
+                    <MaterialEditor 
+                      ref={materialEditorRef}
+                      actividad={getCompleteActivity(formData)}
+                      onSave={handleMaterialSave}
+                      onCancel={handleCancel}
+                      mostrarBotones={false}
+                    />
+                  </Suspense>
                 </TabPanel>
                 
                 <TabPanel>
-                  <EnlacesEditor 
-                    ref={enlacesEditorRef}
-                    actividad={getCompleteActivity(formData)}
-                    onSave={handleEnlacesSave}
-                    onCancel={handleCancel}
-                    esNuevo={!id}
-                    mostrarBotones={false} // Desactivar botones propios
-                  />
+                  <Suspense fallback={<Spinner />}>
+                    <EnlacesEditor 
+                      ref={enlacesEditorRef}
+                      actividad={getCompleteActivity(formData)}
+                      onSave={handleEnlacesSave}
+                      onCancel={handleCancel}
+                      esNuevo={!id}
+                      mostrarBotones={false}
+                    />
+                  </Suspense>
                 </TabPanel>
               </TabPanels>
             </Tabs>
           </CardBody>
         </Card>
+        
+        {/* Barra de navegación y botones */}
         <Box pt={4} pb={2} borderTop="1px" borderColor="gray.200" width="100%" mt={4}>
           <Flex justify="space-between" maxW="1200px" mx="auto">
             <Button 
