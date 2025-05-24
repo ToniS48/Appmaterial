@@ -288,10 +288,22 @@ export const messages = {
       sinVarios: 'No se encontró material variado disponible',
       seleccionados: 'Materiales seleccionados',
       sinSeleccionados: 'No hay materiales seleccionados',
-      columnaMaterial: 'Material',
-      columnaCantidad: 'Cantidad',
+      columnaMaterial: 'Material',      columnaCantidad: 'Cantidad',
       botonAnadir: 'Añadir',
       disponible: 'disponible'
+    },
+    inventario: {
+      titulo: 'Inventario de Material',
+      descripcion: 'Consulta todo el material disponible en el club',
+      vistaInventario: 'Vista de inventario',
+      vistaCompleta: 'Vista completa',
+      materialEncontrado: 'material encontrado',
+      materialesEncontrados: 'materiales encontrados',
+      especificaciones: 'Especificaciones',
+      sinMateriales: 'No se encontraron materiales',
+      ajustarFiltros: 'Prueba a ajustar los filtros de búsqueda',
+      cargandoInventario: 'Cargando inventario...',
+      errorCargarInventario: 'Error al cargar el inventario'
     }
   },
   

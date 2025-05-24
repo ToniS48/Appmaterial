@@ -9,6 +9,7 @@ import ActividadPage from '../pages/actividades/ActividadPage';
 import ActividadFormPage from '../pages/actividades/ActividadFormPage';
 import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
 import MaterialPage from '../pages/material/GestionMaterialPage';
+import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';
 import PerfilPage from '../pages/usuario/PerfilPage';
 import GestionUsuariosPage from '../pages/common/GestionUsuariosPage';
 import PrestamosAdminPage from '../pages/admin/PrestamosAdminPage';
@@ -96,8 +97,8 @@ const AppRoutes: React.FC = () => {
             <ActividadMaterialPage />
           </ProtectedRoute>
         }
-      />
-      <Route path="/material" element={<ProtectedRoute allowedRoles={['admin', 'vocal']}><MaterialPage /></ProtectedRoute>} />
+      />      <Route path="/material" element={<ProtectedRoute allowedRoles={['admin', 'vocal']}><MaterialPage /></ProtectedRoute>} />
+      <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['socio']}><MaterialInventoryPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><PerfilPage /></ProtectedRoute>} />
       <Route 
         path="/notificaciones" 
