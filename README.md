@@ -190,3 +190,40 @@ Configuración y despliegue
 Requisitos previos
 Node.js 22 o superior
 Cuenta de Firebase (plan Spark o superior)
+## Performance Optimizations (Mayo 2025)
+
+Se han implementado importantes mejoras de rendimiento para resolver las violaciones del scheduler en React:
+
+### Componentes Optimizados
+
+- **MaterialSelector**: Componente principal optimizado para seleccionar materiales
+- **ActividadFormPage**: Página de creación de actividades con navegación por pestañas mejorada
+- **MaterialCard**: Componente de UI con renderizado optimizado
+
+### Utilidades de Optimización
+
+Se han creado varias utilidades para mejorar el rendimiento:
+
+- `performanceMonitor.ts`: Sistema para detectar y registrar violaciones de rendimiento
+- `reactSchedulerOptimizer.ts`: Utilidades para prevenir violaciones del scheduler de React
+- `eventOptimizer.ts`: Hooks para optimizar el manejo de eventos
+
+### Verificación de Optimizaciones
+
+Para comprobar las mejoras de rendimiento:
+
+1. Ejecutar `npm start` para iniciar la aplicación
+2. Navegar a `/debug/material-selector-test` para usar el componente de pruebas
+3. Alternar entre modo optimizado y no optimizado para comparar
+
+Para pruebas desde línea de comandos:
+```
+node src/utils/testPerformance.js
+```
+
+### Documentación
+
+Para más detalles sobre las optimizaciones implementadas, consultar:
+
+- `docs/Optimizaciones-Rendimiento-2025.md`: Documentación completa
+- `docs/MaterialSelector-Optimizacion.md`: Especificaciones del componente

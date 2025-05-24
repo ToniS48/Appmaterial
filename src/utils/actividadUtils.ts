@@ -1,4 +1,5 @@
 import { Actividad, EstadoActividad, MaterialAsignado } from '../types/actividad';
+import { ActividadFormData } from '../types/editor'; // Añadir esta importación
 import { Timestamp } from 'firebase/firestore';
 import { toDate } from './dateUtils';
 
@@ -63,16 +64,6 @@ export const validateActividadEnlaces = (enlaces: Partial<Actividad>): string | 
   }
   
   return null;
-}
-
-// Función auxiliar para validar URLs
-const isValidUrl = (urlString: string): boolean => {
-  try {
-    const url = new URL(urlString);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -189,4 +180,117 @@ export const validateActividadComplete = (data: Partial<Actividad>): string | nu
   }
   
   return null;
+};
+
+/**
+ * Función para validar URLs
+ */
+export const isValidUrl = (urlString: string): boolean => {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Obtiene los valores por defecto para una nueva actividad o una existente
+ * @param existingActivity Actividad existente (opcional)
+ * @param currentUserId ID del usuario actual
+ * @returns Objeto con los valores por defecto
+ */
+export const getDefaultValues = (existingActivity?: Actividad, currentUserId?: string): ActividadFormData => {
+  if (existingActivity) {
+    return {
+      ...existingActivity,
+      participanteIds: Array.from(new Set([...(existingActivity.participanteIds || []), currentUserId].filter((id): id is string => Boolean(id)))),
+      enlacesWikiloc: existingActivity.enlacesWikiloc || [],
+      enlacesTopografias: existingActivity.enlacesTopografias || [],
+      enlacesDrive: existingActivity.enlacesDrive || [],
+      enlacesWeb: existingActivity.enlacesWeb || [],
+      comentarios: existingActivity.comentarios || [],
+      enlaces: existingActivity.enlaces || []
+    };
+  }
+
+  const mañana = new Date();
+  mañana.setDate(mañana.getDate() + 1);
+
+  return {
+    nombre: '',
+    lugar: '',
+    descripcion: '',
+    fechaInicio: new Date(),
+    fechaFin: mañana,
+    tipo: [],
+    subtipo: [],
+    dificultad: 'media' as 'baja' | 'media' | 'alta',
+    responsableActividadId: currentUserId || '',
+    responsableMaterialId: currentUserId || '',
+    participanteIds: Array.from(new Set([currentUserId].filter((id): id is string => Boolean(id)))),
+    creadorId: currentUserId || '',
+    materiales: [],
+    estado: 'planificada' as EstadoActividad,
+    enlacesWikiloc: [],
+    enlacesTopografias: [],
+    enlacesDrive: [],
+    enlacesWeb: [],
+    comentarios: [],
+    enlaces: [],
+    necesidadMaterial: false,
+    imagenesTopografia: [],
+    archivosAdjuntos: []
+  };
+};
+
+/**
+ * Obtiene los IDs de participantes únicos, incluyendo creador y responsables
+ * @param participanteIds IDs de participantes actuales
+ * @param creadorId ID del creador de la actividad
+ * @param responsableActividadId ID del responsable de la actividad
+ * @param responsableMaterialId ID del responsable del material
+ * @returns Array de IDs de participantes únicos
+ */
+export const getUniqueParticipanteIds = (
+  participanteIds: string[] = [], 
+  creadorId?: string,
+  responsableActividadId?: string,
+  responsableMaterialId?: string
+): string[] => {
+  // Recopilar todos los IDs requeridos (sin nulos/undefined)
+  const requiredIds = [creadorId, responsableActividadId, responsableMaterialId]
+    .filter((id): id is string => Boolean(id));
+    
+  // Garantizar que todos los IDs requeridos están incluidos sin duplicados
+  return Array.from(new Set([...participanteIds, ...requiredIds]));
+};
+
+/**
+ * Determina el estado de una actividad basado en las fechas
+ * @param fechaInicio Fecha de inicio de la actividad
+ * @param fechaFin Fecha de fin de la actividad
+ * @param estadoActual Estado actual de la actividad (opcional)
+ * @returns Estado de la actividad
+ */
+export const determinarEstadoActividad = (
+  fechaInicio: Date,
+  fechaFin: Date,
+  estadoActual?: EstadoActividad
+): EstadoActividad => {
+  const ahora = new Date();
+  
+  // Si ya está cancelada o finalizada, mantener ese estado
+  if (estadoActual === 'cancelada' || estadoActual === 'finalizada') {
+    return estadoActual;
+  }
+  
+  // Determinar estado basado en fechas
+  if (ahora < fechaInicio) {
+    return 'planificada';
+  } else if (ahora >= fechaInicio && ahora <= fechaFin) {
+    return 'en_curso';
+  } else {
+    return 'finalizada';
+  }
 };

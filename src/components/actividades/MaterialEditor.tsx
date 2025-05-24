@@ -1,12 +1,13 @@
-import React, { forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
   Box, Button, FormControl, FormLabel, FormErrorMessage,
-  Stack, Text, useColorModeValue, Alert, AlertIcon
+  Stack, Text, useColorModeValue, Alert, AlertIcon, Checkbox
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import MaterialSelector from './MaterialSelector';
 import { MaterialEditorProps } from '../../types/editor';
 import { MaterialAsignado } from '../../types/actividad';
+import { normalizarMaterial } from '../../utils/materialUtils';
 
 interface MaterialItem {
   materialId: string;
@@ -18,13 +19,16 @@ interface MaterialItem {
 const MaterialEditor = forwardRef<
   { submitForm: () => void },
   MaterialEditorProps
->(({ data, onSave, onCancel, mostrarBotones = true, isInsideForm = false }, ref) => {
+>(({ data, onSave, onCancel, onNecesidadMaterialChange, mostrarBotones = true, isInsideForm = false }, ref) => {
   const { control, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: {
       materiales: data.materiales || []
     }
   });
 
+  const [materiales] = useState<MaterialAsignado[]>(data.materiales || []);
+  const [necesidadMaterial, setNecesidadMaterial] = useState<boolean>(data.necesidadMaterial || false);
+  
   const cardBg = useColorModeValue("white", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
   
@@ -38,17 +42,19 @@ const MaterialEditor = forwardRef<
       
       // Ejecutar handleSubmit con onSubmit como callback
       try {
-        handleSubmit((data) => {
-          console.log('Material form data:', data);
-          if (!data.materiales) data.materiales = [];
+        handleSubmit((formData) => {
+          console.log('Material form data:', formData);
+          if (!formData.materiales) formData.materiales = [];
           
           // Validar y limpiar los materiales - formato estandarizado para ambos modos
-          const materialesValidados = Array.isArray(data.materiales) ? 
-            data.materiales.filter((m: MaterialItem) => m && m.materialId).map((m: MaterialItem) => ({
-              materialId: m.materialId,
-              nombre: m.nombre || '',
-              cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
-            })) : [];
+          const materialesValidados = Array.isArray(formData.materiales) ? 
+            formData.materiales
+              .filter((m: MaterialItem) => m && m.materialId)
+              .map((m: MaterialItem) => ({
+                materialId: m.materialId,
+                nombre: m.nombre || '',
+                cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
+              })) : [];
           
           console.log('Materiales validados:', materialesValidados);
           onSave(materialesValidados);
@@ -56,12 +62,15 @@ const MaterialEditor = forwardRef<
       } catch (error) {
         console.error('Error en submitForm de MaterialEditor:', error);
         // Fallback: enviar la lista actual en caso de error
-        const materialesList = watch('materiales') || [];
-        onSave(materialesList.filter(m => m && m.materialId).map(m => ({
-          materialId: m.materialId,
-          nombre: m.nombre || '',
-          cantidad: m.cantidad || 1
-        })));
+        const materialesActuales = watch('materiales') || [];
+        const materialesValidados = materialesActuales
+          .filter((m: MaterialItem) => m && m.materialId)
+          .map((m: MaterialItem) => ({
+            materialId: m.materialId,
+            nombre: m.nombre || '',
+            cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
+          }));
+        onSave(materialesValidados);
       }
     }
   }));
@@ -72,17 +81,42 @@ const MaterialEditor = forwardRef<
     
     // Validar y enviar los datos
     const materialesValidados = Array.isArray(formData.materiales) ? 
-      formData.materiales.filter((m: MaterialItem) => m && m.materialId).map((m: MaterialItem) => ({
-        materialId: m.materialId,
-        nombre: m.nombre || '',
-        cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
-      })) : [];
+      formData.materiales
+        .filter((m: MaterialItem) => m && m.materialId)
+        .map((m: MaterialItem) => ({
+          materialId: m.materialId,
+          nombre: m.nombre || '',
+          cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
+        })) : [];
     
     onSave(materialesValidados);
   };
 
   // Usar un Box normal o un form según el contexto
   const WrapperComponent = isInsideForm ? Box : 'form';
+  
+  // Añadir manejo del cambio de necesidad de material
+  const handleNecesidadMaterialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    setNecesidadMaterial(newValue);
+    
+    // Notificar al componente padre a través del callback
+    if (onNecesidadMaterialChange) {
+      onNecesidadMaterialChange(newValue);
+    }
+  };
+  
+  // Preparar los materiales normalizados para el selector
+  const prepararMateriales = () => {
+    if (!Array.isArray(data.materiales)) return [];
+    
+    return data.materiales.map((material: MaterialAsignado) => ({
+      id: material.materialId ? `temp-${material.materialId}` : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      materialId: material.materialId || '',
+      nombre: material.nombre || '',
+      cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad || '1'), 10) || 1
+    }));
+  };
   
   return (
     <WrapperComponent 
@@ -94,15 +128,7 @@ const MaterialEditor = forwardRef<
         <MaterialSelector 
           control={control} 
           name="materiales" 
-          materialesActuales={Array.isArray(data.materiales) 
-            ? data.materiales.map(material => ({
-                id: material.materialId ? `temp-${material.materialId}` : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                materialId: material.materialId || '',
-                nombre: material.nombre || '',
-                cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad), 10) || 1
-              }))
-            : []
-          }
+          materialesActuales={prepararMateriales()}
           error={errors.materiales} 
           cardBg={cardBg}
           borderColor={borderColor}
@@ -122,6 +148,28 @@ const MaterialEditor = forwardRef<
           </Alert>
         )}
       </FormControl>
+
+      <FormControl mb={4}>
+        <Checkbox 
+          isChecked={necesidadMaterial}
+          onChange={handleNecesidadMaterialChange}
+          colorScheme="brand"
+        >
+          Esta actividad requiere material
+        </Checkbox>
+      </FormControl>
+      
+      {/* Mostrar selector de material solo si necesidadMaterial es true */}
+      {necesidadMaterial && (
+        <MaterialSelector 
+          control={control} 
+          name="materiales" 
+          materialesActuales={prepararMateriales()}
+          error={errors.materiales} 
+          cardBg={cardBg}
+          borderColor={borderColor}
+        />
+      )}
 
       {mostrarBotones && (
         <Stack direction="row" spacing={4} mt={6} justify="flex-end">

@@ -1,29 +1,14 @@
-import { TipoActividad, SubtipoActividad } from '../types/actividad';
+import { TipoActividad, SubtipoActividad, TipoActividadOption, SubtipoActividadOption } from '../types/actividad';
 
-export interface OpcionValor {
-  value: string;
-  label: string;
-  color?: string; // Opcional para ser más flexible
-}
-
-// Opciones para tipos de actividad
-export const TIPOS_ACTIVIDAD = [
-  { value: 'espeleologia' as TipoActividad, label: 'Espeleología' },
-  { value: 'barranquismo' as TipoActividad, label: 'Barranquismo' },
-  { value: 'exterior' as TipoActividad, label: 'Actividad Exterior' }
+export const TIPOS_ACTIVIDAD: TipoActividadOption[] = [
+  { value: 'espeleologia', label: 'Espeleología' },
+  { value: 'barranquismo', label: 'Barranquismo' },
+  { value: 'exterior', label: 'Exterior' }
 ];
 
-// Opciones para subtipos de actividad
-export const SUBTIPOS_ACTIVIDAD = [
-  { value: 'visita' as SubtipoActividad, label: 'Visita' },
-  { value: 'exploracion' as SubtipoActividad, label: 'Exploración' },
-  { value: 'formacion' as SubtipoActividad, label: 'Formación/Curso' },
-  { value: 'otro' as SubtipoActividad, label: 'Otro' }
-];
-
-// Opciones para dificultad
-export const DIFICULTADES: OpcionValor[] = [
-  { value: 'baja', label: 'Baja', color: 'green' },
-  { value: 'media', label: 'Media', color: 'orange' },
-  { value: 'alta', label: 'Alta', color: 'red' }
+export const SUBTIPOS_ACTIVIDAD: SubtipoActividadOption[] = [
+  { value: 'visita', label: 'Visita' },
+  { value: 'exploracion', label: 'Exploración' },
+  { value: 'formacion', label: 'Formación' },
+  { value: 'otro', label: 'Otro' }
 ];

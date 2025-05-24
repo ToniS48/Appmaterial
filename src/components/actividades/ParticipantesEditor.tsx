@@ -1,49 +1,133 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, useCallback } from 'react';
 import {
   Box, Button, Stack, Text, Grid, GridItem, Flex,
   Heading, Card, CardBody, Checkbox, Input, InputGroup, InputLeftElement, Divider,
   useDisclosure, useColorModeValue, FormControl, FormLabel, Select, HStack, Badge,
-  Table, Thead, Tbody, Tr, Th, Td
+  Table, Thead, Tbody, Tr, Th, Td, Radio, RadioGroup, useToast
 } from '@chakra-ui/react';
 import { listarUsuarios } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
 import { Actividad } from '../../types/actividad';
 import { ParticipantesEditorProps } from '../../types/editor';
 import { FiGrid, FiList, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext';
 
-const ParticipantesEditor = forwardRef<
+// Definir interfaces para props de componentes
+interface UsuarioCardProps {
+  usuario: Usuario;
+  isSelected: boolean;
+  isCreator: boolean;
+  isResponsable: boolean;
+  toggleUsuario: (id: string) => void;
+}
+
+interface UsuarioRowProps {
+  usuario: Usuario;
+  isSelected: boolean;
+  toggleUsuario: (id: string) => void;
+}
+
+// Componente memoizado para tarjeta de usuario
+const UsuarioCard = React.memo<UsuarioCardProps>(({ 
+  usuario, 
+  isSelected, 
+  isCreator, 
+  isResponsable, 
+  toggleUsuario 
+}) => {
+  const cardBg = useColorModeValue("white", "gray.700");
+  const borderColor = useColorModeValue("gray.200", "gray.600");
+  
+  return (
+    <Card variant="outline" bg={cardBg} borderColor={borderColor} size="sm">
+      <CardBody py={2} px={3}>
+        <Checkbox 
+          isChecked={isSelected} 
+          onChange={() => toggleUsuario(usuario.uid)}
+          size="sm"
+        >
+          <Text fontSize="sm" noOfLines={1}>
+            {usuario.nombre} {usuario.apellidos}
+          </Text>
+        </Checkbox>
+        {isCreator && <Badge colorScheme="purple" ml={1}>Creador</Badge>}
+        {isResponsable && <Badge colorScheme="red" ml={1}>Responsable</Badge>}
+      </CardBody>
+    </Card>
+  );
+});
+
+// Componente memoizado para fila de tabla
+const UsuarioRow = React.memo<UsuarioRowProps>(({ 
+  usuario, 
+  isSelected, 
+  toggleUsuario 
+}) => {
+  return (
+    <Tr>
+      <Td px={2}>
+        <Checkbox 
+          isChecked={isSelected}
+          onChange={() => toggleUsuario(usuario.uid)}
+          colorScheme="brand"
+          size="sm"
+        />
+      </Td>
+      <Td py={1} fontSize="sm">{usuario.nombre} {usuario.apellidos}</Td>
+      <Td py={1} fontSize="sm">{usuario.email}</Td>
+    </Tr>
+  );
+});
+
+const ParticipantesEditor = React.forwardRef<
   { submitForm: () => void },
   ParticipantesEditorProps
->(({ data, onSave, onCancel, mostrarBotones = true }, ref) => {
+>(({ data, onSave, onResponsablesChange, onCancel, mostrarBotones = true }, ref) => {
+  const { currentUser, userProfile } = useAuth();
+  const toast = useToast();
+  
+  // Estados principales
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    const participantes = data.participanteIds || [];
-    // Asegurar que el creador esté incluido si existe
-    if (data.creadorId && !participantes.includes(data.creadorId)) {
-      return [...participantes, data.creadorId];
-    }
-    return participantes;
+    const idsUnicos = new Set(data.participanteIds || []);
+    if (data.creadorId) idsUnicos.add(data.creadorId);
+    return Array.from(idsUnicos);
   });
+  
+  // Referencias para controlar inicializaciones
+  const didInitializeCreator = useRef<boolean>(false);
+  const didLoadUsers = useRef<boolean>(false);
+  
+  // Estados para responsables
+  const [responsableId, setResponsableId] = useState<string>(() => (
+    data.responsableActividadId || data.creadorId || currentUser?.uid || ''
+  ));
+  const [responsableMaterialId, setResponsableMaterialId] = useState<string>(
+    data.responsableMaterialId || ''
+  );
+  
+  // Estados para UI
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [page, setPage] = useState(1);
-  const [itemsPerPage] = useState(30); // Aumentar de 20 a 30 elementos por página
+  const [itemsPerPage] = useState(30);
   const [orden, setOrden] = useState<'nombre' | 'participante'>('nombre');
   const [vistaCompacta, setVistaCompacta] = useState(false);
   
+  // Estilos
   const cardBg = useColorModeValue("white", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
-  const inputBg = useColorModeValue("white", "gray.700");
-  
+
+  // Cargar usuarios una sola vez
   useEffect(() => {
-    const fetchUsuarios = async () => {
+    const cargarUsuarios = async () => {
+      if (didLoadUsers.current) return;
+      
       try {
         setLoading(true);
-        
-        // Primero cargar todos los usuarios sin parámetros
-        const usuariosData = await listarUsuarios();
-        setUsuarios(usuariosData.filter(u => u.activo));
-        
+        didLoadUsers.current = true;
+        const todosUsuarios = await listarUsuarios();
+        setUsuarios(todosUsuarios);
       } catch (error) {
         console.error('Error al cargar usuarios:', error);
       } finally {
@@ -51,91 +135,190 @@ const ParticipantesEditor = forwardRef<
       }
     };
     
-    fetchUsuarios();
+    cargarUsuarios();
   }, []);
   
-  const toggleUsuario = (usuarioId: string) => {
-    if (selectedIds.includes(usuarioId)) {
-      setSelectedIds(selectedIds.filter(id => id !== usuarioId));
-    } else {
-      setSelectedIds([...selectedIds, usuarioId]);
-    }
-  };
-  
-  const handleSubmit = () => {
-    onSave(selectedIds);
-  };
-
-  // Exponer el método submitForm usando useImperativeHandle
-  useImperativeHandle(ref, () => ({
-    submitForm: () => {
-      console.log("ParticipantesEditor - submitForm llamado, selectedIds:", selectedIds);
-      // Asegurar que siempre haya al menos el usuario actual como participante
-      const idsToSave = selectedIds.length > 0 ? 
-        selectedIds : 
-        (data.creadorId ? [data.creadorId] : []);
+  // Asignar creador automáticamente una sola vez
+  useEffect(() => {
+    if (!didInitializeCreator.current && !data.creadorId && currentUser?.uid) {
+      didInitializeCreator.current = true;
       
-      onSave(idsToSave);
+      const creadorId = currentUser.uid;
+      if (!selectedIds.includes(creadorId)) {
+        setSelectedIds(prev => [...prev, creadorId]);
+        // Usar una actualización de estado estable
+        setResponsableId(creadorId);
+        // Notificar fuera del ciclo de renderizado
+        queueMicrotask(() => {
+          onResponsablesChange(creadorId, responsableMaterialId);
+        });
+      }
     }
-  }));
+  }, [currentUser?.uid]);
   
-  // Función de filtrado combinada
-  const usuariosFiltrados = useMemo(() => {
-    return usuarios
-      .filter(usuario => {
-        // Filtro por texto (nombre o email)
-        const matchesText = searchTerm ? 
-          `${usuario.nombre} ${usuario.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          usuario.email.toLowerCase().includes(searchTerm.toLowerCase())
-          : true;
-          
-        return matchesText;
-      })
-      .sort((a, b) => {
-        if (orden === 'nombre') {
-          return `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`);
-        } else {
-          // Ordenar por participante (primero los seleccionados)
-          const aEsParticipante = selectedIds.includes(a.uid);
-          const bEsParticipante = selectedIds.includes(b.uid);
-          
-          if (aEsParticipante && !bEsParticipante) return -1;
-          if (!aEsParticipante && bEsParticipante) return 1;
-          
-          // Si ambos son o no son participantes, ordenar por nombre
-          return `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`);
-        }
-      });
-  }, [usuarios, searchTerm, orden, selectedIds]); // Añadir selectedIds a las dependencias
-
-  const totalPages = Math.ceil(usuariosFiltrados.length / itemsPerPage);
-
-  // Calcular usuarios a mostrar en la página current
-  const usuariosPaginados = usuariosFiltrados.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
-  );
+  // Asegurar que los IDs requeridos estén incluidos
+  useEffect(() => {
+    if (!didInitializeCreator.current) return;
+    
+    const idsRequeridos = [
+      data.creadorId,
+      responsableId,
+      responsableMaterialId
+    ].filter(Boolean);
+    
+    // Verificar si hay algo que actualizar
+    const idsAActualizar = idsRequeridos.filter(id => id && !selectedIds.includes(id));
+    
+    if (idsAActualizar.length > 0) {
+      setSelectedIds(prev => [...prev, ...idsAActualizar]);
+    }
+  }, [data.creadorId, responsableId, responsableMaterialId, selectedIds]);
   
-  // Función para el color del badge según rol
-  const getRolBadgeColor = (rol: string) => {
+  // Manejar selección/deselección de usuarios
+  const toggleUsuario = useCallback((id: string) => {
+    // No permitir deseleccionar creador o responsables
+    if (selectedIds.includes(id)) {
+      if (id === data.creadorId || id === responsableId || id === responsableMaterialId) {
+        return;
+      }
+      setSelectedIds(prev => prev.filter(prevId => prevId !== id));
+    } else {
+      setSelectedIds(prev => [...prev, id]);
+    }
+  }, [selectedIds, data.creadorId, responsableId, responsableMaterialId]);
+  
+  // Manejar cambio de responsable principal
+  const handleResponsableChange = useCallback((id: string) => {
+    setResponsableId(id);
+    
+    // Asegurar que sea participante
+    if (!selectedIds.includes(id)) {
+      setSelectedIds(prev => [...prev, id]);
+    }
+    
+    onResponsablesChange(id, responsableMaterialId);
+  }, [selectedIds, responsableMaterialId, onResponsablesChange]);
+  
+  // Manejar cambio de responsable de material
+  const handleResponsableMaterialChange = useCallback((id: string) => {
+    setResponsableMaterialId(id);
+    
+    // Asegurar que sea participante
+    if (!selectedIds.includes(id)) {
+      setSelectedIds(prev => [...prev, id]);
+    }
+    
+    onResponsablesChange(responsableId, id);
+  }, [selectedIds, responsableId, onResponsablesChange]);
+  
+  // Manejar cambio de rol
+  const handleRolChange = useCallback((uid: string, rol: string) => {
+    // Asegurar que el usuario está seleccionado
+    if (!selectedIds.includes(uid)) {
+      setSelectedIds(prev => [...prev, uid]);
+    }
+
     switch (rol) {
-      case 'admin':
-        return 'red';
-      case 'vocal':
-        return 'purple';
-      case 'socio':
-        return 'green';
-      case 'invitado':
-        return 'blue';
+      case "responsable":
+        setResponsableId(uid);
+        onResponsablesChange(uid, responsableMaterialId);
+        break;
+      case "material":
+        setResponsableMaterialId(uid);
+        onResponsablesChange(responsableId, uid);
+        break;
       default:
-        return 'gray';
+        // Reajustar responsables si es necesario
+        if (uid === responsableId) {
+          const nuevoResponsable = data.creadorId || '';
+          setResponsableId(nuevoResponsable);
+          onResponsablesChange(nuevoResponsable, responsableMaterialId);
+        } else if (uid === responsableMaterialId) {
+          setResponsableMaterialId('');
+          onResponsablesChange(responsableId, '');
+        }
+        break;
     }
-  };
+  }, [selectedIds, responsableId, responsableMaterialId, data.creadorId, onResponsablesChange]);
+  
+  // Función de submit
+  const submitForm = useCallback(() => {
+    try {
+      // Simplemente obtenemos los IDs seleccionados y dejamos que la función 
+      // centralizada se encargue de garantizar que todos los IDs necesarios estén incluidos
+      onSave(selectedIds);
+      return true;
+    } catch (error) {
+      console.error("Error en submitForm:", error);
+      return false;
+    }
+  }, [selectedIds, onSave]);
+  
+  // Exponer submitForm al componente padre
+  useImperativeHandle(ref, () => ({ submitForm }), [submitForm]);
+  
+  // Filtrar usuarios según búsqueda
+  const usuariosFiltrados = useMemo(() => {
+    if (!searchTerm.trim()) return usuarios;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return usuarios.filter(usuario => {
+      const fullName = `${usuario.nombre} ${usuario.apellidos}`.toLowerCase();
+      return fullName.includes(searchLower) || 
+             (usuario.email && usuario.email.toLowerCase().includes(searchLower));
+    });
+  }, [usuarios, searchTerm]);
+  
+  // Ordenar usuarios filtrados
+  const usuariosOrdenados = useMemo(() => {
+    return [...usuariosFiltrados].sort((a, b) => {
+      if (orden === 'nombre') {
+        return `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`);
+      } else {
+        // Ordenar por participación primero
+        const aSelected = selectedIds.includes(a.uid);
+        const bSelected = selectedIds.includes(b.uid);
+        
+        if (aSelected !== bSelected) {
+          return aSelected ? -1 : 1;
+        }
+        
+        // Si ambos son participantes o no, ordenar por nombre
+        return `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`);
+      }
+    });
+  }, [usuariosFiltrados, orden, selectedIds]);
+  
+  // Calcular paginación
+  const totalPages = Math.max(1, Math.ceil(usuariosOrdenados.length / itemsPerPage));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const usuariosPaginados = usuariosOrdenados.slice(startIndex, startIndex + itemsPerPage);
+  
+  // Obtener nombre del responsable para mostrar
+  const nombreResponsable = useMemo(() => {
+    if (loading) return 'Cargando...';
+    
+    const usuarioResponsable = usuarios.find(u => u.uid === responsableId);
+    if (usuarioResponsable) {
+      return `${usuarioResponsable.nombre} ${usuarioResponsable.apellidos}`.trim();
+    }
+    
+    if (currentUser) {
+      return userProfile?.nombre || currentUser.email?.split('@')[0] || 'Usuario actual';
+    }
+    
+    return 'No definido';
+  }, [loading, usuarios, responsableId, currentUser, userProfile]);
   
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
-        <Text>Selecciona los participantes de esta actividad:</Text>
+        <Box>
+          <Text fontWeight="medium">
+            Responsable de actividad: {nombreResponsable}
+          </Text>
+        </Box>
         <Badge colorScheme="brand" fontSize="md" py={1} px={2} borderRadius="md">
           {selectedIds.length} seleccionados
         </Badge>
@@ -146,8 +329,6 @@ const ParticipantesEditor = forwardRef<
         placeholder="Buscar por nombre o email..." 
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        bg={inputBg}
-        borderColor={borderColor}
         mb={4}
       />
       
@@ -174,99 +355,99 @@ const ParticipantesEditor = forwardRef<
         </Button>
       </Flex>
       
-      {/* Lista de usuarios con checkboxes */}
-      <Box>
-        {vistaCompacta ? (
-          <Box borderWidth="1px" borderRadius="md">
-            <Table size="sm" variant="simple">
-              <Thead>
-                <Tr>
-                  <Th width="30px" px={2}></Th>
-                  <Th>Nombre</Th>
-                  <Th>Email</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {usuariosPaginados.map(usuario => (
-                  <Tr key={usuario.uid}>
-                    <Td px={2}>
-                      <Checkbox 
-                        isChecked={selectedIds.includes(usuario.uid)}
-                        onChange={() => toggleUsuario(usuario.uid)}
-                        colorScheme="brand"
-                        size="sm"
-                      />
-                    </Td>
-                    <Td py={1} fontSize="sm">{usuario.nombre} {usuario.apellidos}</Td>
-                    <Td py={1} fontSize="sm">{usuario.email}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
-        ) : (
-          // Modificar la vista de tarjetas para hacerla más compacta
-          <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)", xl: "repeat(5, 1fr)" }} gap={2}>
-            {usuariosPaginados.map(usuario => (
-              <GridItem key={usuario.uid}>
-                <Card variant="outline" bg={cardBg} borderColor={borderColor} size="sm">
-                  <CardBody py={2} px={3}>
-                    <Checkbox 
-                      isChecked={selectedIds.includes(usuario.uid)} 
-                      onChange={() => toggleUsuario(usuario.uid)}
-                      size="sm"
-                    >
-                      <Text fontSize="sm" noOfLines={1}>
-                        {usuario.nombre} {usuario.apellidos}
-                      </Text>
-                    </Checkbox>
-                  </CardBody>
-                </Card>
-              </GridItem>
-            ))}
-          </Grid>
-        )}
-        
-        {/* Control de paginación */}
+      {/* Lista de usuarios */}
+      {loading ? (
+        <Text textAlign="center" py={4}>Cargando usuarios...</Text>
+      ) : vistaCompacta ? (
+        <Box borderWidth="1px" borderRadius="md">
+          <Table size="sm" variant="simple">
+            <Thead>
+              <Tr>
+                <Th width="30px" px={2}></Th>
+                <Th>Nombre</Th>
+                <Th>Email</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {usuariosPaginados.map(usuario => (
+                <UsuarioRow
+                  key={usuario.uid}
+                  usuario={usuario}
+                  isSelected={selectedIds.includes(usuario.uid)}
+                  toggleUsuario={toggleUsuario}
+                />
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      ) : (
+        <Grid templateColumns={{ 
+          base: "1fr", 
+          sm: "repeat(2, 1fr)", 
+          md: "repeat(3, 1fr)", 
+          lg: "repeat(4, 1fr)", 
+          xl: "repeat(5, 1fr)" 
+        }} gap={2}>
+          {usuariosPaginados.map(usuario => (
+            <UsuarioCard
+              key={usuario.uid}
+              usuario={usuario}
+              isSelected={selectedIds.includes(usuario.uid)}
+              isCreator={usuario.uid === data.creadorId}
+              isResponsable={usuario.uid === responsableId}
+              toggleUsuario={toggleUsuario}
+            />
+          ))}
+        </Grid>
+      )}
+      
+      {/* Paginación */}
+      {usuariosOrdenados.length > itemsPerPage && (
         <Flex justify="center" mt={4} mb={4}>
           <Button 
-            isDisabled={page === 1}
-            onClick={() => setPage(p => p - 1)}
+            isDisabled={currentPage <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
             mr={2}
             aria-label="Página anterior"
           >
             <FiChevronLeft />
           </Button>
           <Text alignSelf="center" mx={2}>
-            Página {page} de {totalPages}
+            Página {currentPage} de {totalPages}
           </Text>
           <Button 
-            isDisabled={page === totalPages}
-            onClick={() => setPage(p => p + 1)}
+            isDisabled={currentPage >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             ml={2}
             aria-label="Página siguiente"
           >
             <FiChevronRight />
           </Button>
         </Flex>
-      </Box>
+      )}
       
-      {/* Renderizado condicional de los botones */}
+      {/* Botones de control (cuando mostrarBotones es true) */}
       {mostrarBotones && (
-        <Stack direction="row" spacing={4} justify="flex-end">
-          <Button variant="outline" onClick={onCancel}>
-            Cancelar
+        <Flex justifyContent="flex-end" mt={4}>
+          {onCancel && (
+            <Button mr={3} onClick={onCancel} variant="ghost">
+              Cancelar
+            </Button>
+          )}
+          <Button colorScheme="brand" onClick={submitForm}>
+            Guardar participantes
           </Button>
-          <Button colorScheme="brand" onClick={handleSubmit}>
-            Guardar Participantes ({selectedIds.length})
-          </Button>
-        </Stack>
+        </Flex>
       )}
     </Box>
   );
 });
 
-// Agregar displayName para debugging
+// Nombre para debugging
 ParticipantesEditor.displayName = 'ParticipantesEditor';
+
+// Añadir displayName a componentes memoizados
+UsuarioCard.displayName = 'UsuarioCard';
+UsuarioRow.displayName = 'UsuarioRow';
 
 export default ParticipantesEditor;
