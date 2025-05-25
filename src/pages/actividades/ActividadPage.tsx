@@ -8,6 +8,14 @@ import {
   AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, useToast,
   Tabs, TabList, Tab, TabPanels, TabPanel
 } from '@chakra-ui/react';
+
+import { CalendarIcon, ExternalLinkIcon, DownloadIcon, LinkIcon, CheckIcon } from '@chakra-ui/icons';
+import { 
+  FiCalendar, FiUsers, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave, FiX, 
+  FiStar, FiUser, FiPackage, FiClock, FiCheckCircle, 
+  FiXCircle, FiAlertCircle 
+} from 'react-icons/fi';
+import IconBadge from '../../components/common/IconBadge';
 import { FiEdit, FiPackage, FiGlobe, FiArrowLeft, FiSave } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
@@ -296,7 +304,88 @@ const ActividadPage: React.FC = () => {
         )}
       </Flex>
     );
+
+  };
+
+  // Función para determinar color de estado
+  const getEstadoColor = (estado: string) => {
+    switch (estado) {
+      case 'planificada': return 'yellow';
+      case 'en_curso': return 'green';
+      case 'finalizada': return 'blue';
+      case 'cancelada': return 'red';
+      default: return 'gray';
+    }
+  };
+// Añadir esta función después de la función getEstadoColor existente
+const getEstadoLabel = (estado: string): string => {
+  switch (estado) {
+    case 'planificada':
+      return 'Planificada';
+    case 'en_curso':
+      return 'En curso';
+    case 'finalizada':
+      return 'Finalizada';
+    case 'cancelada':
+      return 'Cancelada';
+    default:
+      return estado;
   }
+};
+  // Añadir esta función auxiliar después de getEstadoColor
+  // Sistema común para manejar actualizaciones
+  const handleActualizacionActividad = async (
+    id: string,
+    dataToUpdate: Partial<Actividad>,
+    successMessage: string,
+    errorMessage: string,
+    callback: () => void
+  ) => {
+    try {
+      // Verificar si son enlaces para usar validación específica
+      if ('enlacesWikiloc' in dataToUpdate || 'enlacesTopografias' in dataToUpdate || 
+          'enlacesDrive' in dataToUpdate || 'enlacesWeb' in dataToUpdate) {
+        const enlacesError = validateActividadEnlaces(dataToUpdate);
+        if (enlacesError) {
+          toast({
+            title: "Error en enlaces",
+            description: enlacesError,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        }
+      }
+      
+      // Si el update incluye fechas y la actividad no está cancelada, actualizar el estado automáticamente
+      if (('fechaInicio' in dataToUpdate || 'fechaFin' in dataToUpdate) && actividad?.estado !== 'cancelada') {
+        const fechaInicio = 'fechaInicio' in dataToUpdate ? 
+          dataToUpdate.fechaInicio : actividad?.fechaInicio;
+        const fechaFin = 'fechaFin' in dataToUpdate ? 
+          dataToUpdate.fechaFin : actividad?.fechaFin;
+        
+        if (fechaInicio && fechaFin) {
+          dataToUpdate.estado = determinarEstadoActividad(fechaInicio, fechaFin, actividad?.estado);
+        }
+      }
+
+      // Preprocesar enlaces para asegurar arrays
+      if ('enlacesWikiloc' in dataToUpdate && !dataToUpdate.enlacesWikiloc) {
+        dataToUpdate.enlacesWikiloc = [];
+      }
+      if ('enlacesTopografias' in dataToUpdate && !dataToUpdate.enlacesTopografias) {
+        dataToUpdate.enlacesTopografias = [];
+      }
+      if ('enlacesDrive' in dataToUpdate && !dataToUpdate.enlacesDrive) {
+        dataToUpdate.enlacesDrive = [];
+      }
+      if ('enlacesWeb' in dataToUpdate && !dataToUpdate.enlacesWeb) {
+        dataToUpdate.enlacesWeb = [];
+      }
+
+  }
+
 
   function renderMaterialTab() {
     return (
@@ -514,6 +603,83 @@ const ActividadPage: React.FC = () => {
       ) : actividad ? (
         <Box maxW="1200px" mx="auto">
           {/* Encabezado con información principal */}
+
+          <Card mb={6} borderLeft="8px solid" borderColor={`${getEstadoColor(actividad.estado)}.500`}>
+            <CardBody>
+              <Flex direction={{ base: "column", md: "row" }} justify="space-between" wrap="wrap">
+                <Box mb={{ base: 4, md: 0 }}>
+                  <Heading as="h1" size="lg">
+                    {actividad.nombre}
+                    {actividad.lugar && (
+                      <Text as="span" fontWeight="normal" fontSize="md" ml={1}>
+                        ({actividad.lugar})
+                      </Text>
+                    )}
+                  </Heading>
+                  
+                  <Flex align="center" mt={2}>
+                    <FiCalendar style={{ marginRight: '8px' }} />
+                    <Text>
+                      {formatDate(actividad.fechaInicio)} 
+                      {actividad.fechaFin && (
+                        <> → {formatDate(actividad.fechaFin)}</>
+                      )}
+                    </Text>
+                  </Flex>
+                </Box>
+                
+                <Box>
+                  <Flex wrap="wrap" gap={2}>
+                    <IconBadge 
+                      icon={
+                        actividad.estado === 'planificada' ? FiClock :
+                        actividad.estado === 'en_curso' ? FiCheckCircle :
+                        actividad.estado === 'finalizada' ? FiCheckCircle :
+                        FiXCircle
+                      } 
+                      label={getEstadoLabel(actividad.estado)} 
+                      color={getEstadoColor(actividad.estado)} 
+                      size={5} 
+                    />
+                    
+                    {actividad.tipo?.map(tipo => (
+                      <IconBadge key={tipo} icon={FiCheckCircle} label={tipo} color="blue" size={5} />
+                    ))}
+                    
+                    {actividad.dificultad && (
+                      <IconBadge 
+                        icon={
+                          actividad.dificultad === 'baja' ? FiCheckCircle :
+                          actividad.dificultad === 'media' ? FiClock :
+                          FiAlertCircle
+                        } 
+                        label={`Dificultad: ${actividad.dificultad}`} 
+                        color={
+                          actividad.dificultad === 'baja' ? 'green' :
+                          actividad.dificultad === 'media' ? 'blue' :
+                          'orange'
+                        } 
+                        size={5} 
+                      />
+                    )}
+                  </Flex>
+                  
+                  {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
+                    <Button 
+                      leftIcon={<Icon as={FiX} />}
+                      size="sm" 
+                      colorScheme="red" 
+                      variant="outline" 
+                      mt={3}
+                      onClick={() => setIsConfirmOpen(true)}
+                    >
+                      Cancelar actividad
+                    </Button>
+                  )}
+                </Box>
+              </Flex>
+            </CardBody>
+          </Card>
           <ActividadPageHeader
             actividad={actividad}
             formatDate={formatDate}
@@ -521,6 +687,7 @@ const ActividadPage: React.FC = () => {
             esResponsable={esResponsable}
             onCancelarActividad={() => setIsConfirmOpen(true)}
           />
+
           
           {/* Pestañas con información detallada */}
           <Tabs index={activeTabIndex} onChange={handleTabChange} variant="soft-rounded" colorScheme="brand">

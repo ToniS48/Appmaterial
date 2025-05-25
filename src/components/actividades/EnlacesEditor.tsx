@@ -58,6 +58,37 @@ const EnlacesEditor = forwardRef<
     fetchConfig();
   }, []);
 
+
+  const isDriveUrl = (url: string) => {
+    return url.includes('drive.google.com') || url.includes('docs.google.com');
+  };  // Función genérica para eliminar enlaces de string[]
+  const crearEliminadorEnlace = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    return (index: number) => {
+      setter(prevEnlaces => {
+        const nuevosEnlaces = [...prevEnlaces];
+        nuevosEnlaces.splice(index, 1);
+        return nuevosEnlaces;
+      });
+    };
+  };
+
+  // Función específica para eliminar enlaces de tipo { url: string; esEmbed: boolean }[]
+  const crearEliminadorEnlaceWikiloc = (setter: React.Dispatch<React.SetStateAction<{ url: string; esEmbed: boolean }[]>>) => {
+    return (index: number) => {
+      setter(prevEnlaces => {
+        const nuevosEnlaces = [...prevEnlaces];
+        nuevosEnlaces.splice(index, 1);
+        return nuevosEnlaces;
+      });
+    };
+  };
+
+  // Funciones específicas usando el patrón genérico
+  const eliminarEnlaceWikiloc = crearEliminadorEnlaceWikiloc(setEnlacesWikiloc);
+  const eliminarEnlaceTopografia = crearEliminadorEnlace(setEnlacesTopografias);
+  const eliminarEnlaceDrive = crearEliminadorEnlace(setEnlacesDrive);
+  const eliminarEnlaceWeb = crearEliminadorEnlace(setEnlacesWeb);
+
   // Validadores de URL
   const isValidUrl = (urlString: string): boolean => {
     try {
@@ -166,6 +197,7 @@ const EnlacesEditor = forwardRef<
     nuevosEnlaces.splice(index, 1);
     setEnlacesWeb(nuevosEnlaces);
   };
+
 
   // Exponer el método submitForm usando useImperativeHandle
   useImperativeHandle(ref, () => ({

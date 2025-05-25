@@ -1,4 +1,7 @@
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import React, { useState, useEffect, useCallback } from 'react';
+
 import {
   Box,
   Heading,
@@ -29,6 +32,73 @@ import { FiPackage } from 'react-icons/fi';
 import { Control, useFieldArray } from 'react-hook-form';
 import messages from '../../constants/messages';
 
+
+// OPTIMIZACIONES DE RENDIMIENTO
+// ==============================
+
+// Función para diferir callbacks pesados
+const deferCallback = (callback: () => void, priority: 'high' | 'normal' | 'low' = 'normal') => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    const timeout = priority === 'high' ? 100 : priority === 'normal' ? 300 : 1000;
+    (window as any).requestIdleCallback(callback, { timeout });
+  } else {
+    const delay = priority === 'high' ? 16 : priority === 'normal' ? 100 : 300;
+    setTimeout(callback, delay);
+  }
+};
+
+// Hook para throttling de búsquedas
+const useThrottledSearch = (value: string, delay: number = 300) => {
+  const [throttledValue, setThrottledValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setThrottledValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return throttledValue;
+};
+
+// Hook para optimizar operaciones de adición/eliminación
+const useOptimizedFieldOperations = (append: any, remove: any) => {
+  const [isOperating, setIsOperating] = useState(false);
+
+  const optimizedAppend = useCallback((material: any) => {
+    if (isOperating) return;
+    
+    setIsOperating(true);
+    deferCallback(() => {
+      try {
+        append(material);
+      } finally {
+        setIsOperating(false);
+      }
+    }, 'high');
+  }, [append, isOperating]);
+
+  const optimizedRemove = useCallback((index: number) => {
+    if (isOperating) return;
+    
+    setIsOperating(true);
+    deferCallback(() => {
+      try {
+        remove(index);
+      } finally {
+        setIsOperating(false);
+      }
+    }, 'high');
+  }, [remove, isOperating]);
+
+  return { optimizedAppend, optimizedRemove, isOperating };
+};
+
+interface MaterialSelectorProps {
+
 // Importaciones específicas para el nuevo refactor
 import { useMaterialQuery } from '../../utils/useMaterialQuery';
 import { normalizarMaterial } from '../../utils/materialUtils';
@@ -39,6 +109,7 @@ import { debounce } from '../../utils/performanceUtils';
 import { useOptimizedClickHandler, useOptimizedMessageHandler } from '../../utils/eventOptimizer';
 
 export interface MaterialSelectorProps {
+
   control: Control<any>;
   name: string;
   error?: any;
@@ -59,8 +130,19 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   borderColor
 }) => {
   // Estados para el componente
+
+  const [materiales, setMateriales] = useState<MaterialItem[]>([]);
+  const [selectedMaterial, setSelectedMaterial] = useState<string>('');
+  const [cantidad, setCantidad] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorState, setErrorState] = useState<string | null>(null);
+    // Nuevos estados para el selector visual
+
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  
+  // Aplicar throttling a la búsqueda para mejorar rendimiento
+  const throttledSearchTerm = useThrottledSearch(searchTerm, 300);
   
   const toast = useToast();
   
@@ -159,7 +241,78 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     return () => {
       isMounted = false;
     };
+  }, [toast]);
+
+  // Convertir fields para tipado seguro
+  const typedFields = fields as MaterialField[];
+
+  // Función para calcular la disponibilidad real
+  const calcularDisponibilidadReal = (material: MaterialItem): number => {
+    // Obtener cuántas unidades ya están seleccionadas en la sesión actual
+    const seleccionadasActualmente = typedFields
+      .filter(field => field.materialId === material.id)
+      .reduce((total, field) => total + (typeof field.cantidad === 'number' ? field.cantidad : parseInt(field.cantidad as any, 10) || 0), 0);
+    
+    // Asegurar que cantidadDisponible sea un número
+    const cantidadDisp = typeof material.cantidadDisponible === 'number' ? 
+      material.cantidadDisponible : 
+      parseInt(material.cantidadDisponible as any, 10) || 0;
+    
+    // Usar precisión entera para evitar problemas de decimales
+    return Math.max(0, cantidadDisp - seleccionadasActualmente);
+  };
+
+  // Filtrar materiales ya seleccionados de forma segura
+  const materialesDisponibles = materiales.filter(material => {
+    // Solo filtrar si el ID está presente
+    if (!material.id) return false;
+    
+    // NO filtrar materiales seleccionados para materiales múltiples (anclajes/varios)
+    // Solo filtrar si es un material individual como una cuerda
+    if (material.tipo === 'anclaje' || material.tipo === 'varios') {
+      return true; // Siempre mostrar materiales con múltiples unidades
+    }
+    
+    // Para materiales individuales como cuerdas, verificar que no estén ya seleccionados
+    return !typedFields.some(field => field.materialId === material.id);
+  });
+  // Memoiza los resultados del filtrado para evitar cálculos repetitivos
+  const materialesFiltrados = React.useMemo(() => {
+    return materialesDisponibles.filter(material => {
+      // Calcular disponibilidad real
+      const disponibilidadReal = calcularDisponibilidadReal(material);
+      
+      // Filtrar por término de búsqueda throttled
+      const matchesSearch = throttledSearchTerm.trim() === '' ||
+                          material.nombre.toLowerCase().includes(throttledSearchTerm.toLowerCase()) ||
+                          (material.codigo && material.codigo.toLowerCase().includes(throttledSearchTerm.toLowerCase()));
+      
+      // Filtrar por tipo
+      const matchesTipo = filtroTipo === 'todos' || material.tipo === filtroTipo;
+      
+      // Solo incluir si tiene disponibilidad real y coincide con los filtros
+      return disponibilidadReal > 0 && matchesSearch && matchesTipo;
+    });
+  }, [materialesDisponibles, typedFields, throttledSearchTerm, filtroTipo, calcularDisponibilidadReal]);
+  
+  // También memoiza las listas por tipo
+  const materialesCuerda = React.useMemo(() => 
+    materialesFiltrados.filter(m => m.tipo === 'cuerda'),
+    [materialesFiltrados]
+  );
+  
+  const materialesAnclaje = React.useMemo(() => 
+    materialesFiltrados.filter(m => m.tipo === 'anclaje'),
+    [materialesFiltrados]
+  );
+  
+  const materialesVarios = React.useMemo(() => 
+    materialesFiltrados.filter(m => m.tipo === 'varios'),
+    [materialesFiltrados]
+  );
+
   }, [materialesActuales, append, remove, fields.length]);
+
   // Manejar la adición de un material a la lista con validación adicional
   const handleAddMaterialBase = useCallback((selectedId: string, qty: number = 1) => {
     if (!selectedId) {
@@ -185,6 +338,186 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       return;
     }
     
+
+    // Diferir la validación y operación para evitar bloqueos
+    deferCallback(() => {
+      try {
+        // Calcular disponibilidad real
+        const disponibilidadReal = calcularDisponibilidadReal(material);
+        
+        // Validar cantidad con la disponibilidad real
+        if (qty <= 0) {
+          toast({
+            title: messages.errors.general,
+            description: messages.material.selector.errorCantidad,
+            status: 'warning',
+            duration: 3000,
+          });
+          return;
+        }
+        
+        if (disponibilidadReal < qty) {
+          toast({
+            title: messages.errors.general,
+            description: messages.material.selector.errorDisponibilidad.replace('{cantidad}', disponibilidadReal.toString()),
+            status: 'warning',
+            duration: 3000,
+          });
+          return;
+        }
+        
+        // Agregar el material a la lista
+        append({
+          id: Date.now().toString(), // Generar un ID único
+          materialId: material.id,
+          nombre: material.nombre,
+          cantidad: qty
+        });
+        
+        // Resetear selección
+        setSelectedMaterial('');
+        setCantidad(1);
+        
+        // Mostrar mensaje de éxito
+        toast({
+          title: messages.material.selector.materialAnadido,
+          description: messages.material.selector.materialAnadidoDesc.replace('{nombre}', material.nombre),
+          status: 'success',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Error al añadir material:', error);
+        toast({
+          title: messages.errors.general,
+          description: messages.material.selector.errorAnadir,
+          status: 'error',
+          duration: 3000,
+        });
+      }
+    }, 'high');
+  }, [materiales, toast, append, setSelectedMaterial, setCantidad, calcularDisponibilidadReal]);
+
+  // Throttle del handler para evitar múltiples ejecuciones rápidas
+  const handleAddMaterial = useMemo(() => {
+    let lastCall = 0;
+    const throttleDelay = 300; // 300ms de throttle
+
+    return (selectedId: string, qty: number = 1) => {
+      const now = Date.now();
+      if (now - lastCall >= throttleDelay) {
+        lastCall = now;
+        handleAddMaterialBase(selectedId, qty);
+      }
+    };
+  }, [handleAddMaterialBase]);
+
+  // Componente de tarjeta de material
+  const MaterialCard = React.memo(({ material }: { material: MaterialItem }) => {
+    const disponibilidadReal = calcularDisponibilidadReal(material);
+    // Usar React.useRef para trackear la disponibilidad anterior y detectar cambios
+    const prevDisponibilidadRef = React.useRef(disponibilidadReal);
+    
+    // Inicializar con cantidad 1, siempre que haya al menos 1 disponible
+    const [qty, setQty] = useState(disponibilidadReal > 0 ? 1 : 0);
+    
+    // Ajustar automáticamente la cantidad cuando cambia la disponibilidad
+    useEffect(() => {
+      // Solo actuar si la disponibilidad ha cambiado desde el último render
+      if (prevDisponibilidadRef.current !== disponibilidadReal) {
+        console.log(`Disponibilidad de ${material.nombre} cambió: ${prevDisponibilidadRef.current} -> ${disponibilidadReal}`);
+        
+        if (disponibilidadReal === 0) {
+          // Si no hay disponibles, forzar a 0
+          setQty(0);
+        } else if (qty > disponibilidadReal) {
+          // Si hay menos disponibles que la cantidad seleccionada, ajustar
+          setQty(disponibilidadReal);
+        } else if (qty === 0 && disponibilidadReal > 0) {
+          // Si había 0 seleccionado pero ahora hay disponibles, seleccionar 1
+          setQty(1);
+        }
+        
+        // Actualizar la referencia para el próximo render
+        prevDisponibilidadRef.current = disponibilidadReal;
+      }
+    }, [disponibilidadReal, qty, material.nombre]);
+    
+    return (
+      <Card 
+        variant="outline" 
+        size="sm" 
+        borderWidth="1px" 
+        borderRadius="md" 
+        _hover={{ borderColor: "brand.300", shadow: "sm" }}
+        bg={disponibilidadReal === 0 ? "gray.50" : cardBg || "white"}
+        borderColor={borderColor}
+      >
+        <CardBody p={3}>
+          <Flex direction="column" justify="space-between" height="100%">
+            <Box mb={2}>
+              <Text fontWeight="bold" fontSize="sm" noOfLines={1}>{material.nombre}</Text>
+              {material.codigo && (
+                <Text fontSize="xs" color="gray.500">Código: {material.codigo}</Text>
+              )}
+            </Box>
+            
+            <Flex justify="space-between" align="center" mt={2}>
+              <Badge 
+                colorScheme={
+                  material.tipo === 'cuerda' ? 'blue' : 
+                  material.tipo === 'anclaje' ? 'orange' : 'purple'
+                }
+                fontSize="xs"
+              >
+                {material.tipo === 'cuerda' ? 'Cuerda' : 
+                 material.tipo === 'anclaje' ? 'Anclaje' : 'Varios'}
+              </Badge>
+              <Text 
+                fontSize="xs" 
+                fontWeight="medium"
+                color={disponibilidadReal === 0 ? "red.600" : 
+                      disponibilidadReal < 5 ? "orange.600" : "green.600"}
+              >
+                {disponibilidadReal} {messages.material.selector.disponible}{disponibilidadReal !== 1 ? 's' : ''}
+              </Text>
+            </Flex>
+            
+            <Divider my={2} />
+            
+            <Flex justify="space-between" align="center" mt={2}>
+              <Flex align="center">
+                <IconButton 
+                  aria-label="Decrementar" 
+                  icon={<FiMinus />} 
+                  size="xs"
+                  variant="outline"
+                  isDisabled={qty <= 1}
+                  onClick={() => setQty(prev => Math.max(1, prev - 1))}
+                />
+                <Text mx={2} fontSize="sm" fontWeight="bold">{qty}</Text>
+                <IconButton 
+                  aria-label="Incrementar" 
+                  icon={<FiPlus />} 
+                  size="xs"
+                  variant="outline"
+                  isDisabled={qty >= disponibilidadReal}
+                  onClick={() => setQty(prev => Math.min(disponibilidadReal, prev + 1))}
+                />
+              </Flex>              <Button 
+                size="sm"
+                colorScheme="brand"
+                isDisabled={disponibilidadReal <= 0 || qty <= 0}
+                onClick={() => handleAddMaterial(material.id, qty)}
+              >
+                {messages.material.selector.botonAnadir}
+              </Button>
+            </Flex>
+          </Flex>
+        </CardBody>
+      </Card>
+    );
+  });
+
     // Calcular disponibilidad real
     const disponibilidadReal = calcularDisponibilidad(material);
     
@@ -246,6 +579,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   
   // Versión optimizada para eliminar materiales
   const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);
+
 
   return (
     <Box>
