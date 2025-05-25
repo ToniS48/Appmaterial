@@ -9,19 +9,38 @@ import { Actividad } from '../../types/actividad';
 import { db } from '../../config/firebase';
 import { collection, addDoc, doc, getDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { getUniqueParticipanteIds } from '../../utils/actividadUtils';
+import { obtenerPrestamosPorActividad } from '../../services/prestamoService';
 
-// Mock de Firebase
+// Importar los mocks de Firebase
+const mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
+const mockCollection = collection as jest.MockedFunction<typeof collection>;
+const mockDoc = doc as jest.MockedFunction<typeof doc>;
+const mockGetDoc = getDoc as jest.MockedFunction<typeof getDoc>;
+
+// Importar mocks de servicios
+const mockObtenerPrestamosPorActividad = obtenerPrestamosPorActividad as jest.MockedFunction<typeof obtenerPrestamosPorActividad>;
+
+// Mock de Firebase config
 jest.mock('../../config/firebase', () => ({
-  db: {
-    collection: jest.fn(),
-    addDoc: jest.fn(),
-    doc: jest.fn(),
-    getDoc: jest.fn(),
-    deleteDoc: jest.fn(),
-    Timestamp: {
-      now: jest.fn(() => ({ seconds: 1625097600, nanoseconds: 0 })),
-      fromDate: jest.fn((date) => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0 }))
-    }
+  db: {}
+}));
+
+// Mock de Firebase Firestore functions
+jest.mock('firebase/firestore', () => ({
+  collection: jest.fn(),
+  addDoc: jest.fn(),
+  updateDoc: jest.fn(),
+  doc: jest.fn(),
+  getDoc: jest.fn(),
+  getDocs: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  deleteDoc: jest.fn(),
+  arrayUnion: jest.fn(),
+  Timestamp: {
+    now: jest.fn(() => ({ seconds: 1625097600, nanoseconds: 0 })),
+    fromDate: jest.fn((date) => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0 }))
   }
 }));
 
@@ -30,9 +49,66 @@ jest.mock('../../utils/actividadUtils', () => ({
   determinarEstadoActividad: jest.fn(() => 'planificada')
 }));
 
+// Mock de otros servicios necesarios
+jest.mock('../../services/actividadCache', () => ({
+  actividadCache: {
+    getActividad: jest.fn(),
+    setActividad: jest.fn(),
+    getActividadesList: jest.fn(),
+    setActividadesList: jest.fn(),
+    clear: jest.fn()
+  }
+}));
+
+jest.mock('../../utils/errorHandling', () => ({
+  handleFirebaseError: jest.fn()
+}));
+
+jest.mock('../../services/prestamoService', () => ({
+  crearPrestamo: jest.fn(),
+  actualizarPrestamo: jest.fn(),
+  obtenerPrestamosPorActividad: jest.fn(() => Promise.resolve([]))
+}));
+
+jest.mock('../../services/notificacionService', () => ({
+  enviarNotificacionMasiva: jest.fn()
+}));
+
+jest.mock('../../services/usuarioService', () => ({
+  listarUsuarios: jest.fn(),
+  obtenerUsuarioPorId: jest.fn()
+}));
+
+jest.mock('../../services/materialService', () => ({
+  obtenerMaterial: jest.fn()
+}));
+
+jest.mock('../../utils/transactionUtils', () => ({
+  executeTransaction: jest.fn()
+}));
+
+jest.mock('../../validation/validationMiddleware', () => ({
+  validateWithZod: jest.fn()
+}));
+
+jest.mock('../../utils/loggerUtils', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn()
+  }
+}));
+
 describe('Actividad Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Configurar mocks por defecto
+    mockCollection.mockReturnValue('actividades' as any);
+    mockDoc.mockReturnValue({ id: 'test-doc' } as any);
+    
+    // Configurar mock de prestamos para devolver array vacío
+    mockObtenerPrestamosPorActividad.mockResolvedValue([]);
   });
   
   describe('crearActividad', () => {
@@ -60,13 +136,20 @@ describe('Actividad Service', () => {
         enlacesDrive: [],
         enlacesWeb: [],
         enlaces: [],
-        imagenesTopografia: [],
-        archivosAdjuntos: [],
+        imagenesTopografia: [],        archivosAdjuntos: [],
         dificultad: 'media'
       };
       
-      const mockDocRef = { id: 'actividad123' };
-      (addDoc as jest.Mock).mockResolvedValue(mockDocRef);
+      const mockDocRef = { 
+        id: 'actividad123',
+        path: 'actividades/actividad123',
+        type: 'document',
+        firestore: {},
+        converter: null,
+        parent: {},
+        withConverter: jest.fn()
+      } as any;
+      mockAddDoc.mockResolvedValue(mockDocRef);
       
       // Act
       const result = await crearActividad(mockActividad);
@@ -78,7 +161,7 @@ describe('Actividad Service', () => {
         mockActividad.responsableActividadId,
         mockActividad.responsableMaterialId
       );
-      expect(addDoc).toHaveBeenCalled();
+      expect(mockAddDoc).toHaveBeenCalled();
       expect(result).toHaveProperty('id', 'actividad123');
       expect(result).toHaveProperty('nombre', 'Actividad Test');
       expect(result).toHaveProperty('creadorId', 'user123');
@@ -112,9 +195,8 @@ describe('Actividad Service', () => {
         archivosAdjuntos: [],
         dificultad: 'baja'
       };
-      
-      const errorMessage = 'Error de prueba';
-      (addDoc as jest.Mock).mockRejectedValue(new Error(errorMessage));
+        const errorMessage = 'Error de prueba';
+      mockAddDoc.mockRejectedValue(new Error(errorMessage));
       
       // Act & Assert
       await expect(crearActividad(mockActividad)).rejects.toThrow(errorMessage);

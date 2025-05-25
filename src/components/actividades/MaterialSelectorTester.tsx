@@ -10,15 +10,8 @@ import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
 import MaterialSelector from './MaterialSelector';
 import { MaterialField } from '../material/types';
 
-// Definir la interfaz localmente
-interface MaterialSelectorProps {
-  control: Control<any>;
-  name: string;
-  error?: any;
-  materialesActuales?: MaterialField[];
-  cardBg?: string;
-  borderColor?: string;
-}
+// Importar la interfaz de propiedades del MaterialSelector
+import type { MaterialSelectorProps } from './MaterialSelector';
 
 /**
  * Componente para probar y validar las optimizaciones realizadas al MaterialSelector
@@ -103,11 +96,12 @@ const MaterialSelectorTester: React.FC = () => {
     performanceMonitor.clearViolations();
     setViolations({ count: 0, averageDuration: 0, byType: {} });
   };
+  
   // Formato para mostrar violaciones por tipo
   const renderViolationsByType = () => {
     return Object.entries(violations.byType).map(([type, count]) => (
       <Badge key={type} colorScheme={type === 'scheduler' ? 'red' : 'orange'} mr={2}>
-        {type}: {count.toString()}
+        {type}: {String(count)}
       </Badge>
     ));
   };
@@ -159,7 +153,8 @@ const MaterialSelectorTester: React.FC = () => {
           </Box>
         </Box>
 
-        <Box borderWidth={1} borderRadius="md" p={4}>          <Heading size="md" mb={4}>
+        <Box borderWidth={1} borderRadius="md" p={4}>
+          <Heading size="md" mb={4}>
             Componente MaterialSelector {activeOptimizations ? "(Optimizado)" : "(Sin optimizar)"}
           </Heading>
           
