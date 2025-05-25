@@ -93,7 +93,7 @@ jest.mock('./routes', () => {
 });
 
 // Mock de Firebase
-jest.mock('./services/firebase', () => ({
+jest.mock('./config/firebase', () => ({
   auth: {
     onAuthStateChanged: jest.fn((auth, callback) => {
       callback(null); // Simular usuario no autenticado

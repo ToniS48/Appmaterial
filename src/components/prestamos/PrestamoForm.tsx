@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -32,6 +32,9 @@ import { Usuario } from '../../types/usuario';
 import { Actividad } from '../../types/actividad';
 import { Timestamp } from 'firebase/firestore';
 import ActividadSelector from '../actividades/ActividadSelector';
+import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
+import { useOptimizedClickHandler } from '../../utils/eventOptimizer';
+import { deferCallback } from '../../utils/performanceUtils';
 
 interface PrestamoFormData {
   materialId: string;
@@ -69,6 +72,13 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
   preselectedUsuarioId,
   preselectedActividadId
 }) => {
+  // OPTIMIZACIONES DE RENDIMIENTO
+  // =============================
+  useEffect(() => {
+    const cleanup = setupSchedulerOptimizer();
+    return cleanup;
+  }, []);
+
   // Estados y contextos
   const { currentUser, userProfile } = useAuth();
   const toast = useToast();

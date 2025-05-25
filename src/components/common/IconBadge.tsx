@@ -26,7 +26,11 @@ const IconBadge: React.FC<IconBadgeProps> = ({
         mr={1}
         bg={`${color}.100`}
       >
+
+        <Icon as={icon as any} color={`${color}.500`} boxSize={size} />
+
         <Icon as={icon as React.ElementType} color={`${color}.500`} boxSize={size} />
+
       </Box>
     </Tooltip>
   );

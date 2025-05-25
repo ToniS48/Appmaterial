@@ -29,7 +29,8 @@ import {
   FiBox, 
   FiSettings, 
   FiBell,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiEye
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -89,13 +90,20 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: CalendarIcon,
       roles: ['admin', 'vocal', 'socio', 'invitado'] 
     },
-    
-    // Material - solo para admin y vocal
+      // Material - solo para admin y vocal
     { 
       label: 'Material', 
       to: '/material', 
       icon: FiBox,
       roles: ['admin', 'vocal'] 
+    },
+    
+    // Inventario - solo para socios
+    { 
+      label: 'Inventario', 
+      to: '/material/inventario', 
+      icon: FiEye,
+      roles: ['socio'] 
     },
     
     // Mis préstamos - para todos menos invitado

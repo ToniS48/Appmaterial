@@ -5,7 +5,7 @@ import {
   Button,
 } from '@chakra-ui/react';
 import { useForm, FormProvider } from 'react-hook-form';
-import { ActividadInfoForm } from './ActividadInfoForm'; // Importar como exportación nombrada
+import { ActividadInfoForm } from './ActividadInfoForm';
 
 interface InfoEditorProps {
   data: any;

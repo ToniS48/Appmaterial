@@ -195,6 +195,18 @@ export const isValidUrl = (urlString: string): boolean => {
 }
 
 /**
+
+ * Obtiene una lista única de IDs de participantes, incluyendo automáticamente
+ * el creador y los responsables sin duplicados
+ * @param participanteIds - Array de IDs de participantes seleccionados
+ * @param creadorId - ID del creador de la actividad
+ * @param responsableActividadId - ID del responsable de la actividad (opcional)
+ * @param responsableMaterialId - ID del responsable del material (opcional)
+ * @returns Array de IDs únicos
+ */
+export const getUniqueParticipanteIds = (
+  participanteIds: string[],
+
  * Obtiene los valores por defecto para una nueva actividad o una existente
  * @param existingActivity Actividad existente (opcional)
  * @param currentUserId ID del usuario actual
@@ -258,6 +270,62 @@ export const getUniqueParticipanteIds = (
   responsableActividadId?: string,
   responsableMaterialId?: string
 ): string[] => {
+
+  const idsSet = new Set<string>();
+  
+  // Agregar participantes seleccionados
+  participanteIds.forEach(id => {
+    if (id && id.trim()) {
+      idsSet.add(id);
+    }
+  });
+  
+  // Agregar creador si existe
+  if (creadorId && creadorId.trim()) {
+    idsSet.add(creadorId);
+  }
+  
+  // Agregar responsable de actividad si existe
+  if (responsableActividadId && responsableActividadId.trim()) {
+    idsSet.add(responsableActividadId);
+  }
+  
+  // Agregar responsable de material si existe
+  if (responsableMaterialId && responsableMaterialId.trim()) {
+    idsSet.add(responsableMaterialId);
+  }
+  
+  return Array.from(idsSet);
+};
+
+/**
+ * Valida que todos los participantes necesarios estén incluidos en la lista
+ * @param participanteIds - Array de IDs de participantes
+ * @param creadorId - ID del creador (debe estar incluido)
+ * @param responsableActividadId - ID del responsable de actividad (debe estar incluido si existe)
+ * @param responsableMaterialId - ID del responsable de material (debe estar incluido si existe)
+ * @returns true si todos los participantes necesarios están incluidos
+ */
+export const validateParticipantesRequeridos = (
+  participanteIds: string[],
+  creadorId?: string,
+  responsableActividadId?: string,
+  responsableMaterialId?: string
+): boolean => {
+  if (creadorId && !participanteIds.includes(creadorId)) {
+    return false;
+  }
+  
+  if (responsableActividadId && !participanteIds.includes(responsableActividadId)) {
+    return false;
+  }
+  
+  if (responsableMaterialId && !participanteIds.includes(responsableMaterialId)) {
+    return false;
+  }
+  
+  return true;
+
   // Recopilar todos los IDs requeridos (sin nulos/undefined)
   const requiredIds = [creadorId, responsableActividadId, responsableMaterialId]
     .filter((id): id is string => Boolean(id));
