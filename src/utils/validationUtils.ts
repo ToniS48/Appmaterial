@@ -1,7 +1,7 @@
 import messages from '../constants/messages';
 import { fetchSignInMethodsForEmail } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import { auth, db } from '../config/firebase';
 import { handleFirebaseError } from './errorHandling';
 import { RolUsuario } from '../types/usuario'; // Añadir esta importación
 

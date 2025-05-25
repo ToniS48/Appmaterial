@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Box,
   Text,
@@ -20,6 +20,15 @@ import IconBadge from '../common/IconBadge';
 import { Actividad } from '../../types/actividad';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
+
+// OPTIMIZACIÓN DE RENDIMIENTO
+const deferCallback = (callback: () => void) => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    requestIdleCallback(callback, { timeout: 100 });
+  } else {
+    setTimeout(callback, 0);
+  }
+};
 
 interface ActividadCardProps {
   actividad: Actividad;
@@ -46,18 +55,65 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
 }) => {
   const { userProfile } = useAuth();
 
-  // Comprobar si el usuario es responsable o creador
-  const esCreador = userProfile?.uid === actividad.creadorId;
-  const esResponsableActividad = userProfile?.uid === actividad.responsableActividadId;
-  const esResponsableMaterial = userProfile?.uid === actividad.responsableMaterialId;
-  const esResponsable = esCreador || esResponsableActividad || esResponsableMaterial;
-  
-  // Comprobar si el usuario es participante en la actividad
-  const esParticipante = userProfile?.uid && actividad.participanteIds?.includes(userProfile.uid);
+  // Memoizar computaciones costosas para evitar re-renders innecesarios
+  const userPermissions = useMemo(() => {
+    if (!userProfile?.uid) return {
+      esCreador: false,
+      esResponsableActividad: false,
+      esResponsableMaterial: false,
+      esResponsable: false,
+      esParticipante: false
+    };
 
-  // Obtener estado con color para mostrar
-  const getEstadoDisplay = (estado: string) => {
-    switch (estado) {
+    const esCreador = userProfile.uid === actividad.creadorId;
+    const esResponsableActividad = userProfile.uid === actividad.responsableActividadId;
+    const esResponsableMaterial = userProfile.uid === actividad.responsableMaterialId;
+    const esResponsable = esCreador || esResponsableActividad || esResponsableMaterial;
+    const esParticipante = actividad.participanteIds?.includes(userProfile.uid) || false;
+
+    return {
+      esCreador,
+      esResponsableActividad,
+      esResponsableMaterial,
+      esResponsable,
+      esParticipante
+    };
+  }, [userProfile?.uid, actividad.creadorId, actividad.responsableActividadId, actividad.responsableMaterialId, actividad.participanteIds]);
+
+  // Handlers optimizados con deferCallback para evitar violaciones del scheduler
+  const handleVerDetalles = useCallback(() => {
+    if (onVerDetalles) {
+      deferCallback(onVerDetalles);
+    }
+  }, [onVerDetalles]);
+
+  const handleEditar = useCallback(() => {
+    if (onEditar) {
+      deferCallback(onEditar);
+    }
+  }, [onEditar]);
+
+  const handleEliminar = useCallback(() => {
+    if (onEliminar) {
+      deferCallback(onEliminar);
+    }
+  }, [onEliminar]);
+
+  const handleGestionarMaterial = useCallback(() => {
+    if (onGestionarMaterial) {
+      deferCallback(onGestionarMaterial);
+    }
+  }, [onGestionarMaterial]);
+
+  const handleUnirse = useCallback(() => {
+    if (onUnirse) {
+      deferCallback(onUnirse);
+    }
+  }, [onUnirse]);
+
+  // Memoizar estado de actividad para evitar re-cálculos
+  const estadoDisplay = useMemo(() => {
+    switch (actividad.estado) {
       case 'planificada':
         return { label: 'Planificada', color: 'yellow' };
       case 'en_curso':
@@ -67,23 +123,33 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
       case 'cancelada':
         return { label: 'Cancelada', color: 'red' };
       default:
-        return { label: estado, color: 'gray' };
+        return { label: actividad.estado, color: 'gray' };
     }
-  };
+  }, [actividad.estado]);
 
-  // Formatear fecha para mostrar
-  const formatDate = (date: any) => {
-    if (!date) return '';
-    const d = date instanceof Date ? date : date.toDate();
-    return d.toLocaleDateString('es-ES', {
+  // Determinar si la actividad está activa
+  const actividadActiva = useMemo(() => {
+    return actividad.estado !== 'finalizada' && actividad.estado !== 'cancelada';
+  }, [actividad.estado]);
+
+  // Formatear fecha de manera optimizada
+  const fechaFormateada = useMemo(() => {
+    if (!actividad.fechaInicio) return '';
+    const fecha = actividad.fechaInicio instanceof Date ? actividad.fechaInicio : actividad.fechaInicio.toDate();
+    return fecha.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
-  };
+  }, [actividad.fechaInicio]);
 
-  const estado = getEstadoDisplay(actividad.estado);
-  const actividadActiva = actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada';
+  const {
+    esCreador,
+    esResponsableActividad,
+    esResponsableMaterial,
+    esResponsable,
+    esParticipante
+  } = userPermissions;
 
   return (
     <Card 
@@ -124,7 +190,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
             <Flex align="center" mt={1} mb={1}>
               <FiCalendar style={{ marginRight: '8px' }} size={variant === 'simple' ? 12 : 14} />
               <Text fontSize={variant === 'simple' ? 'xs' : 'sm'} color="gray.600">
-                {formatDate(actividad.fechaInicio)}
+                {fechaFormateada}
               </Text>
             </Flex>
             
@@ -162,6 +228,9 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   actividad.estado === 'finalizada' ? FiCheckCircle :
                   FiXCircle
                 } 
+
+                label={estadoDisplay.label} 
+                color={estadoDisplay.color as any}
                 label={estado.label} 
                 color={
                   actividad.estado === 'planificada' ? 'yellow' :
@@ -169,6 +238,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   actividad.estado === 'finalizada' ? 'blue' :
                   'red'
                 } 
+
                 size={variant === 'simple' ? 3.5 : 4} 
               />
               
@@ -240,7 +310,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 'xs' : 'sm'} 
                 colorScheme="brand" 
                 leftIcon={<FiEye />}
-                onClick={onVerDetalles}
+                onClick={handleVerDetalles}
                 mb={{ base: 1, sm: 0 }}
                 w={{ base: "100%", sm: "auto" }}
               >
@@ -254,7 +324,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 'xs' : 'sm'} 
                 colorScheme="green" 
                 leftIcon={<FiUserPlus />}
-                onClick={onUnirse}
+                onClick={handleUnirse}
                 mb={{ base: 1, sm: 0 }}
                 w={{ base: "100%", sm: "auto" }}
               >
@@ -267,7 +337,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 'xs' : 'sm'}
                 colorScheme="blue" 
                 leftIcon={<FiEdit />}
-                onClick={onEditar}
+                onClick={handleEditar}
                 mb={{ base: 1, sm: 0 }}
                 w={{ base: "100%", sm: "auto" }}
               >
@@ -281,7 +351,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 'xs' : 'sm'} 
                 colorScheme="purple" 
                 leftIcon={<FiPackage />}
-                onClick={onGestionarMaterial}
+                onClick={handleGestionarMaterial}
                 mb={{ base: 1, sm: 0 }}
                 w={{ base: "100%", sm: "auto" }}
               >
@@ -294,7 +364,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 'xs' : 'sm'}
                 colorScheme="red" 
                 leftIcon={<FiTrash />}
-                onClick={onEliminar}
+                onClick={handleEliminar}
                 mb={{ base: 1, sm: 0 }}
                 w={{ base: "100%", sm: "auto" }}
               >

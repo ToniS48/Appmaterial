@@ -17,7 +17,7 @@ import {
   updateProfile, 
   sendEmailVerification
 } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { db, auth } from '../config/firebase';
 import { Usuario, RolUsuario } from '../types/usuario'; // Importar RolUsuario
 import { handleFirebaseError } from '../utils/errorHandling';
 import { checkEmailAvailability } from '../utils/validationUtils';
@@ -139,8 +139,11 @@ export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Pro
         fechaRegistro: ahora,
         ultimaConexion: ahora
       };
+        await setDoc(doc(db, 'usuarios', uid), nuevoUsuario);
       
-      await setDoc(doc(db, 'usuarios', uid), nuevoUsuario);
+      // Enviar notificación a administradores y vocales
+      await enviarNotificacionNuevoUsuario(nuevoUsuario);
+      
       return nuevoUsuario;
     }
   } catch (error) {

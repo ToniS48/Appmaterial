@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from '../config/firebase';
 import { Notificacion, TipoNotificacion } from '../types/notificacion';
 import { handleFirebaseError } from '../utils/errorHandling';
 import { Prestamo } from '../types/prestamo'; // Añadir esta importación
