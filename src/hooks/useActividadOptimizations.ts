@@ -23,39 +23,45 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     totalOperations: 0,
     averageExecutionTime: 0
   });
-
   // Optimización para operaciones de guardado
   const optimizedSave = useCallback(async (
     saveOperation: () => Promise<void>,
     operationName: string = 'save'
   ) => {
     const startTime = performance.now();
+    performanceMetrics.current.totalOperations++;
+
     try {
-      await deferCallback(saveOperation)();
+      await deferCallback(saveOperation, { 
+        maxExecutionTime: 100,
+        idleTimeout: deferredTimeout 
+      });
       
       const executionTime = performance.now() - startTime;
-      performanceMetrics.current.totalOperations++;
       performanceMetrics.current.averageExecutionTime = 
         (performanceMetrics.current.averageExecutionTime + executionTime) / 2;
-      
+
       if (enableLogging) {
         console.log(`✅ Operación ${operationName} completada en ${executionTime.toFixed(2)}ms`);
       }
     } catch (error) {
       performanceMetrics.current.violationCount++;
-      if (enableLogging) {
-        console.error(`❌ Error en operación ${operationName}:`, error);
-      }
+      console.error(`❌ Error en operación optimizada ${operationName}:`, error);
       throw error;
     }
-  }, [enableLogging]);
+  }, [deferredTimeout, enableLogging]);
 
-  // Optimización para cambios de pestañas
+  // Optimización para navegación entre tabs
   const optimizedTabChange = useCallback((
-    tabChangeHandler: (tab: string) => void,
-    newTab: string
+    tabChangeOperation: (newIndex: number) => void,
+    newIndex: number
   ) => {
-    deferCallback(() => tabChangeHandler(newTab))();
+    deferCallback(() => {
+      tabChangeOperation(newIndex);
+    }, { 
+      maxExecutionTime: 50,
+      idleTimeout: 8 
+    });
   }, []);
 
   // Optimización para actualizaciones de formulario
@@ -63,15 +69,56 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     updateHandler: (data: any) => void,
     data: any
   ) => {
-    deferCallback(() => updateHandler(data))();
+    deferCallback(() => updateHandler(data));
   }, []);
+
+  // Optimización para operaciones de carga
+  const optimizedLoad = useCallback(async (
+    loadOperation: () => Promise<any>,
+    operationName: string = 'load'
+  ) => {
+    const startTime = performance.now();
+    
+    try {
+      const result = await deferCallback(loadOperation, {
+        maxExecutionTime: 200,
+        idleTimeout: deferredTimeout
+      });
+      
+      if (enableLogging) {
+        const executionTime = performance.now() - startTime;
+        console.log(`Carga ${operationName} completada en ${executionTime}ms`);
+      }
+      
+      return result;
+    } catch (error) {
+      performanceMetrics.current.violationCount++;
+      console.error(`Error en carga optimizada ${operationName}:`, error);
+      throw error;
+    }
+  }, [deferredTimeout, enableLogging]);
+
+  // Click handlers optimizados usando el optimizador de eventos
+  const createOptimizedClickHandler = useCallback((
+    handler: (...args: any[]) => void | Promise<void>,
+    options: { throttle?: boolean; defer?: boolean } = {}
+  ) => {
+    return useOptimizedClickHandler(handler, {
+      throttleDelay: options.throttle ? throttleDelay : 0,
+      maxExecutionTime: 100
+    });
+  }, [throttleDelay]);
 
   // Obtener métricas de rendimiento
   const getMetrics = useCallback(() => ({
-    ...performanceMetrics.current
+    ...performanceMetrics.current,
+    successRate: performanceMetrics.current.totalOperations > 0 
+      ? ((performanceMetrics.current.totalOperations - performanceMetrics.current.violationCount) 
+         / performanceMetrics.current.totalOperations) * 100 
+      : 100
   }), []);
 
-  // Resetear métricas
+  // Reset de métricas
   const resetMetrics = useCallback(() => {
     performanceMetrics.current = {
       violationCount: 0,
@@ -80,13 +127,23 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     };
   }, []);
 
-  return {
+  return useMemo(() => ({
     optimizedSave,
     optimizedTabChange,
     optimizedFormUpdate,
+    optimizedLoad,
+    createOptimizedClickHandler,
     getMetrics,
     resetMetrics
-  };
+  }), [
+    optimizedSave,
+    optimizedTabChange,
+    optimizedFormUpdate,
+    optimizedLoad,
+    createOptimizedClickHandler,
+    getMetrics,
+    resetMetrics
+  ]);
 };
 
 export default useActividadOptimizations;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -50,6 +50,9 @@ import { listarMateriales, eliminarMaterial } from '../../services/materialServi
 import MaterialForm from '../../components/material/MaterialForm';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
+import { useOptimizedClickHandler, useOptimizedInputHandler } from '../../utils/eventOptimizer';
+import { deferCallback } from '../../utils/performanceUtils';
+import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
 
 // Estados de material con colores
 const ESTADOS_MATERIAL = [
@@ -74,61 +77,77 @@ const GestionMaterialPage: React.FC = () => {
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   
-  // Función para cargar la lista de materiales
-  const cargarMateriales = async () => {
-    try {
-      setIsLoading(true);
-      const filters: { tipo?: string; estado?: string } = {};
-      
-      if (filtroTipo) filters.tipo = filtroTipo;
-      if (filtroEstado) filters.estado = filtroEstado;
-      
-      const materialesData = await listarMateriales(filters);
-      setMateriales(materialesData);
-    } catch (error) {
-      console.error('Error al cargar materiales:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Setup scheduler optimizer
+  useEffect(() => {
+    const cleanup = setupSchedulerOptimizer();
+    return cleanup;
+  }, []);
+  
+  // Función optimizada para cargar la lista de materiales
+  const cargarMateriales = useCallback(async () => {
+    return deferCallback(async () => {
+      try {
+        setIsLoading(true);
+        const filters: { tipo?: string; estado?: string } = {};
+        
+        if (filtroTipo) filters.tipo = filtroTipo;
+        if (filtroEstado) filters.estado = filtroEstado;
+        
+        const materialesData = await listarMateriales(filters);
+        setMateriales(materialesData);
+      } catch (error) {
+        console.error('Error al cargar materiales:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    });
+  }, [filtroTipo, filtroEstado]);
   
   // Cargar materiales al montar el componente o cambiar filtros
   useEffect(() => {
     cargarMateriales();
-  }, [filtroTipo, filtroEstado]);
+  }, [cargarMateriales]);
   
-  // Filtrar materiales por búsqueda
-  const materialesFiltrados = materiales.filter(material => 
-    material.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // Filtrar materiales por búsqueda con memoización
+  const materialesFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return materiales;
+    return materiales.filter(material => 
+      material.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    );
+  }, [materiales, busqueda]);
   
-  // Función para abrir modal de edición
-  const handleEdit = (material: any) => {
+  // Handlers optimizados para evitar violaciones del scheduler
+  const handleEdit = useOptimizedClickHandler((material: any) => {
     setSelectedMaterial(material);
     onFormOpen();
-  };
+  });
   
-  // Función para abrir modal de eliminación
-  const handleDelete = (material: any) => {
+  const handleDelete = useOptimizedClickHandler((material: any) => {
     setSelectedMaterial(material);
     onDeleteOpen();
-  };
+  });
   
-  // Función para confirmar eliminación
-  const confirmarEliminacion = async () => {
+  const handleBusquedaChange = useOptimizedInputHandler((value: string) => {
+    setBusqueda(value);
+  }, { debounceDelay: 300 });
+  
+  // Función para confirmar eliminación optimizada
+  const confirmarEliminacion = useOptimizedClickHandler(async () => {
     if (!selectedMaterial) return;
     
-    try {
-      await eliminarMaterial(selectedMaterial.id);
-      onDeleteClose();
-      cargarMateriales(); // Recargar lista
-    } catch (error) {
-      console.error('Error al eliminar material:', error);
-    }
-  };
+    return deferCallback(async () => {
+      try {
+        await eliminarMaterial(selectedMaterial.id);
+        onDeleteClose();
+        await cargarMateriales(); // Recargar lista
+      } catch (error) {
+        console.error('Error al eliminar material:', error);
+      }
+    });
+  });
   
   // Comprobar si el usuario es admin (para mostrar opción de eliminar)
-  const isAdmin = userProfile?.rol === 'admin';
+  const isAdmin = useMemo(() => userProfile?.rol === 'admin', [userProfile?.rol]);
 
   return (
     <DashboardLayout title="Gestión de Material">
@@ -194,7 +213,7 @@ const GestionMaterialPage: React.FC = () => {
             <Input 
               placeholder="Buscar material..." 
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => handleBusquedaChange(e.target.value)}
             />
           </InputGroup>
           

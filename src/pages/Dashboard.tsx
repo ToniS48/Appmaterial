@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import { 
   FiUsers, FiPackage, FiCalendar, FiBox, FiBell, FiSettings, 
-  FiClipboard, FiAlertTriangle
+  FiClipboard, FiAlertTriangle, FiEye
 } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
 import DashboardLayout from '../components/layouts/DashboardLayout';
@@ -204,14 +204,22 @@ const Dashboard: React.FC = () => {
             "Vista mensual de todas las actividades programadas", 
             "blue"
           )}
-          
-          {/* Material - solo admin y vocal */}
+            {/* Material - solo admin y vocal */}
           {(isAdmin || isVocal) && renderAccessCard(
             "Material", 
             FiBox, 
             "/material", 
             "Gestión del inventario completo de material", 
             "orange"
+          )}
+          
+          {/* Inventario - solo para socios */}
+          {isSocio && renderAccessCard(
+            "Inventario", 
+            FiEye, 
+            "/material/inventario", 
+            "Consulta el inventario de material disponible", 
+            "teal"
           )}
           
           {/* Mis Préstamos - para todos excepto invitados */}
