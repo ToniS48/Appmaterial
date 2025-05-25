@@ -230,6 +230,7 @@ const ActividadFormPage: React.FC = () => {
   const participantesEditorRef = useRef<any>(null);
   const materialEditorRef = useRef<any>(null);
   const enlacesEditorRef = useRef<any>(null);
+  
   // Optimizaciones de rendimiento
   const optimizedValidator = useMemo(() => {
     return createOptimizedValidator((data: Partial<Actividad>) => {
@@ -241,12 +242,6 @@ const ActividadFormPage: React.FC = () => {
     return optimizeTabChange((newIndex: number) => {
       setTabIndex(newIndex);
     });
-  }, []);
-
-  // Aplicar optimizador del scheduler al montar el componente
-  useEffect(() => {
-    const cleanup = setupSchedulerOptimizer();
-    return cleanup;
   }, []);
 
   // Función para guardar en localStorage de forma diferida
@@ -261,6 +256,11 @@ const ActividadFormPage: React.FC = () => {
       }, 0);
     }
   };
+  // Aplicar optimizador del scheduler al montar el componente
+  useEffect(() => {
+    const cleanup = setupSchedulerOptimizer();
+    return cleanup;
+  }, []);
 
   // Verificar conexión al cargar
   useEffect(() => {
@@ -358,11 +358,9 @@ const ActividadFormPage: React.FC = () => {
       setMaterialEdited(false);
       setEnlacesEdited(false);
     }
-  }, [id, userProfile]);
-
-  // Función para obtener actividad completa
+  }, [id, userProfile]);  // Función para obtener actividad completa
   const getCompleteActivity = (data: Partial<Actividad>): Actividad => {
-    return {
+    const completeActivity = {
       id: data.id,
       nombre: data.nombre || '',
       tipo: data.tipo || [],
@@ -392,17 +390,24 @@ const ActividadFormPage: React.FC = () => {
         ...(data.enlacesWeb || [])
       ]
     } as Actividad;
+    
+    console.log("ActividadFormPage - getCompleteActivity enviando a InfoEditor:", completeActivity);
+    console.log("ActividadFormPage - tipos enviados a InfoEditor:", completeActivity.tipo);
+    console.log("ActividadFormPage - subtipos enviados a InfoEditor:", completeActivity.subtipo);
+    
+    return completeActivity;
   };
-
   // Handlers de guardado optimizados
   const handleInfoSave = useOptimizedClickHandler(async (infoData: Partial<Actividad>) => {
     await deferCallback(async () => {
+      console.log("ActividadFormPage - handleInfoSave recibió:", infoData);
+      
       // Convertir fechas de manera segura
       const fechaInicio = infoData.fechaInicio instanceof Timestamp ? 
         infoData.fechaInicio.toDate() : infoData.fechaInicio;
       const fechaFin = infoData.fechaFin instanceof Timestamp ? 
         infoData.fechaFin.toDate() : infoData.fechaFin;
-      
+        
       // Actualizar estado de forma optimizada
       setFormData(prevFormData => {
         const updatedData = {
@@ -415,6 +420,10 @@ const ActividadFormPage: React.FC = () => {
           fechaInicio: fechaInicio,
           fechaFin: fechaFin
         };
+        
+        console.log("ActividadFormPage - formData actualizado:", updatedData);
+        console.log("ActividadFormPage - tipos en formData:", updatedData.tipo);
+        console.log("ActividadFormPage - subtipos en formData:", updatedData.subtipo);
         
         // Guardar en localStorage de forma diferida
         saveToLocalStorage(updatedData);
