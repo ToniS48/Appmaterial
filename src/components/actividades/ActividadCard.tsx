@@ -228,8 +228,17 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   actividad.estado === 'finalizada' ? FiCheckCircle :
                   FiXCircle
                 } 
+
                 label={estadoDisplay.label} 
                 color={estadoDisplay.color as any}
+                label={estado.label} 
+                color={
+                  actividad.estado === 'planificada' ? 'yellow' :
+                  actividad.estado === 'en_curso' ? 'green' :
+                  actividad.estado === 'finalizada' ? 'blue' :
+                  'red'
+                } 
+
                 size={variant === 'simple' ? 3.5 : 4} 
               />
               

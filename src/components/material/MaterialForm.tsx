@@ -216,6 +216,7 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
           <FormControl isInvalid={!!errors.codigo}>
             <FormLabel>Código (opcional)</FormLabel>
             <Input 
+              id="codigo"
               {...register('codigo')}
               placeholder="Código personalizado (se generará uno automático si se deja vacío)" 
             />

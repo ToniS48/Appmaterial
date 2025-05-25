@@ -6,6 +6,7 @@ import { actualizarCantidadDisponible, registrarIncidenciaMaterial } from './mat
 import { enviarNotificacionMasiva } from './notificacionService';
 import { listarUsuarios } from './usuarioService';
 import { Usuario } from '../types/usuario';
+import { Actividad } from '../types/actividad';
 
 // Crear un nuevo préstamo
 export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise<Prestamo> => {
@@ -418,6 +419,22 @@ export const obtenerPrestamosPorActividad = async (actividadId: string): Promise
     }) as Prestamo);
   } catch (error) {
     handleFirebaseError(error, 'Error al obtener préstamos por actividad');
+    throw error;
+  }
+};
+
+// Crear préstamos para una actividad específica
+export const crearPrestamosParaActividad = async (actividad: Actividad) => {
+  // Solo procesar si la actividad tiene necesidad de material
+  if (!actividad.necesidadMaterial) {
+    console.log('La actividad no requiere material, no se crean préstamos');
+    return [];
+  }
+  
+  try {
+    // Resto del código para crear préstamos...
+  } catch (error) {
+    console.error('Error al crear préstamos para la actividad:', error);
     throw error;
   }
 };

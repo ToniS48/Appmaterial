@@ -74,7 +74,7 @@ const ActividadesPage: React.FC = () => {
       
       // Cargar actividades clasificadas
       const { actividadesResponsable, actividadesParticipante } = 
-        await obtenerActividadesClasificadas(userProfile.uid);
+        await obtenerActividadesClasificadas(userProfile?.uid || '');
       
       setActividadesResponsable(actividadesResponsable);
       setActividadesParticipante(actividadesParticipante);
@@ -92,8 +92,49 @@ const ActividadesPage: React.FC = () => {
     }
   };
   
+  // Nueva función que ignora caché explícitamente
+  const cargarActividadesForzado = async () => {
+    try {
+      setIsLoading(true);
+      // Pasar true para indicar que debe ignorar caché
+      const todasActividades = await listarActividades(undefined, true);
+      setActividades(todasActividades);
+      
+      // También actualizar las demás listas
+      const actividadesProximas = await obtenerActividadesProximas(5, { ignoreCache: true });
+      setProximasActividades(actividadesProximas);
+      
+      // Cargar actividades clasificadas
+      const { actividadesResponsable, actividadesParticipante } = 
+        await obtenerActividadesClasificadas(userProfile?.uid || '');
+      
+      setActividadesResponsable(actividadesResponsable);
+      setActividadesParticipante(actividadesParticipante);
+    } catch (error) {
+      console.error("Error al cargar actividades:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las actividades",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    cargarActividades();
+    const needsRefresh = sessionStorage.getItem('actividades_cache_invalidated') === 'true';
+    if (needsRefresh) {
+      // Eliminar el flag
+      sessionStorage.removeItem('actividades_cache_invalidated');
+      // Forzar carga ignorando caché
+      cargarActividadesForzado();
+    } else {
+      // Carga normal
+      cargarActividades();
+    }
   }, [userProfile?.uid]);
 
   // Función para unirse a una actividad
@@ -137,30 +178,35 @@ const ActividadesPage: React.FC = () => {
 
   // Renderizar tarjeta de actividad
   const renderActividadCard = (actividad: Actividad) => {
+    // Determinar si el usuario actual es responsable de la actividad
+    const esResponsable = 
+      actividad.creadorId === userProfile?.uid || 
+      actividad.responsableActividadId === userProfile?.uid || 
+      actividad.responsableMaterialId === userProfile?.uid;
+    
+    // Determinar si el usuario es participante pero no responsable
+    const esParticipante = 
+      userProfile?.uid && 
+      actividad.participanteIds?.includes(userProfile?.uid) &&
+      !esResponsable;
+
     return (
-      <ActividadCard
+      <ActividadCard 
         key={actividad.id}
         actividad={actividad}
-        onVerDetalles={() => {
-          setSelectedActividad(actividad);
-          onDetailOpen();
-        }}
-        onUnirse={
-          // Solo mostrar unirse si no es responsable ni participante
-          userProfile && 
-          actividad.creadorId !== userProfile.uid && 
-          actividad.responsableActividadId !== userProfile.uid &&
-          actividad.responsableMaterialId !== userProfile.uid &&
-          !actividad.participanteIds?.includes(userProfile.uid) &&
-          actividad.estado !== 'finalizada' && 
-          actividad.estado !== 'cancelada'
-            ? () => handleUnirseActividad(actividad.id as string)
-            : undefined
-        }
+        onVerDetalles={() => handleVerDetalle(actividad)}
+        onEditar={() => navigate(`/activities/${actividad.id}`)}
+        onGestionarMaterial={() => navigate(`/activities/${actividad.id}/material`)}
+        onUnirse={() => handleUnirseActividad(actividad.id as string)}
+        variant="complete"
         mostrarBotones={true}
-        mostrarDescripcion={true}
       />
     );
+  };
+
+  const handleVerDetalle = (actividad: Actividad) => {
+    setSelectedActividad(actividad);
+    onDetailOpen();
   };
 
   return (

@@ -1,7 +1,7 @@
 # 🎯 ESPEMO - Aplicación de Gestión de Materiales
 
-> **Aplicación optimizada para la gestión de materiales deportivos y actividades**  
-> Versión 2.0 - Arquitectura modular con separación UI/lógica y optimizaciones de rendimiento
+ **Aplicación optimizada para la gestión de materiales deportivos y actividades**  
+ Versión 2.0 - Arquitectura modular con separación UI/lógica y optimizaciones de rendimiento
 
 ## 📋 Descripción
 
@@ -411,3 +411,137 @@ Para soporte técnico o consultas:
 ---
 
 © 2025 ESPEMO - Todos los derechos reservados
+=======
+### Despliegue manual
+
+Si necesitas desplegar manualmente:
+
+git add .
+git commit -m "Prueba de despliegue automatizado"
+git push origin main
+
+
+ESPEMO - Sistema de Gestión de Material Deportivo
+<img alt="Estado del despliegue" src="https://img.shields.io/badge/estado-desplegado-success">
+Descripción general
+ESPEMO es una aplicación web para la gestión integral del material deportivo y actividades del club de espeleología ESPEMO. La aplicación permite gestionar material deportivo especializado (cuerdas, anclajes y varios), planificar actividades, gestionar préstamos, y mantener un control del estado y mantenimiento del equipamiento.
+
+Tecnologías utilizadas
+Frontend: React 18, TypeScript, Chakra UI
+Backend: Firebase (Firestore, Authentication, Functions, Storage, Hosting)
+Herramientas adicionales:
+React Hook Form para formularios
+date-fns para manipulación de fechas
+QRCode para generación de códigos QR
+GitHub Actions para CI/CD
+Estructura del proyecto
+El proyecto sigue una arquitectura basada en componentes con React y TypeScript:
+
+components: Componentes reutilizables organizados por funcionalidad
+contexts: Contextos de React para el estado global (autenticación, notificaciones, etc.)
+services: Servicios para comunicación con Firebase
+types: Interfaces y tipos TypeScript
+pages: Páginas principales de la aplicación
+constants: Constantes y mensajes de la aplicación
+styles: Estilos globales y tema de Chakra UI
+utils: Utilidades y funciones auxiliares
+functions: Funciones de Firebase (backend serverless)
+Características principales
+Gestión de material deportivo
+Inventario detallado de material con categorías (cuerdas, anclajes, varios)
+Seguimiento del ciclo de vida del material (adquisición, revisiones, baja)
+Generación de códigos QR para identificación rápida
+Control de estado (disponible, prestado, mantenimiento, baja, perdido)
+Alertas automáticas para revisiones programadas
+Sistema de préstamos
+Gestión de préstamos de material a socios
+Vinculación de préstamos a actividades
+Registro de devoluciones con control de incidencias
+Seguimiento del estado del material prestado
+Notificaciones para recordatorios de devolución
+Planificación de actividades
+Calendario de actividades del club
+Asignación de responsables y participantes
+Gestión de material necesario para cada actividad
+Estados de actividad (planificada, en curso, finalizada, cancelada)
+Integración con Google Calendar
+Comentarios y comunicación entre participantes
+Sistema de notificaciones
+Notificaciones en tiempo real para usuarios
+Alertas de sistema (material pendiente de revisión, préstamos vencidos)
+Recordatorios para devoluciones y actividades próximas
+Panel de administración
+Gestión de usuarios y roles
+Configuración global del sistema
+Estadísticas y reportes
+Gestión de copias de seguridad
+Roles de usuario
+El sistema contempla tres roles principales con diferentes permisos:
+
+1. Administrador
+Gestión total del sistema
+Configuración de la aplicación
+Gestión de roles y permisos
+Acceso a logs y estadísticas
+2. Vocal
+Supervisión del material deportivo
+Validación de devoluciones
+Gestión de incidencias
+Creación y gestión de actividades
+Control limitado de usuarios
+3. Socio
+Creación de actividades
+Solicitud y devolución de material
+Participación en actividades
+Reporte de incidencias
+Modelo de datos
+El sistema utiliza Firebase Firestore con las siguientes colecciones principales:
+
+usuarios: Información de usuarios, roles y permisos
+actividades: Eventos planificados con participantes y material asignado
+material_deportivo: Inventario de material (cuerdas, anclajes, varios)
+prestamos: Registro de material prestado y devoluciones
+incidencias: Registro de problemas con el material
+notificaciones: Sistema de alertas y comunicaciones
+Configuración y despliegue
+Requisitos previos
+Node.js 22 o superior
+Cuenta de Firebase (plan Spark o superior)
+## Performance Optimizations (Mayo 2025)
+
+Se han implementado importantes mejoras de rendimiento para resolver las violaciones del scheduler en React:
+
+### Componentes Optimizados
+
+- **MaterialSelector**: Componente principal optimizado para seleccionar materiales
+- **ActividadFormPage**: Página de creación de actividades con navegación por pestañas mejorada
+- **MaterialCard**: Componente de UI con renderizado optimizado
+
+### Utilidades de Optimización
+
+Se han creado varias utilidades para mejorar el rendimiento:
+
+- `performanceMonitor.ts`: Sistema para detectar y registrar violaciones de rendimiento
+- `reactSchedulerOptimizer.ts`: Utilidades para prevenir violaciones del scheduler de React
+- `eventOptimizer.ts`: Hooks para optimizar el manejo de eventos
+
+### Verificación de Optimizaciones
+
+Para comprobar las mejoras de rendimiento:
+
+1. Ejecutar `npm start` para iniciar la aplicación
+2. Navegar a `/debug/material-selector-test` para usar el componente de pruebas
+3. Alternar entre modo optimizado y no optimizado para comparar
+
+Para pruebas desde línea de comandos:
+```
+node src/utils/testPerformance.js
+```
+
+### Documentación
+
+Para más detalles sobre las optimizaciones implementadas, consultar:
+
+- `docs/Optimizaciones-Rendimiento-2025.md`: Documentación completa
+- `docs/MaterialSelector-Optimizacion.md`: Especificaciones del componente
+

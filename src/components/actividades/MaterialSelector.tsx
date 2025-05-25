@@ -1,34 +1,25 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
 import {
   Box,
   Heading,
-  FormControl,
-  FormLabel,
   Input,
   InputGroup,
   InputLeftElement,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
   Button,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
-  Td,
-  IconButton,
   Text,
   FormErrorMessage,
   useToast,
   Spinner,
   SimpleGrid,
   Flex,
-  Badge,
-  Card,
-  CardBody,
   Tabs,
   TabList,
   Tab,
@@ -36,12 +27,11 @@ import {
   TabPanel,
   Divider
 } from '@chakra-ui/react';
-import { DeleteIcon, SearchIcon } from '@chakra-ui/icons';
-import { FiPackage, FiMinus, FiPlus } from 'react-icons/fi';
-import { Control, useFieldArray, FieldErrors } from 'react-hook-form';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import messages from '../../constants/messages';  // Añadir esta importación
+import { SearchIcon } from '@chakra-ui/icons';
+import { FiPackage } from 'react-icons/fi';
+import { Control, useFieldArray } from 'react-hook-form';
+import messages from '../../constants/messages';
+
 
 // OPTIMIZACIONES DE RENDIMIENTO
 // ==============================
@@ -108,48 +98,46 @@ const useOptimizedFieldOperations = (append: any, remove: any) => {
 };
 
 interface MaterialSelectorProps {
+
+// Importaciones específicas para el nuevo refactor
+import { useMaterialQuery } from '../../utils/useMaterialQuery';
+import { normalizarMaterial } from '../../utils/materialUtils';
+import MaterialCard from '../material/MaterialCard';
+import MaterialRow from '../material/MaterialRow';
+import { MaterialItem, MaterialField } from '../material/types';
+import { debounce } from '../../utils/performanceUtils';
+import { useOptimizedClickHandler, useOptimizedMessageHandler } from '../../utils/eventOptimizer';
+
+export interface MaterialSelectorProps {
+
   control: Control<any>;
   name: string;
-  error?: any;  // Cambiar a 'any' para aceptar cualquier tipo de error
+  error?: any;
   materialesActuales?: MaterialField[];
   cardBg?: string;
   borderColor?: string;
 }
 
-// Definir interfaz para los materiales
-interface MaterialItem {
-  id: string;
-  nombre: string;
-  tipo: string;
-  estado: string;
-  cantidadDisponible: number;
-  codigo?: string;
-  descripcion?: string;
-}
-
-// Definir tipo para los campos de materiales
-interface MaterialField {
-  id: string;
-  materialId: string;
-  nombre: string;
-  cantidad: number;
-}
-
+/**
+ * Componente para seleccionar materiales con UI mejorada y optimizada
+ */
 const MaterialSelector: React.FC<MaterialSelectorProps> = ({ 
   control, 
-  name,  // Añadir name como prop
-  error, // Cambiar a error en singular, hacerlo opcional
-  materialesActuales = [], // Renombrar de existingMaterials a materialesActuales
+  name,
+  error,
+  materialesActuales = [],
   cardBg,
   borderColor
 }) => {
   // Estados para el componente
+
   const [materiales, setMateriales] = useState<MaterialItem[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<string>('');
   const [cantidad, setCantidad] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<string | null>(null);
     // Nuevos estados para el selector visual
+
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   
@@ -164,89 +152,94 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     name
   });
   
+  // Convertir fields para tipado seguro
+  const typedFields = fields as MaterialField[];
+  
+  // Usar el hook personalizado para consultas de materiales
+  const {
+    materialesFiltrados,
+    materialesPorTipo,
+    isLoading,
+    error: errorState,
+    calcularDisponibilidad,
+    recargarMateriales
+  } = useMaterialQuery(typedFields, searchTerm, filtroTipo);
+    // Función base para manejar cambios en la búsqueda
+  const handleSearchChangeBase = useCallback((value: string) => {
+    setSearchTerm(value);
+  }, []);
+  
+  // Versión optimizada con debounce para evitar violaciones
+  const handleSearchChange = useCallback(
+    debounce(handleSearchChangeBase, 300),
+    []
+  );
+  
+  // Función base para filtros de tipo
+  const handleTipoFilterBase = useCallback((tipo: string) => {
+    setFiltroTipo(tipo);
+  }, []);
+  
+  // Versión optimizada de los filtros de tipo
+  const handleTipoFilter = useOptimizedClickHandler(handleTipoFilterBase);
+  
   // Inicializar con materiales existentes si se proporcionan
   useEffect(() => {
-    if (materialesActuales && materialesActuales.length > 0) {
-      // Verificar si ya están cargados en fields para evitar duplicados
-      const existingIds = fields.map((field: any) => field.materialId);
-      const newMaterials = materialesActuales.filter(mat => !existingIds.includes(mat.materialId));
-      
-      if (newMaterials.length > 0) {
-        // Usar un setTimeout para asegurar que este código se ejecute después de que React haya actualizado el DOM
-        setTimeout(() => {
-          newMaterials.forEach(material => {
-            append(material);
-          });
-        }, 0);
-      }
-    }
-  }, [materialesActuales]); 
-  
-  // Cargar materiales disponibles en tiempo real
-  useEffect(() => {
-    let unsubscribe: () => void;
+    if (!materialesActuales?.length) return;
     
-    const setupMaterialesListener = async () => {
+    // Evitar bloquear el hilo principal con un procesamiento por lotes
+    let isMounted = true;
+    
+    // Función para procesar lotes de operaciones
+    const processMaterialesEnLotes = async () => {
+      if (!isMounted) return;
+      
       try {
-        setIsLoading(true);
-        setErrorState(null);
+        // Primero eliminar todos los materiales existentes
+        if (fields.length > 0) {
+          // Eliminar en un ciclo separado para evitar problemas de índices
+          // Eliminar desde el final para no afectar índices previos
+          for (let i = fields.length - 1; i >= 0; i--) {
+            if (!isMounted) return;
+            await new Promise(resolve => setTimeout(resolve, 0)); // Yield al event loop
+            remove(i);
+          }
+        }
         
-        // Crear una consulta que filtre por materiales disponibles
-        const materialesQuery = query(
-          collection(db, 'material_deportivo'),
-          where('estado', '==', 'disponible')
-        );
+        if (!isMounted) return;
         
-        // Configurar el listener en tiempo real
-        unsubscribe = onSnapshot(
-          materialesQuery,
-          (snapshot) => {
-            // Cuando lleguen datos nuevos, actualizar el estado
-            const materialesTransformados = snapshot.docs.map(doc => {
-              const data = doc.data();
-              return {
-                id: doc.id,
-                nombre: data.nombre || 'Sin nombre',
-                tipo: data.tipo || 'varios',
-                estado: data.estado || 'disponible',
-                // Convertir explícitamente a número
-                cantidadDisponible: parseInt(data.cantidadDisponible, 10) || 1,
-                codigo: data.codigo || '',
-                descripcion: data.descripcion || ''
-              } as MaterialItem;
-            });
+        // Normalizar materiales
+        const materialesValidados = materialesActuales
+          .filter(m => m && m.materialId)
+          .map(material => normalizarMaterial(material));
+        
+        // Si hay muchos, procesar en lotes
+        if (materialesValidados.length > 0) {
+          const batchSize = 5;
+          
+          for (let i = 0; i < materialesValidados.length; i += batchSize) {
+            if (!isMounted) return;
             
-            setMateriales(materialesTransformados);
-            setIsLoading(false);
-          },
-          (error) => {
-            console.error('Error en el listener de materiales:', error);
-            setErrorState(`Error al monitorear materiales: ${error.message || 'Error desconocido'}`);
-            setIsLoading(false);
-            
-            toast({
-              title: 'Error',
-              description: messages.material.selector.errorCargarMateriales,
-              status: 'error',
-              duration: 5000,
-              isClosable: true,
+            const batch = materialesValidados.slice(i, i + batchSize);
+            await new Promise(resolve => {
+              requestAnimationFrame(() => {
+                append(batch);
+                resolve(null);
+              });
             });
           }
-        );
-      } catch (error: any) {
-        console.error('Error al configurar listener de materiales:', error);
-        setErrorState(`Error al configurar monitoreo: ${error.message || 'Error desconocido'}`);
-        setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error al inicializar materiales:", error);
       }
     };
     
-    setupMaterialesListener();
+    // Iniciar proceso asíncrono
+    processMaterialesEnLotes();
     
-    // Función de limpieza para desuscribirse del listener cuando el componente se desmonte
+    // Limpieza
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      isMounted = false;
     };
   }, [toast]);
 
@@ -317,6 +310,9 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     materialesFiltrados.filter(m => m.tipo === 'varios'),
     [materialesFiltrados]
   );
+
+  }, [materialesActuales, append, remove, fields.length]);
+
   // Manejar la adición de un material a la lista con validación adicional
   const handleAddMaterialBase = useCallback((selectedId: string, qty: number = 1) => {
     if (!selectedId) {
@@ -329,7 +325,8 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       return;
     }
     
-    const material = materiales.find(m => m.id === selectedId);
+    // Buscar el material en la caché global de materiales del hook
+    const material = materialesFiltrados.find(m => m.id === selectedId);
     
     if (!material) {
       toast({
@@ -341,6 +338,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       return;
     }
     
+
     // Diferir la validación y operación para evitar bloqueos
     deferCallback(() => {
       try {
@@ -520,6 +518,69 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     );
   });
 
+    // Calcular disponibilidad real
+    const disponibilidadReal = calcularDisponibilidad(material);
+    
+    // Validar cantidad con la disponibilidad real
+    if (qty <= 0) {
+      toast({
+        title: messages.errors.general,
+        description: messages.material.selector.errorCantidad,
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+    
+    if (disponibilidadReal < qty) {
+      toast({
+        title: messages.errors.general,
+        description: messages.material.selector.errorDisponibilidad.replace('{cantidad}', disponibilidadReal.toString()),
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+    
+    try {
+      // Agregar el material a la lista con un ID estable
+      append({
+        id: `material-${material.id}`,
+        materialId: material.id,
+        nombre: material.nombre,
+        cantidad: qty
+      });
+      
+      // Mostrar mensaje de éxito
+      toast({
+        title: messages.material.selector.materialAnadido,
+        description: messages.material.selector.materialAnadidoDesc.replace('{nombre}', material.nombre),
+        status: 'success',
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error al añadir material:', error);
+      toast({
+        title: messages.errors.general,
+        description: messages.material.selector.errorAnadir,
+        status: 'error',
+        duration: 3000,
+      });
+    }
+  }, [materialesFiltrados, toast, calcularDisponibilidad, append]);
+
+  // Versión optimizada con nuestro hook personalizado
+  const handleAddMaterial = useOptimizedClickHandler(handleAddMaterialBase);
+
+  // Base para eliminar materiales
+  const handleRemoveMaterialBase = useCallback((index: number) => {
+    remove(index);
+  }, [remove]);
+  
+  // Versión optimizada para eliminar materiales
+  const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);
+
+
   return (
     <Box>
       <Heading size="sm" mb={4}>Material necesario</Heading>
@@ -532,7 +593,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       ) : errorState ? (
         <Box p={3} bg="red.50" color="red.700" borderRadius="md">
           <Text>{errorState}</Text>
-          <Button size="sm" mt={2} onClick={() => window.location.reload()}>
+          <Button size="sm" mt={2} onClick={() => recargarMateriales()}>
             {messages.actions.retry || "Reintentar"}
           </Button>
         </Box>
@@ -541,15 +602,15 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
           {/* Sección de búsqueda y filtrado */}
           <Box mb={4}>
             <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-              {/* Buscador */}
+              {/* Buscador con debounce */}
               <InputGroup>
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.300" />
                 </InputLeftElement>
                 <Input 
                   placeholder={messages.material.selector.buscarPlaceholder} 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  defaultValue={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                 />
               </InputGroup>
               
@@ -559,7 +620,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   size="md"
                   variant={filtroTipo === 'todos' ? "solid" : "outline"}
                   colorScheme={filtroTipo === 'todos' ? "brand" : "gray"}
-                  onClick={() => setFiltroTipo('todos')}
+                  onClick={() => handleTipoFilter('todos')}
                   leftIcon={<FiPackage />}
                 >
                   {messages.material.selector.filtroTodos}
@@ -568,7 +629,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   size="md"
                   variant={filtroTipo === 'cuerda' ? "solid" : "outline"}
                   colorScheme={filtroTipo === 'cuerda' ? "blue" : "gray"}
-                  onClick={() => setFiltroTipo('cuerda')}
+                  onClick={() => handleTipoFilter('cuerda')}
                 >
                   {messages.material.selector.filtroCuerdas}
                 </Button>
@@ -576,7 +637,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   size="md"
                   variant={filtroTipo === 'anclaje' ? "solid" : "outline"}
                   colorScheme={filtroTipo === 'anclaje' ? "orange" : "gray"}
-                  onClick={() => setFiltroTipo('anclaje')}
+                  onClick={() => handleTipoFilter('anclaje')}
                 >
                   {messages.material.selector.filtroAnclajes}
                 </Button>
@@ -584,20 +645,20 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   size="md"
                   variant={filtroTipo === 'varios' ? "solid" : "outline"}
                   colorScheme={filtroTipo === 'varios' ? "purple" : "gray"}
-                  onClick={() => setFiltroTipo('varios')}
+                  onClick={() => handleTipoFilter('varios')}
                 >
                   {messages.material.selector.filtroVarios}
                 </Button>
               </Flex>
             </Flex>
             
-            {/* Vista del catálogo de materiales */}
+            {/* Vista del catálogo de materiales con Tabs Lazy */}
             <Tabs variant="enclosed" colorScheme="brand" isLazy>
               <TabList>
                 <Tab>{messages.material.selector.tabTodos} ({materialesFiltrados.length})</Tab>
-                <Tab>{messages.material.selector.tabCuerdas} ({materialesCuerda.length})</Tab>
-                <Tab>{messages.material.selector.tabAnclajes} ({materialesAnclaje.length})</Tab>
-                <Tab>{messages.material.selector.tabVarios} ({materialesVarios.length})</Tab>
+                <Tab>{messages.material.selector.tabCuerdas} ({materialesPorTipo.cuerda.length})</Tab>
+                <Tab>{messages.material.selector.tabAnclajes} ({materialesPorTipo.anclaje.length})</Tab>
+                <Tab>{messages.material.selector.tabVarios} ({materialesPorTipo.varios.length})</Tab>
               </TabList>
               
               <TabPanels>
@@ -609,49 +670,81 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                   ) : (
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3} mt={2}>
                       {materialesFiltrados.map(material => (
-                        <MaterialCard key={material.id} material={material} />
+                        <MaterialCard 
+                          key={material.id} 
+                          material={material} 
+                          disponibilidadReal={calcularDisponibilidad(material)}
+                          handleAddMaterial={handleAddMaterial}
+                          cardBg={cardBg}
+                          borderColor={borderColor}
+                          messages={messages}
+                        />
                       ))}
                     </SimpleGrid>
                   )}
                 </TabPanel>
                 
                 <TabPanel>
-                  {materialesCuerda.length === 0 ? (
+                  {materialesPorTipo.cuerda.length === 0 ? (
                     <Box p={4} textAlign="center" bg="gray.50" borderRadius="md">
                       <Text>{messages.material.selector.sinCuerdas}</Text>
                     </Box>
                   ) : (
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3} mt={2}>
-                      {materialesCuerda.map(material => (
-                        <MaterialCard key={material.id} material={material} />
+                      {materialesPorTipo.cuerda.map(material => (
+                        <MaterialCard 
+                          key={material.id} 
+                          material={material} 
+                          disponibilidadReal={calcularDisponibilidad(material)}
+                          handleAddMaterial={handleAddMaterial}
+                          cardBg={cardBg}
+                          borderColor={borderColor}
+                          messages={messages}
+                        />
                       ))}
                     </SimpleGrid>
                   )}
                 </TabPanel>
                 
                 <TabPanel>
-                  {materialesAnclaje.length === 0 ? (
+                  {materialesPorTipo.anclaje.length === 0 ? (
                     <Box p={4} textAlign="center" bg="gray.50" borderRadius="md">
                       <Text>{messages.material.selector.sinAnclajes}</Text>
                     </Box>
                   ) : (
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3} mt={2}>
-                      {materialesAnclaje.map(material => (
-                        <MaterialCard key={material.id} material={material} />
+                      {materialesPorTipo.anclaje.map(material => (
+                        <MaterialCard 
+                          key={material.id} 
+                          material={material} 
+                          disponibilidadReal={calcularDisponibilidad(material)}
+                          handleAddMaterial={handleAddMaterial}
+                          cardBg={cardBg}
+                          borderColor={borderColor}
+                          messages={messages}
+                        />
                       ))}
                     </SimpleGrid>
                   )}
                 </TabPanel>
                 
                 <TabPanel>
-                  {materialesVarios.length === 0 ? (
+                  {materialesPorTipo.varios.length === 0 ? (
                     <Box p={4} textAlign="center" bg="gray.50" borderRadius="md">
                       <Text>{messages.material.selector.sinVarios}</Text>
                     </Box>
                   ) : (
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3} mt={2}>
-                      {materialesVarios.map(material => (
-                        <MaterialCard key={material.id} material={material} />
+                      {materialesPorTipo.varios.map(material => (
+                        <MaterialCard 
+                          key={material.id} 
+                          material={material} 
+                          disponibilidadReal={calcularDisponibilidad(material)}
+                          handleAddMaterial={handleAddMaterial}
+                          cardBg={cardBg}
+                          borderColor={borderColor}
+                          messages={messages}
+                        />
                       ))}
                     </SimpleGrid>
                   )}
@@ -676,20 +769,12 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
                 </Thead>
                 <Tbody>
                   {typedFields.map((field, index) => (
-                    <Tr key={field.id || index}>
-                      <Td>{field.nombre || "Sin nombre"}</Td>
-                      <Td isNumeric>{field.cantidad}</Td>
-                      <Td>
-                        <IconButton
-                          aria-label="Eliminar material"
-                          icon={<DeleteIcon />}
-                          size="xs"
-                          colorScheme="red"
-                          variant="ghost"
-                          onClick={() => remove(index)}
-                        />
-                      </Td>
-                    </Tr>
+                    <MaterialRow 
+                      key={field.id || index} 
+                      material={field} 
+                      index={index}
+                      handleSelect={() => handleRemoveMaterial(index)} 
+                    />
                   ))}
                 </Tbody>
               </Table>

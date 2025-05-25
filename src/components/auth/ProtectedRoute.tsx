@@ -1,11 +1,13 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Center, Spinner } from '@chakra-ui/react';
+import { getRutaPorRol } from '../../utils/navigation';
+import { safeLog } from '../../utils/performanceUtils';
 
-// Actualizar la interfaz para incluir children
 interface ProtectedRouteProps {
   allowedRoles: string[];
-  children: React.ReactNode; // Añadir la propiedad children
+  children: React.ReactNode;
   redirectTo?: string;
 }
 
@@ -14,19 +16,38 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   redirectTo = '/login' 
 }) => {
-  const { userProfile, isLoading } = useAuth();
+  const { userProfile, loading, currentUser } = useAuth();
+  const location = useLocation();
   
-  // Mostrar loading o nada mientras se carga el perfil
-  if (isLoading) {
-    return null; // O un componente de carga
+  // Log único usando safeLog al cambiar la ruta
+  useEffect(() => {
+    safeLog(`ProtectedRoute - Ruta: ${location.pathname}, Rol: ${userProfile?.rol}, Permitidos: ${allowedRoles.join(', ')}`);
+  }, [location.pathname, userProfile?.rol, allowedRoles]);
+  
+  // Solo mostrar spinner durante la carga inicial
+  if (loading) {
+    return (
+      <Center h="80vh">
+        <Spinner size="xl" color="brand.500" />
+      </Center>
+    );
   }
   
-  // Redireccionar si no hay usuario o no tiene el rol permitido
-  if (!userProfile || !allowedRoles.includes(userProfile.rol)) {
+  // Si no hay usuario, redirigir al login
+  if (!currentUser || !userProfile) {
+    safeLog('ProtectedRoute - Redirigiendo a login: sin usuario autenticado');
     return <Navigate to={redirectTo} replace />;
   }
   
-  // Renderizar el contenido si está autorizado
+  // Si el usuario no tiene los permisos necesarios
+  if (!allowedRoles.includes(userProfile.rol)) {
+    const redirectPath = getRutaPorRol(userProfile.rol);
+    safeLog(`ProtectedRoute - Redirigiendo a ${redirectPath}: rol no permitido`);
+    return <Navigate to={redirectPath} replace />;
+  }
+  
+  // Acceso permitido
+  safeLog('ProtectedRoute - Acceso permitido');
   return <>{children}</>;
 };
 

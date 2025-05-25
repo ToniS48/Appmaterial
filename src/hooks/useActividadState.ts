@@ -4,6 +4,7 @@ import { Actividad } from '../types/actividad';
 import { getUniqueParticipanteIds } from '../utils/actividadUtils';
 import { Timestamp } from 'firebase/firestore';
 
+
 // Definir acciones tipadas
 type ActividadAction = 
   | { type: 'UPDATE_INFO'; payload: Partial<Actividad> }
@@ -17,7 +18,9 @@ function actividadReducer(state: Actividad, action: ActividadAction): Actividad 
   switch (action.type) {
     case 'UPDATE_INFO':
       return { ...state, ...action.payload };
-        case 'UPDATE_PARTICIPANTES': {
+      
+    case 'UPDATE_PARTICIPANTES': {
+
       const { ids, responsables } = action.payload;
       const newState = { ...state };
       
@@ -41,6 +44,7 @@ function actividadReducer(state: Actividad, action: ActividadAction): Actividad 
       
       return newState;
     }
+
       case 'UPDATE_MATERIAL':
       return {
         ...state,
@@ -52,11 +56,16 @@ function actividadReducer(state: Actividad, action: ActividadAction): Actividad 
       return action.payload;
         case 'RESET':
       return createInitialActividadState();
+
+    
+    // Otros casos...
+
     
     default:
       return state;
   }
 }
+
 
 // Función para crear el estado inicial
 function createInitialActividadState(initialData?: Partial<Actividad>): Actividad {
@@ -134,4 +143,9 @@ export function useActividadState(initialData?: Partial<Actividad>) {
     setActividad,
     reset
   };
+
+// Hook personalizado para usar este estado
+export function useActividadState(initialData?: Partial<Actividad>) {
+  // Implementación del hook con useReducer...
+
 }

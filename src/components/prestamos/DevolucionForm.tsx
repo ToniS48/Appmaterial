@@ -23,6 +23,7 @@ import { registrarDevolucionConIncidencia } from '../../services/prestamoService
 import { Prestamo } from '../../types/prestamo';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages'; // Importamos los mensajes centralizados
+import { Timestamp } from 'firebase/firestore';
 
 interface DevolucionFormProps {
   prestamo: Prestamo;
@@ -134,6 +135,8 @@ const DevolucionForm: React.FC<DevolucionFormProps> = ({ prestamo, onSuccess, on
               <DatePicker
                 name={field.name}
                 control={control}
+                selected={field.value instanceof Timestamp ? field.value.toDate() : field.value}
+                onChange={(date: Date | null) => field.onChange(date ? Timestamp.fromDate(date) : null)}
               />
             )}
           />

@@ -33,7 +33,7 @@ jobs:
           echo "REACT_APP_FIREBASE_MEASUREMENT_ID=${{ secrets.FIREBASE_MEASUREMENT_ID }}" >> .env
           
       - name: Build
-        run: npm run build
+        run: npm run build:ci
         
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
