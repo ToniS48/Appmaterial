@@ -196,8 +196,9 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5} mb={6}>
         {/* CAMPOS BÁSICOS */}
         <FormControl isRequired isInvalid={!!errors.nombre}>
-          <FormLabel>Nombre</FormLabel>
+          <FormLabel htmlFor="nombre">Nombre</FormLabel>
           <Input 
+            id="nombre"
             {...register('nombre', { 
               required: 'El nombre es obligatorio',
               maxLength: { value: 100, message: 'El nombre es demasiado largo' }
@@ -209,8 +210,9 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
         </FormControl>
         
         <FormControl isInvalid={!!errors.apellidos}>
-          <FormLabel>Apellidos</FormLabel>
+          <FormLabel htmlFor="apellidos">Apellidos</FormLabel>
           <Input 
+            id="apellidos"
             {...register('apellidos', { 
               maxLength: { value: 100, message: 'Los apellidos son demasiado largos' }
             })} 
@@ -221,8 +223,9 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
         </FormControl>
         
         <FormControl isRequired isInvalid={!!errors.email}>
-          <FormLabel>Email</FormLabel>
+          <FormLabel htmlFor="email">Email</FormLabel>
           <Input 
+            id="email"
             {...register('email', { 
               required: 'El email es obligatorio',
               pattern: {
@@ -238,8 +241,9 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
         </FormControl>
         
         <FormControl isInvalid={!!errors.telefono}>
-          <FormLabel>Teléfono</FormLabel>
+          <FormLabel htmlFor="telefono">Teléfono</FormLabel>
           <Input 
+            id="telefono"
             {...register('telefono')} 
             type="tel" 
           />
@@ -249,8 +253,9 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
         </FormControl>
         
         <FormControl isInvalid={!!errors.rol}>
-          <FormLabel>Rol</FormLabel>
+          <FormLabel htmlFor="rol">Rol</FormLabel>
           <Select 
+            id="rol"
             {...register('rol', { required: 'Seleccione un rol' })}
             isDisabled={(usuario && !isVocalMode && userProfile?.rol !== 'admin')}
           >

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+// filepath: c:\Users\Sonia\Documents\Espemo\Apps\AppMaterial\src\pages\actividades\ActividadPage.clean.tsx
+import React, { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Spinner, Center, Alert, AlertIcon, Heading, Text, Flex, 
-  Badge, Divider, List, ListItem, Tab, Tabs, TabList, TabPanel, 
-  TabPanels, Grid, GridItem, Button, Stack, HStack, VStack, Link,
-  Card, CardBody, IconButton, Tooltip, useToast, AlertDialog, AlertDialogOverlay, 
-  AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter, Icon
+  Box, Button, Alert, AlertIcon, Spinner, Center, Heading, Text,
+  Flex, Badge, Card, CardBody, Grid, GridItem, List, ListItem, 
+  HStack, IconButton, AlertDialog, AlertDialogBody, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, useToast,
+  Tabs, TabList, Tab, TabPanels, TabPanel
 } from '@chakra-ui/react';
+
 import { CalendarIcon, ExternalLinkIcon, DownloadIcon, LinkIcon, CheckIcon } from '@chakra-ui/icons';
 import { 
   FiCalendar, FiUsers, FiMapPin, FiFileText, FiLink, FiMessageSquare, FiEdit, FiArrowLeft, FiChevronLeft, FiChevronRight, FiSave, FiX, 
@@ -14,187 +16,295 @@ import {
   FiXCircle, FiAlertCircle 
 } from 'react-icons/fi';
 import IconBadge from '../../components/common/IconBadge';
+import { FiEdit, FiPackage, FiGlobe, FiArrowLeft, FiSave } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
-import ActividadDetalle from '../../components/actividades/ActividadDetalle';
-import MaterialEditor from '../../components/actividades/MaterialEditor';
 import InfoEditor from '../../components/actividades/InfoEditor';
 import ParticipantesEditor from '../../components/actividades/ParticipantesEditor';
+import MaterialEditor from '../../components/actividades/MaterialEditor';
 import EnlacesEditor from '../../components/actividades/EnlacesEditor';
-import { obtenerActividad, obtenerComentariosActividad, actualizarActividad, cancelarActividad } from '../../services/actividadService';
-import { obtenerPrestamosPorActividad } from '../../services/prestamoService';
-import { listarUsuariosPorIds } from '../../services/usuarioService';
-import { Actividad, EstadoActividad } from '../../types/actividad';
-import { Prestamo } from '../../types/prestamo';
-import { Usuario } from '../../types/usuario';
-import { formatDate, toDate, toTimestamp, normalizarFecha, compareDates, determinarEstadoActividad } from '../../utils/dateUtils';
-import { validateActividadEnlaces } from '../../utils/actividadUtils';
-import { useAuth } from '../../contexts/AuthContext';
-import { Timestamp } from 'firebase/firestore';
-
-/**
- * Extrae el nombre del track de una URL de Wikiloc
- */
-const extractWikilocTrackName = (url: string): string => {
-  try {
-    // Validar que es una URL de Wikiloc
-    if (!url.includes('wikiloc.com')) {
-      return `Track de Wikiloc`;
-    }
-    
-    // Extraer la ruta de la URL
-    const urlObj = new URL(url);
-    const path = urlObj.pathname;
-    
-    // Dividir la ruta en segmentos
-    const segments = path.split('/').filter(s => s);
-    
-    // El formato típico de Wikiloc es /tipo-actividad/nombre-track/id
-    // El nombre del track normalmente está en la posición 1 (0-indexed)
-    if (segments.length >= 2) {
-      // Convertir guiones a espacios y capitalizar palabras
-      const trackNameRaw = segments[1];
-      const trackName = trackNameRaw
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      
-      return trackName;
-    }
-    
-    return `Track de Wikiloc`;
-  } catch (error) {
-    console.error('Error al extraer nombre del track:', error);
-    return `Track de Wikiloc`;
-  }
-};
-
-/**
- * Función para determinar estado automático de una actividad
- */
-const determinarEstadoAutomatico = (actividad: Actividad): EstadoActividad => {
-  // Si ya está cancelada, mantener ese estado
-  if (actividad.estado === 'cancelada') {
-    return 'cancelada';
-  }
-
-  const hoy = new Date();
-  const fechaInicio = toDate(actividad.fechaInicio);
-  const fechaFin = toDate(actividad.fechaFin);
-  
-  if (!fechaInicio || !fechaFin) return 'planificada';
-  
-  const hoyNormalizado = normalizarFecha(hoy);
-  const inicioNormalizado = normalizarFecha(fechaInicio);
-  const finNormalizado = normalizarFecha(fechaFin);
-  
-  // Verificar que todas las fechas se hayan normalizado correctamente
-  if (!hoyNormalizado || !inicioNormalizado || !finNormalizado) return 'planificada';
-  
-  // Usar operador de coalescencia nula para manejar posibles valores nulos
-  if ((compareDates(hoyNormalizado, finNormalizado) ?? 0) > 0) {
-    // Hoy es después de la fecha de fin
-    return 'finalizada';
-  } else if ((compareDates(hoyNormalizado, inicioNormalizado) ?? 0) >= 0) {
-    // Hoy es igual o después de la fecha de inicio
-    return 'en_curso';
-  } else {
-    // Hoy es antes de la fecha de inicio
-    return 'planificada';
-  }
-};
+import { useActividadForm } from '../../hooks/useActividadForm';
+import { useActividadPageData } from '../../hooks/useActividadPageData';
+import { useActividadPageUI } from '../../hooks/useActividadPageUI';
+import { useActividadPageActions } from '../../hooks/useActividadPageActions';
+import { useActividadPagePermissions } from '../../hooks/useActividadPagePermissions';
+import { ActividadPageHeader } from '../../components/actividades/ActividadPageHeader';
+import { Actividad } from '../../types/actividad';
 
 /**
  * Página dedicada para mostrar todos los datos referentes a una actividad
+ * Refactorizada para usar hooks especializados y componentes UI puros
  */
 const ActividadPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
   const toast = useToast();
-  const [actividad, setActividad] = useState<Actividad | null>(null);
-  const [participantes, setParticipantes] = useState<Usuario[]>([]);
-  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editingMaterial, setEditingMaterial] = useState<boolean>(false);
-  const [editingInfo, setEditingInfo] = useState<boolean>(false);
-  const [editingParticipantes, setEditingParticipantes] = useState<boolean>(false);
-  const [editingEnlaces, setEditingEnlaces] = useState<boolean>(false);
-  const [addedToCalendar, setAddedToCalendar] = useState<boolean>(false);
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [formDataInfo, setFormDataInfo] = useState<Partial<Actividad> | null>(null);
-  const [selectedParticipantes, setSelectedParticipantes] = useState<string[] | null>(null);
-  const [materialesSeleccionados, setMaterialesSeleccionados] = useState<Array<{
-    materialId: string;
-    nombre: string;
-    cantidad: number;
-  }> | null>(null);
-  const [enlacesData, setEnlacesData] = useState<Partial<Actividad> | null>(null);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  const { userProfile } = useAuth();
 
-  // Extraer la función fuera del useEffect, después de las definiciones de estados
-  const cargarDatos = async () => {
-    if (!id) {
-      setError('Identificador de actividad no válido');
-      setLoading(false);
-      return;
-    }
+  // Hook principal para gestión del formulario
+  const {
+    formData,
+    loading,
+    error,
+    isSaving,
+    updateInfo,
+    updateParticipantes,
+    updateMaterial,
+    updateEnlaces,
+    saveActividad
+  } = useActividadForm({ actividadId: id, usuarioId: userProfile?.uid });
 
-    try {
-      setLoading(true);
-      // Cargar actividad
-      const actividadData = await obtenerActividad(id);
-      setActividad(actividadData);
-      
-      // Cargar participantes
-      if (actividadData.participanteIds?.length) {
-        const usuariosData = await listarUsuariosPorIds(actividadData.participanteIds);
-        setParticipantes(usuariosData);
-      }
-      
-      // Cargar préstamos relacionados
-      const prestamosData = await obtenerPrestamosPorActividad(id);
-      setPrestamos(prestamosData);
-      
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-      setError('No se pudo cargar la información completa de la actividad');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Cast seguro a Actividad para componentes
+  const actividad = formData as Actividad;
 
-  // El useEffect debe simplemente llamar a esta función
-  useEffect(() => {
-    cargarDatos();
-  }, [id]);
+  // Hook para datos adicionales (participantes, préstamos, calendario)
+  const {
+    participantes,
+    prestamos,
+    addedToCalendar,
+    setAddedToCalendar,
+    loadingData,
+    errorData
+  } = useActividadPageData({
+    actividad,
+    actividadId: id,
+    loading
+  });
 
-  // Verificar si ya se añadió al calendario (en useEffect)
-  useEffect(() => {
-    if (id) {
-      const addedActivities = localStorage.getItem('calendarActivities');
-      if (addedActivities) {
-        try {
-          const activitiesArray = JSON.parse(addedActivities);
-          setAddedToCalendar(activitiesArray.includes(id));
-        } catch (e) {
-          console.error('Error parsing calendar activities from localStorage', e);
-        }
-      }
-    }
-  }, [id]);
+  // Hook para estados de UI (pestañas, edición, diálogos)
+  const {
+    activeTabIndex,
+    handleTabChange,
+    editingInfo,
+    editingParticipantes,
+    editingMaterial,
+    editingEnlaces,
+    setEditingInfo,
+    setEditingParticipantes,
+    setEditingMaterial,
+    setEditingEnlaces,
+    isConfirmOpen,
+    setIsConfirmOpen,
+    exitAllEditingModes
+  } = useActividadPageUI();
 
-  // Función para determinar si el usuario actual es responsable
-  const esResponsable = () => {
-    if (!userProfile || !actividad) return false;
-    
-    return (
-      actividad.responsableActividadId === userProfile.uid || 
-      actividad.creadorId === userProfile.uid ||
-      actividad.responsableMaterialId === userProfile.uid
+  // Hook para permisos y cálculos
+  const {
+    esResponsable,
+    puedeEditar,
+    totalEnlaces
+  } = useActividadPagePermissions({
+    actividad,
+    currentUserId: userProfile?.uid
+  });
+
+  // Hook para acciones (calendario, finalizar, guardar, etc.)
+  const {
+    handleAddToCalendar,
+    handleFinalizarActividad,
+    handleSaveChanges,
+    handleCancelarActividad,
+    formatDate,
+    getEstadoColor
+  } = useActividadPageActions({
+    actividadId: id,
+    actividad,
+    addedToCalendar,
+    setAddedToCalendar,
+    saveActividad: async () => {
+      const result = await saveActividad();
+      return !!result;
+    },
+    updateInfo,
+    exitAllEditingModes
+  });
+
+  // Referencias para editores
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Funciones de renderizado para cada pestaña
+  function renderInfoTab() {
+    return editingInfo ? (
+      <InfoEditor
+        data={actividad}
+        onSave={(data) => {
+          updateInfo(data);
+          setEditingInfo(false);
+        }}
+        onCancel={() => setEditingInfo(false)}
+        mostrarBotones={false}
+      />
+    ) : (
+      <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+        <GridItem colSpan={1}>
+          <Card>
+            <CardBody>
+              <Flex justify="space-between" align="center" mb={4}>
+                <Heading size="md">Información básica</Heading>
+                {puedeEditar && (
+                  <IconButton
+                    aria-label="Editar información"
+                    icon={<FiEdit />}
+                    size="sm"
+                    onClick={() => setEditingInfo(true)}
+                  />
+                )}
+              </Flex>
+              <List spacing={3}>
+                <ListItem>
+                  <Text fontWeight="bold">Estado:</Text>
+                  <Badge 
+                    colorScheme={getEstadoColor(actividad.estado)}
+                    fontSize="0.9em"
+                    px={2}
+                    py={0.5}
+                    borderRadius="md"
+                  >
+                    {actividad.estado}
+                  </Badge>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Descripción:</Text>
+                  <Text whiteSpace="pre-wrap">{actividad.descripcion || "No hay descripción disponible."}</Text>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Tipos:</Text>
+                  <Flex wrap="wrap" gap={2}>
+                    {actividad.tipo?.map(tipo => (
+                      <Badge key={tipo} colorScheme="blue">
+                        {tipo}
+                      </Badge>
+                    ))}
+                  </Flex>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Subtipos:</Text>
+                  <Flex wrap="wrap" gap={2}>
+                    {actividad.subtipo?.map(subtipo => (
+                      <Badge key={subtipo} colorScheme="teal">
+                        {subtipo}
+                      </Badge>
+                    ))}
+                  </Flex>
+                </ListItem>
+              </List>
+            </CardBody>
+          </Card>
+        </GridItem>
+        
+        <GridItem colSpan={1}>
+          <Card>
+            <CardBody>
+              <Heading size="md" mb={4}>Información adicional</Heading>
+              <List spacing={3}>
+                <ListItem>
+                  <Text fontWeight="bold">Lugar:</Text>
+                  <Text>{actividad.lugar}</Text>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Fechas:</Text>
+                  <Text>{formatDate(actividad.fechaInicio)}</Text>
+                  <Text>hasta</Text>
+                  <Text>{formatDate(actividad.fechaFin)}</Text>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Creada:</Text>
+                  <Text>{formatDate(actividad.fechaCreacion)}</Text>
+                </ListItem>
+                
+                <ListItem>
+                  <Text fontWeight="bold">Última actualización:</Text>
+                  <Text>{formatDate(actividad.fechaActualizacion)}</Text>
+                </ListItem>
+              </List>
+            </CardBody>
+          </Card>
+        </GridItem>
+      </Grid>
     );
+  }
+
+  function renderParticipantesTab() {
+    return (
+      <Flex direction="column" gap={4}>
+        <Flex justify="space-between" align="center">
+          <Heading size="md">Participantes ({participantes.length})</Heading>
+        </Flex>
+
+        {editingParticipantes ? (
+          <ParticipantesEditor
+            data={actividad}
+            onSave={(participanteIds) => {
+              updateParticipantes(participanteIds);
+              setEditingParticipantes(false);
+            }}
+            onResponsablesChange={(responsableActividadId, responsableMaterialId) => {
+              updateParticipantes(
+                actividad.participanteIds || [],
+                { responsableId: responsableActividadId, responsableMaterialId } 
+              );
+            }}
+            onCancel={() => setEditingParticipantes(false)}
+          />
+        ) : (
+          <Card>
+            <CardBody>
+              <Flex justify="space-between" align="center" mb={4}>
+                <Heading size="md">Listado de participantes</Heading>
+                {puedeEditar && (
+                  <Button
+                    leftIcon={<FiEdit />}
+                    size="sm"
+                    onClick={() => setEditingParticipantes(true)}
+                  >
+                    Editar participantes
+                  </Button>
+                )}
+              </Flex>
+              
+              <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4}>
+                {participantes.map(participante => (
+                  <GridItem key={participante.uid}>
+                    <Card variant="outline">
+                      <CardBody>
+                        <Flex justify="space-between">
+                          <Box>
+                            <Heading size="sm">{participante.nombre} {participante.apellidos}</Heading>
+                            <Text fontSize="sm" color="gray.500">{participante.email}</Text>
+                          </Box>
+                        </Flex>
+                        
+                        <HStack direction="row" mt={2} spacing={2}>
+                          {participante.uid === actividad.creadorId && (
+                            <Badge colorScheme="purple">Creador</Badge>
+                          )}
+                          {participante.uid === actividad.responsableActividadId && (
+                            <Badge colorScheme="red">Responsable</Badge>
+                          )}
+                          {participante.uid === actividad.responsableMaterialId && (
+                            <Badge colorScheme="cyan">R. Material</Badge>
+                          )}
+                        </HStack>
+                      </CardBody>
+                    </Card>
+                  </GridItem>
+                ))}
+              </Grid>
+              
+              {participantes.length === 0 && (
+                <Text>No hay participantes registrados para esta actividad.</Text>
+              )}
+            </CardBody>
+          </Card>
+        )}
+      </Flex>
+    );
+
   };
 
   // Función para determinar color de estado
@@ -274,110 +384,210 @@ const getEstadoLabel = (estado: string): string => {
         dataToUpdate.enlacesWeb = [];
       }
 
-      // Si se actualizan enlaces, regenerar el array enlaces para compatibilidad
-      if ('enlacesWikiloc' in dataToUpdate || 
-          'enlacesTopografias' in dataToUpdate || 
-          'enlacesDrive' in dataToUpdate || 
-          'enlacesWeb' in dataToUpdate) {
-        
-        // Combinar los datos actuales con los nuevos para enlaces
-        const enlacesWikiloc = dataToUpdate.enlacesWikiloc || actividad?.enlacesWikiloc || [];
-        const enlacesTopografias = dataToUpdate.enlacesTopografias || actividad?.enlacesTopografias || [];
-        const enlacesDrive = dataToUpdate.enlacesDrive || actividad?.enlacesDrive || [];
-        const enlacesWeb = dataToUpdate.enlacesWeb || actividad?.enlacesWeb || [];
-        
-        dataToUpdate.enlaces = [
-          ...enlacesWikiloc.map(e => e.url),
-          ...enlacesTopografias,
-          ...enlacesDrive,
-          ...enlacesWeb
-        ];
-      }
-      
-      dataToUpdate.fechaActualizacion = Timestamp.fromDate(new Date());
-      
-      const actividadActualizada = await actualizarActividad(id, dataToUpdate);
-      setActividad(actividadActualizada);
-      
-      toast({
-        title: "¡Éxito!",
-        description: successMessage,
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      callback();
-    } catch (error) {
-      console.error("Error al actualizar actividad:", error);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
+  }
 
-  // Función para cancelar actividad
-  const handleCancelActividad = async () => {
-    try {
-      setIsCancelling(true);
-      if (actividad?.id) {
-        await cancelarActividad(actividad.id as string);
-      } else {
-        throw new Error("La actividad no está disponible para cancelar.");
-      }
-      
-      toast({
-        title: "Actividad cancelada",
-        description: "La actividad ha sido cancelada correctamente",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Recargar datos para reflejar el cambio de estado
-      await cargarDatos();
-      
-      // Cerrar el diálogo de confirmación
-      setIsConfirmOpen(false);
-    } catch (error) {
-      console.error("Error al cancelar actividad:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cancelar la actividad. Inténtalo de nuevo.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
-  // Calcular el total de enlaces
-  const totalEnlaces = (
-    (actividad?.enlacesWikiloc?.length || 0) + 
-    (actividad?.enlacesTopografias?.length || 0) + 
-    (actividad?.enlacesDrive?.length || 0) + 
-    (actividad?.enlacesWeb?.length || 0)
-  );
+  function renderMaterialTab() {
+    return (
+      <Card>
+        <CardBody>
+          <Flex justify="space-between" align="center" mb={4}>
+            <Heading size="md">Material necesario</Heading>
+            {puedeEditar && !editingMaterial && actividad.materiales && actividad.materiales.length > 0 && (
+              <Button 
+                colorScheme="brand" 
+                size="sm"
+                leftIcon={<FiPackage />}
+                onClick={() => navigate(`/activities/${id}/material`)}
+              >
+                Gestionar préstamo
+              </Button>
+            )}
+          </Flex>
 
-  // Añadir esta función en el componente ActividadPage
-  const handleTabChange = (newTabIndex: number) => {
-    // Primero activamos el modo edición para la pestaña de destino
-    switch(newTabIndex) {
-      case 0: setEditingInfo(true); break;
-      case 1: setEditingParticipantes(true); break;
-      case 2: setEditingMaterial(true); break;
-      case 3: setEditingEnlaces(true); break;
-    }
-    
-    // Luego actualizamos el índice de la pestaña
-    setActiveTabIndex(newTabIndex);
-  };
+          {editingMaterial ? (
+            <MaterialEditor 
+              data={actividad} 
+              onSave={(materiales) => {
+                updateMaterial(materiales);
+                setEditingMaterial(false);
+              }}
+              onCancel={() => setEditingMaterial(false)}
+              mostrarBotones={false}
+            />
+          ) : (
+            <>
+              <Flex justify="space-between" align="center" mb={4}>
+                <Text>Material necesario para esta actividad:</Text>
+                {puedeEditar && (
+                  <Button 
+                    size="sm" 
+                    leftIcon={<FiEdit />}
+                    onClick={() => setEditingMaterial(true)}
+                  >
+                    Editar material
+                  </Button>
+                )}
+              </Flex>
+
+              {actividad.materiales && actividad.materiales.length > 0 ? (
+                <List spacing={3}>
+                  {actividad.materiales.map((material, index) => (
+                    <ListItem key={index}>
+                      <Flex justify="space-between">
+                        <Text>{material.nombre}</Text>
+                        <Badge colorScheme="brand">Cantidad: {material.cantidad}</Badge>
+                      </Flex>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Text>No se ha especificado material para esta actividad.</Text>
+              )}
+            </>
+          )}
+        </CardBody>
+      </Card>
+    );
+  }
+
+  function renderEnlacesTab() {
+    return (
+      <Flex direction="column" gap={4}>
+        <Flex justify="space-between" align="center">
+          <Heading size="md">Enlaces ({totalEnlaces})</Heading>
+        </Flex>
+
+        {editingEnlaces ? (
+          <EnlacesEditor
+            data={actividad}
+            onSave={(enlaces) => {
+              updateEnlaces(enlaces);
+              setEditingEnlaces(false);
+            }}
+            onCancel={() => setEditingEnlaces(false)}
+          />
+        ) : (
+          <Card>
+            <CardBody>
+              <Flex justify="space-between" align="center" mb={4}>
+                <Text>Enlaces relacionados con esta actividad:</Text>
+                {puedeEditar && (
+                  <Button 
+                    size="sm" 
+                    leftIcon={<FiEdit />}
+                    onClick={() => setEditingEnlaces(true)}
+                  >
+                    Editar enlaces
+                  </Button>
+                )}
+              </Flex>
+
+              {/* Enlaces Wikiloc */}
+              <Heading size="sm" mb={2}>Enlaces Wikiloc</Heading>
+              {actividad.enlacesWikiloc?.length ? (
+                <List spacing={2} mb={4}>
+                  {actividad.enlacesWikiloc.map((enlace, index) => (
+                    <ListItem key={index}>
+                      <Button
+                        as="a"
+                        href={enlace.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftIcon={<FiGlobe />}
+                        variant="link"
+                        colorScheme="blue"
+                      >
+                        {enlace.url}
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Text fontSize="sm" color="gray.500" mb={4}>No hay enlaces de Wikiloc</Text>
+              )}
+
+              {/* Enlaces Topografías */}
+              <Heading size="sm" mb={2}>Enlaces Topografías</Heading>
+              {actividad.enlacesTopografias?.length ? (
+                <List spacing={2} mb={4}>
+                  {actividad.enlacesTopografias.map((enlace, index) => (
+                    <ListItem key={index}>
+                      <Button
+                        as="a"
+                        href={enlace}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftIcon={<FiGlobe />}
+                        variant="link"
+                        colorScheme="blue"
+                      >
+                        {enlace}
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Text fontSize="sm" color="gray.500" mb={4}>No hay enlaces de topografías</Text>
+              )}
+
+              {/* Enlaces Drive */}
+              <Heading size="sm" mb={2}>Enlaces Google Drive</Heading>
+              {actividad.enlacesDrive?.length ? (
+                <List spacing={2} mb={4}>
+                  {actividad.enlacesDrive.map((enlace, index) => (
+                    <ListItem key={index}>
+                      <Button
+                        as="a"
+                        href={enlace}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftIcon={<FiGlobe />}
+                        variant="link"
+                        colorScheme="blue"
+                      >
+                        {enlace}
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Text fontSize="sm" color="gray.500" mb={4}>No hay enlaces de Google Drive</Text>
+              )}
+
+              {/* Enlaces Web */}
+              <Heading size="sm" mb={2}>Enlaces Web</Heading>
+              {actividad.enlacesWeb?.length ? (
+                <List spacing={2}>
+                  {actividad.enlacesWeb.map((enlace, index) => (
+                    <ListItem key={index}>
+                      <Button
+                        as="a"
+                        href={enlace}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftIcon={<FiGlobe />}
+                        variant="link"
+                        colorScheme="blue"
+                      >
+                        {enlace}
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Text fontSize="sm" color="gray.500">No hay enlaces web</Text>
+              )}
+
+              {totalEnlaces === 0 && (
+                <Text>No hay enlaces registrados para esta actividad.</Text>
+              )}
+            </CardBody>
+          </Card>
+        )}
+      </Flex>
+    );
+  }
 
   return (
     <DashboardLayout title={actividad?.nombre || "Detalles de actividad"}>
@@ -393,6 +603,7 @@ const getEstadoLabel = (estado: string): string => {
       ) : actividad ? (
         <Box maxW="1200px" mx="auto">
           {/* Encabezado con información principal */}
+
           <Card mb={6} borderLeft="8px solid" borderColor={`${getEstadoColor(actividad.estado)}.500`}>
             <CardBody>
               <Flex direction={{ base: "column", md: "row" }} justify="space-between" wrap="wrap">
@@ -469,664 +680,98 @@ const getEstadoLabel = (estado: string): string => {
               </Flex>
             </CardBody>
           </Card>
+          <ActividadPageHeader
+            actividad={actividad}
+            formatDate={formatDate}
+            getEstadoColor={getEstadoColor}
+            esResponsable={esResponsable}
+            onCancelarActividad={() => setIsConfirmOpen(true)}
+          />
+
           
-          {/* Información detallada en pestañas */}
-          <Tabs 
-            variant="enclosed" 
-            colorScheme="brand"
-            index={activeTabIndex}
-            onChange={(index) => setActiveTabIndex(index)}
-            sx={{
-              '.chakra-tabs__tab[aria-selected=true]': {
-                bg: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500' para coincidir con el botón
-                color: 'white',
-                fontWeight: 'bold',
-                borderBottomColor: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
-                position: 'relative',
-                borderTopRadius: '10px',
-                _after: {
-                  content: '""',
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: 0,
-                  right: 0,
-                  height: '3px',
-                  bg: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
-                  borderRadius: '1px'
-                },
-                transform: 'translateY(-2px)',
-                boxShadow: 'sm'
-              },
-              '.chakra-tabs__tab:hover:not([aria-selected=true])': {
-                bg: 'rgba(147, 43, 113, 0.1)',  // Mantener el mismo efecto hover pero con color brand.500
-                color: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
-              },
-              '.chakra-tabs__tab-panel': {
-                borderTop: '2px solid',
-                borderColor: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
-                pt: 5
-              },
-              '.chakra-tabs__tab[aria-selected=true] .chakra-badge': {
-                bg: 'white',
-                color: 'brand.500',  // Cambiado de 'brand.600' a 'brand.500'
-                opacity: 1
-              }
-            }}
-          >
-            <TabList>
-              <Tab><FiFileText style={{marginRight: '8px'}} /> Información</Tab>
-              <Tab>
-                <Flex align="center">
-                  <FiUsers style={{marginRight: '8px'}} /> 
-                  Participantes
-                  <Badge 
-                    ml={2} 
-                    colorScheme="brand" 
-                    borderRadius="full" 
-                    fontSize="xs"
-                    opacity={1}  // Badge completamente opaco
-                    bg="brand.500"
-                    color="white"
-                  >
-                    {participantes.length}
-                  </Badge>
-                </Flex>
-              </Tab>
-              <Tab><FiPackage style={{marginRight: '8px'}} /> Material</Tab>
-              <Tab>
-                <Flex align="center">
-                  <FiLink style={{marginRight: '8px'}} /> 
-                  Enlaces
-                  {totalEnlaces > 0 && (
-                    <Badge 
-                      ml={2} 
-                      colorScheme="brand" 
-                      borderRadius="full" 
-                      fontSize="xs"
-                      opacity={1}  // Badge completamente opaco
-                      bg="brand.500"
-                      color="white"
-                    >
-                      {totalEnlaces}
-                    </Badge>
-                  )}
-                </Flex>
-              </Tab>
+          {/* Pestañas con información detallada */}
+          <Tabs index={activeTabIndex} onChange={handleTabChange} variant="soft-rounded" colorScheme="brand">
+            <TabList mb={4}>
+              <Tab>Información</Tab>
+              <Tab>Participantes ({participantes.length})</Tab>
+              <Tab>Material ({actividad.materiales?.length || 0})</Tab>
+              <Tab>Enlaces ({totalEnlaces})</Tab>
             </TabList>
-            
+
             <TabPanels>
-              {/* Pestaña de Información */}
               <TabPanel>
-                {editingInfo ? (
-                  <InfoEditor
-                    actividad={actividad}
-                    onSave={(data) => {
-                      setFormDataInfo(data);
-                      handleActualizacionActividad(
-                        actividad.id as string,
-                        data,
-                        "Información actualizada correctamente",
-                        "Error al actualizar la información",
-                        () => setEditingInfo(false)
-                      );
-                    }}
-                    onCancel={() => setEditingInfo(false)}
-                    mostrarBotones={false}
-                  />
-                ) : (
-                  <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6}>
-                    <GridItem>
-                      <Card height="100%">
-                        <CardBody>
-                          <Heading size="md" mb={3}>Información básica</Heading>
-                          <List spacing={3}>
-                            <ListItem>
-                              <Text fontWeight="bold">Tipo:</Text> 
-                              <HStack mt={1} wrap="wrap">
-                                {actividad.tipo?.map(tipo => (
-                                  <Badge key={tipo} colorScheme="blue">{tipo}</Badge>
-                                ))}
-                              </HStack>
-                            </ListItem>
-                            <ListItem>
-                              <Text fontWeight="bold">Subtipo:</Text>
-                              <HStack mt={1} wrap="wrap">
-                                {actividad.subtipo?.map(subtipo => (
-                                  <Badge key={subtipo} colorScheme="purple">{subtipo}</Badge>
-                                ))}
-                              </HStack>
-                            </ListItem>
-                            <ListItem>
-                              <Text fontWeight="bold">Estado:</Text> 
-                              <Badge colorScheme={getEstadoColor(actividad.estado)}>
-                                {actividad.estado}
-                              </Badge>
-                            </ListItem>
-                            {actividad.dificultad && (
-                              <ListItem>
-                                <Text fontWeight="bold">Dificultad:</Text>
-                                <Badge colorScheme={
-                                  actividad.dificultad === 'baja' ? 'green' : 
-                                  actividad.dificultad === 'media' ? 'blue' : 'orange'
-                                }>
-                                  {actividad.dificultad}
-                                </Badge>
-                              </ListItem>
-                            )}
-                          </List>
-                        </CardBody>
-                      </Card>
-                    </GridItem>
-                    
-                    {/* Fechas */}
-                    <GridItem>
-                      <Card height="100%">
-                        <CardBody>
-                          <Heading size="md" mb={3}>Fechas</Heading>
-                          <List spacing={3}>
-                            <ListItem>
-                              <Text fontWeight="bold">Inicio:</Text>
-                              <Text>{formatDate(actividad.fechaInicio)}</Text>
-                            </ListItem>
-                            <ListItem>
-                              <Text fontWeight="bold">Fin:</Text>
-                              <Text>{formatDate(actividad.fechaFin)}</Text>
-                            </ListItem>
-                            <ListItem>
-                              <Text fontWeight="bold">Creación:</Text>
-                              <Text>{formatDate(actividad.fechaCreacion)}</Text>
-                            </ListItem>
-                            <ListItem>
-                              <Text fontWeight="bold">Última actualización:</Text>
-                              <Text>{formatDate(actividad.fechaActualizacion)}</Text>
-                            </ListItem>
-                          </List>
-                        </CardBody>
-                      </Card>
-                    </GridItem>
-                  </Grid>
-                )}
+                {renderInfoTab()}
               </TabPanel>
               
-              {/* Pestaña de Participantes */}
               <TabPanel>
-                <Flex justify="space-between" align="center" mb={4}>
-                  <Heading size="md">Participantes ({participantes.length})</Heading>
-                </Flex>
-
-                {editingParticipantes ? (
-                  <ParticipantesEditor
-                    actividad={actividad}
-                    onSave={(participanteIds) => {
-                      handleActualizacionActividad(
-                        actividad.id as string,
-                        { participanteIds },
-                        "Participantes actualizados",
-                        "Error al actualizar participantes",
-                        () => setEditingParticipantes(false)
-                      );
-                    }}
-                    onCancel={() => setEditingParticipantes(false)}
-                    mostrarBotones={false}
-                  />
-                ) : (
-                  <Card>
-                    <CardBody>
-                      <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }} gap={4}>
-                        {participantes.map(participante => (
-                          <GridItem key={participante.uid}>
-                            <Card borderWidth="1px" borderRadius="md" overflow="hidden">
-                              <CardBody>
-                                <Flex justify="space-between" align="center">
-                                  <Text fontWeight="bold">{participante.nombre} {participante.apellidos}</Text>
-                                  <Stack direction="row" spacing={1}>
-                                    {participante.uid === actividad.creadorId && (
-                                      <Badge colorScheme="purple">Creador</Badge>
-                                    )}
-                                    {participante.uid === actividad.responsableActividadId && (
-                                      <Badge colorScheme="blue">Responsable</Badge>
-                                    )}
-                                    {participante.uid === actividad.responsableMaterialId && (
-                                      <Badge colorScheme="cyan">R. Material</Badge>
-                                    )}
-                                  </Stack>
-                                </Flex>
-                              </CardBody>
-                            </Card>
-                          </GridItem>
-                        ))}
-                      </Grid>
-                      
-                      {participantes.length === 0 && (
-                        <Text>No hay participantes registrados para esta actividad.</Text>
-                      )}
-                    </CardBody>
-                  </Card>
-                )}
+                {renderParticipantesTab()}
               </TabPanel>
               
-              {/* Pestaña de Material */}
               <TabPanel>
-                <Card>
-                  <CardBody>
-                    <Flex justify="space-between" align="center" mb={4}>
-                      <Heading size="md">Material necesario</Heading>
-                      {esResponsable() && actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && 
-                       !editingMaterial && actividad.materiales && actividad.materiales.length > 0 && (
-                        <Button 
-                          colorScheme="brand" 
-                          size="sm"
-                          leftIcon={<FiPackage />}
-                          onClick={() => navigate(`/activities/${actividad.id}/material`)}
-                        >
-                          Gestionar préstamo
-                        </Button>
-                      )}
-                    </Flex>
-
-                    {editingMaterial ? (
-                      <MaterialEditor 
-                        actividad={actividad} 
-                        onSave={(materiales) => {
-                          handleActualizacionActividad(
-                            actividad.id as string,
-                            { 
-                              materiales,
-                              necesidadMaterial: materiales.length > 0
-                            },
-                            "Material actualizado",
-                            "Error al actualizar el material",
-                            () => setEditingMaterial(false)
-                          );
-                        }}
-                        onCancel={() => setEditingMaterial(false)}
-                        mostrarBotones={false}
-                      />
-                    ) : (
-                      <>
-                        {actividad.materiales && actividad.materiales.length > 0 ? (
-                          <List spacing={3}>
-                            {actividad.materiales.map((material, index) => (
-                              <ListItem key={index}>
-                                <Flex justify="space-between">
-                                  <Text>{material.nombre}</Text>
-                                  <Badge colorScheme="brand">Cantidad: {material.cantidad}</Badge>
-                                </Flex>
-                              </ListItem>
-                            ))}
-                          </List>
-                        ) : (
-                          <Text>No se ha especificado material para esta actividad.</Text>
-                        )}
-                      </>
-                    )}
-                  </CardBody>
-                </Card>
+                {renderMaterialTab()}
               </TabPanel>
               
-              {/* Pestaña de Enlaces */}
               <TabPanel>
-                <Flex justify="space-between" align="center" mb={4}>
-                  <Heading size="md">Enlaces ({totalEnlaces})</Heading>
-                </Flex>
-
-                {editingEnlaces ? (
-                  <EnlacesEditor
-                    actividad={actividad}
-                    onSave={(enlaces) => {
-                      handleActualizacionActividad(
-                        actividad.id as string,
-                        enlaces,
-                        "Enlaces actualizados",
-                        "Error al actualizar enlaces",
-                        () => setEditingEnlaces(false)
-                      );
-                    }}
-                    onCancel={() => setEditingEnlaces(false)}
-                    mostrarBotones={false}
-                  />
-                ) : (
-                  <Tabs variant="soft-rounded" colorScheme="blue" size="sm">
-                    <TabList mb={4}>
-                      {actividad.enlacesWikiloc?.length > 0 && (
-                        <Tab>
-                          Wikiloc
-                          {actividad.enlacesWikiloc.length > 0 && (
-                            <Badge ml={2} colorScheme="brand" variant="solid">
-                              {actividad.enlacesWikiloc.length}
-                            </Badge>
-                          )}
-                        </Tab>
-                      )}
-
-                      {actividad.enlacesTopografias?.length > 0 && (
-                        <Tab>
-                          Topografías
-                          <Badge ml={2} colorScheme="brand" variant="solid">
-                            {actividad.enlacesTopografias.length}
-                          </Badge>
-                        </Tab>
-                      )}
-
-                      {actividad.enlacesDrive?.length > 0 && (
-                        <Tab>
-                          Google Drive
-                          <Badge ml={2} colorScheme="brand" variant="solid">
-                            {actividad.enlacesDrive.length}
-                          </Badge>
-                        </Tab>
-                      )}
-
-                      {actividad.enlacesWeb?.length > 0 && (
-                        <Tab>
-                          Web
-                          <Badge ml={2} colorScheme="brand" variant="solid">
-                            {actividad.enlacesWeb.length}
-                          </Badge>
-                        </Tab>
-                      )}
-                    </TabList>
-
-                    <TabPanels>
-                      {/* Subpestaña de Wikiloc */}
-                      {actividad.enlacesWikiloc?.length > 0 && (
-                        <TabPanel px={0}>
-                          <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6}>
-                            {/* Enlaces embebidos de Wikiloc */}
-                            {actividad.enlacesWikiloc.some(e => e.esEmbed) && (
-                              <GridItem colSpan={{ base: 1, md: 2 }}>
-                                <Card>
-                                  <CardBody>
-                                    <Heading size="md" mb={3}>Mapas embebidos</Heading>
-                                    <List spacing={6}>
-                                      {actividad.enlacesWikiloc
-                                        .filter(enlace => enlace.esEmbed)
-                                        .map((enlace, index) => (
-                                          <ListItem key={`embed-${index}`}>
-                                            <Box 
-                                              dangerouslySetInnerHTML={{ __html: enlace.url }} 
-                                              borderWidth="1px" 
-                                              borderRadius="md" 
-                                              p={2} 
-                                              bg="gray.50"
-                                              w="100%"
-                                              h="500px"
-                                              overflow="hidden"
-                                              sx={{
-                                                "& iframe": {
-                                                  width: "100% !important",
-                                                  maxWidth: "100% !important",
-                                                  height: "100% !important",
-                                                  border: "none !important"
-                                                },
-                                                "& div": {
-                                                  width: "100% !important",
-                                                  maxWidth: "100% !important"
-                                                }
-                                              }}
-                                            />
-                                          </ListItem>
-                                        ))}
-                                    </List>
-                                  </CardBody>
-                                </Card>
-                              </GridItem>
-                            )}
-
-                            {/* Enlaces normales de Wikiloc */}
-                            {actividad.enlacesWikiloc.some(e => !e.esEmbed) && (
-                              <GridItem colSpan={actividad.enlacesWikiloc.some(e => e.esEmbed) ? 1 : 2}>
-                                <Card height="100%">
-                                  <CardBody>
-                                    <Heading size="md" mb={3}>Enlaces a Wikiloc</Heading>
-                                    <List spacing={2}>
-                                      {actividad.enlacesWikiloc
-                                        .filter(enlace => !enlace.esEmbed)
-                                        .map((enlace, index) => (
-                                          <ListItem key={`link-${index}`}>
-                                            <Flex align="center">
-                                              <LinkIcon mr={2} />
-                                              <Link href={enlace.url} isExternal color="blue.500">
-                                                {extractWikilocTrackName(enlace.url) || `Track de Wikiloc ${index + 1}`}
-                                                <ExternalLinkIcon mx="2px" />
-                                              </Link>
-                                            </Flex>
-                                          </ListItem>
-                                        ))}
-                                    </List>
-                                  </CardBody>
-                                </Card>
-                              </GridItem>
-                            )}
-                          </Grid>
-                        </TabPanel>
-                      )}
-
-                      {/* Subpestaña de Topografías */}
-                      {actividad.enlacesTopografias?.length > 0 && (
-                        <TabPanel px={0}>
-                          <Card>
-                            <CardBody>
-                              <Heading size="md" mb={3}>Topografías</Heading>
-                              <List spacing={2}>
-                                {actividad.enlacesTopografias.map((enlace, index) => (
-                                  <ListItem key={index}>
-                                    <Flex align="center">
-                                      <FiMapPin style={{marginRight: '8px'}} />
-                                      <Link href={enlace} isExternal color="blue.500">
-                                        Topografía {index + 1}
-                                        <ExternalLinkIcon mx="2px" />
-                                      </Link>
-                                    </Flex>
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </CardBody>
-                          </Card>
-                        </TabPanel>
-                      )}
-
-                      {/* Subpestaña de Google Drive */}
-                      {actividad.enlacesDrive?.length > 0 && (
-                        <TabPanel px={0}>
-                          <Card>
-                            <CardBody>
-                              <Heading size="md" mb={3}>Documentos en Drive</Heading>
-                              <List spacing={2}>
-                                {actividad.enlacesDrive.map((enlace, index) => (
-                                  <ListItem key={index}>
-                                    <Flex align="center">
-                                      <FiFileText style={{marginRight: '8px'}} />
-                                      <Link href={enlace} isExternal color="blue.500">
-                                        Documento en Drive {index + 1}
-                                        <ExternalLinkIcon mx="2px" />
-                                      </Link>
-                                    </Flex>
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </CardBody>
-                          </Card>
-                        </TabPanel>
-                      )}
-
-                      {/* Subpestaña de Enlaces Web */}
-                      {actividad.enlacesWeb?.length > 0 && (
-                        <TabPanel px={0}>
-                          <Card>
-                            <CardBody>
-                              <Heading size="md" mb={3}>Enlaces Web</Heading>
-                              <List spacing={2}>
-                                {actividad.enlacesWeb.map((enlace, index) => (
-                                  <ListItem key={index}>
-                                    <Flex align="center">
-                                      <LinkIcon mr={2} />
-                                      <Link href={enlace} isExternal color="blue.500">
-                                        Enlace web {index + 1}
-                                        <ExternalLinkIcon mx="2px" />
-                                      </Link>
-                                    </Flex>
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </CardBody>
-                          </Card>
-                        </TabPanel>
-                      )}
-                    </TabPanels>
-                  </Tabs>
-                )}
-                
-                {/* Mensaje si no hay enlaces */}
-                {(!actividad.enlacesWikiloc?.length && 
-                  !actividad.enlacesTopografias?.length && 
-                  !actividad.enlacesDrive?.length && 
-                  !actividad.enlacesWeb?.length) && (
-                    <Alert status="info">
-                      <AlertIcon />
-                      No hay enlaces registrados para esta actividad.
-                    </Alert>
-                )}
+                {renderEnlacesTab()}
               </TabPanel>
             </TabPanels>
           </Tabs>
           
           {/* Botones de acción */}
           <Box pt={4} pb={2} borderTop="1px" borderColor="gray.200" width="100%" mt={4}>
-            <Flex justify="space-between" maxW="1200px" mx="auto">
-              {/* Botón izquierdo: Volver o Cancelar */}
-              <Button 
+            <Flex justify="space-between" align="center">
+              <Button
                 leftIcon={<FiArrowLeft />}
                 onClick={() => {
                   if (editingInfo || editingParticipantes || editingMaterial || editingEnlaces) {
-                    // Si estamos editando, cancelar la edición
                     setEditingInfo(false);
                     setEditingParticipantes(false);
                     setEditingMaterial(false);
                     setEditingEnlaces(false);
                   } else {
-                    // Si no estamos editando, comportamiento normal de volver
-                    if (window.history.length > 1) {
-                      window.history.back();
-                    } else {
-                      navigate('/activities');
-                    }
+                    navigate('/activities');
                   }
                 }}
-                variant="outline"
               >
                 {editingInfo || editingParticipantes || editingMaterial || editingEnlaces ? 'Cancelar' : 'Volver'}
               </Button>
-              
-              {/* Grupo de botones derechos */}
-              <HStack spacing={3}>
-                {/* Cuando se está editando, mostrar navegación de pestañas si es relevante */}
-                {(editingInfo || editingParticipantes || editingMaterial || editingEnlaces) && (
+
+              <HStack spacing={2}>
+                {actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && (
                   <>
-                    <Button 
-                      leftIcon={<FiChevronLeft />}
-                      isDisabled={activeTabIndex === 0}
-                      onClick={() => handleTabChange(activeTabIndex - 1)}
-                      variant="ghost"
-                    >
-                      Anterior
-                    </Button>
-                    <Button 
-                      rightIcon={<FiChevronRight />}
-                      isDisabled={activeTabIndex >= 3}
-                      onClick={() => handleTabChange(activeTabIndex + 1)}
-                      variant="ghost"
-                    >
-                      Siguiente
-                    </Button>
-                    {/* Botón de Guardar */}
-                    <Button 
-                      colorScheme="brand"
-                      leftIcon={<FiSave />}
-                      onClick={() => {
-                        // Llamar a la función de guardado apropiada según la pestaña activa
-                        switch(activeTabIndex) {
-                          case 0: 
-                            // Guardar información
-                            if (formDataInfo) {
-                              handleActualizacionActividad(
-                                actividad.id as string,
-                                formDataInfo,
-                                "Información actualizada correctamente",
-                                "Error al actualizar la información",
-                                () => setEditingInfo(false)
-                              );
-                            }
-                            break;
-                          case 1:
-                            // Guardar participantes
-                            if (selectedParticipantes) {
-                              handleActualizacionActividad(
-                                actividad.id as string,
-                                { participanteIds: selectedParticipantes },
-                                "Participantes actualizados correctamente",
-                                "Error al actualizar los participantes",
-                                () => setEditingParticipantes(false)
-                              );
-                            }
-                            break;
-                          case 2:
-                            // Guardar material
-                            if (materialesSeleccionados) {
-                              handleActualizacionActividad(
-                                actividad.id as string,
-                                { 
-                                  materiales: materialesSeleccionados,
-                                  necesidadMaterial: materialesSeleccionados.length > 0 
-                                },
-                                "Material actualizado correctamente",
-                                "Error al actualizar el material",
-                                () => setEditingMaterial(false)
-                              );
-                            }
-                            break;
-                          case 3:
-                            // Guardar enlaces
-                            if (enlacesData) {
-                              handleActualizacionActividad(
-                                actividad.id as string,
-                                enlacesData,
-                                "Enlaces actualizados correctamente",
-                                "Error al actualizar los enlaces",
-                                () => setEditingEnlaces(false)
-                              );
-                            }
-                            break;
-                        }
-                      }}
-                    >
-                      Guardar cambios
-                    </Button>
+                    {!addedToCalendar && (
+                      <Button
+                        onClick={handleAddToCalendar}
+                        colorScheme="blue"
+                      >
+                        Añadir al calendario
+                      </Button>
+                    )}
+                    
+                    {esResponsable && actividad.estado === 'en_curso' && (
+                      <Button
+                        onClick={handleFinalizarActividad}
+                        colorScheme="green"
+                      >
+                        Finalizar actividad
+                      </Button>
+                    )}
                   </>
                 )}
                 
-                {/* Botón de edición contextual cuando NO se está editando */}
-                {esResponsable() && actividad?.estado !== 'cancelada' && actividad?.estado !== 'finalizada' && 
-                 !editingInfo && !editingParticipantes && !editingMaterial && !editingEnlaces && 
-                 activeTabIndex <= 3 && activeTabIndex !== 4 && (
-                  <Button 
-                    leftIcon={<FiEdit />}
+                {/* Botón de guardar cambios cuando estamos editando */}
+                {(editingInfo || editingParticipantes || editingMaterial || editingEnlaces) && (
+                  <Button
+                    leftIcon={<FiSave />}
                     colorScheme="brand"
-                    onClick={() => {
-                      // Activar el modo edición según la pestaña activa
-                      switch(activeTabIndex) {
-                        case 0: setEditingInfo(true); break;
-                        case 1: setEditingParticipantes(true); break;
-                        case 2: setEditingMaterial(true); break;
-                        case 3: setEditingEnlaces(true); break;
-                      }
-                    }}
+                    onClick={handleSaveChanges}
+                    isLoading={isSaving}
                   >
-                    {`Editar ${
-                      activeTabIndex === 0 ? 'información' : 
-                      activeTabIndex === 1 ? 'participantes' : 
-                      activeTabIndex === 2 ? 'material' : 'enlaces'
-                    }`}
+                    Guardar {
+                      editingInfo ? 'información' : 
+                      editingParticipantes ? 'participantes' : 
+                      editingMaterial ? 'material' : 'enlaces'
+                    }
                   </Button>
                 )}
               </HStack>
@@ -1159,13 +804,23 @@ const getEstadoLabel = (estado: string): string => {
 
             <AlertDialogFooter>
               <Button ref={cancelRef} onClick={() => setIsConfirmOpen(false)}>
-                No, mantener
+                No, volver
               </Button>
               <Button 
                 colorScheme="red" 
-                onClick={handleCancelActividad} 
+                onClick={() => {
+                  if (id) {
+                    updateInfo({ estado: 'cancelada' });
+                    setIsConfirmOpen(false);
+                    toast({
+                      title: "Actividad cancelada",
+                      description: "La actividad ha sido cancelada correctamente",
+                      status: "warning",
+                      duration: 3000
+                    });
+                  }
+                }} 
                 ml={3}
-                isLoading={isCancelling}
               >
                 Sí, cancelar actividad
               </Button>

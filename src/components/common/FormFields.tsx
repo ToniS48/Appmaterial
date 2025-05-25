@@ -6,6 +6,7 @@ import {
   FormErrorMessage,
   InputGroup,
   InputRightElement,
+  InputLeftElement,
   Spinner
 } from '@chakra-ui/react';
 
@@ -36,12 +37,14 @@ export const FormField: React.FC<FormFieldProps> = ({
   isLoading = false,
   autoComplete,
   onChange,
-  rightElement
+  rightElement,
+  ...rest
 }) => {
   return (
-    <FormControl isInvalid={!!error} mb={3} isRequired={isRequired}>
-      <FormLabel htmlFor={id}>{label}</FormLabel>
+    <FormControl id={id} isInvalid={!!error} isRequired={isRequired} {...rest}>
+      {label && <FormLabel htmlFor={id}>{label}</FormLabel>}
       <InputGroup>
+        {isLoading && <InputLeftElement><Spinner size="sm" /></InputLeftElement>}
         <Input
           id={id}
           name={name}
@@ -49,13 +52,8 @@ export const FormField: React.FC<FormFieldProps> = ({
           value={value}
           onChange={onChange}
           autoComplete={autoComplete}
-          isDisabled={isDisabled}
+          isDisabled={isDisabled || isLoading}
         />
-        {isLoading && (
-          <InputRightElement>
-            <Spinner size="sm" color="brand.500" />
-          </InputRightElement>
-        )}
         {!isLoading && rightElement && <InputRightElement>{rightElement}</InputRightElement>}
       </InputGroup>
       {error && <FormErrorMessage>{error}</FormErrorMessage>}

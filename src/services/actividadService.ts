@@ -2,25 +2,48 @@ import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orde
 import { db } from '../config/firebase';
 import { Actividad, Comentario } from '../types/actividad';
 import { handleFirebaseError } from '../utils/errorHandling';
-import { Usuario } from '../types/usuario';
+// Eliminar la importación no utilizada o añadir el tipo
+import type { Usuario } from '../types/usuario';
 import { actividadCache } from './actividadCache';
-import { crearPrestamo, actualizarPrestamo, registrarDevolucion, obtenerPrestamosPorActividad } from './prestamoService';
-import { enviarNotificacionMasiva } from './notificacionService'; // Importamos el servicio de notificaciones
-import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService'; // Importamos el servicio de usuarios
-import { obtenerMaterial } from './materialService'; // Importamos el servicio de materiales
+// Eliminar registrarDevolucion de la importación
+import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from './prestamoService';
+import { enviarNotificacionMasiva } from './notificacionService';
+import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService';
+import { obtenerMaterial } from './materialService';
 import messages from '../constants/messages';
+import { determinarEstadoActividad } from '../utils/dateUtils';
+import { getUniqueParticipanteIds } from '../utils/actividadUtils';
+import { executeTransaction } from '../utils/transactionUtils';
+import { validateWithZod } from '../validation/validationMiddleware';
+import { actividadCompleteSchema } from '../schemas/actividadSchema';
+// Importar el logger
+import { logger } from '../utils/loggerUtils';
+import { z } from 'zod'; // También necesitamos importar z para el casting
 
 // Crear una nueva actividad
 export const crearActividad = async (actividadData: Omit<Actividad, 'id' | 'fechaCreacion' | 'fechaActualizacion'>): Promise<Actividad> => {
   try {
+    // Usar la función centralizada para obtener participantes únicos
+    const participanteIds = getUniqueParticipanteIds(
+      actividadData.participanteIds,
+      actividadData.creadorId,
+      actividadData.responsableActividadId,
+      actividadData.responsableMaterialId
+    );
+
+    // Validar que necesidadMaterial tenga un valor definido
+    const necesidadMaterial = actividadData.necesidadMaterial ?? false;
+
     const actividadesRef = collection(db, 'actividades');
     const now = Timestamp.now();
-    
-    // Si no hay responsable de actividad asignado, usar el creador como responsable
+
+    // Añadir campo normalizado para búsquedas insensibles a mayúsculas/minúsculas
     const dataToSave = {
       ...actividadData,
-      // Asignar el creador como responsable si no se especificó un responsable
+      participanteIds, // Ahora garantizado único
+      nombreNormalizado: actividadData.nombre.trim().toLowerCase(),
       responsableActividadId: actividadData.responsableActividadId || actividadData.creadorId,
+      necesidadMaterial,
       fechaCreacion: now,
       fechaActualizacion: now,
       comentarios: [],
@@ -28,23 +51,20 @@ export const crearActividad = async (actividadData: Omit<Actividad, 'id' | 'fech
       imagenesTopografia: [],
       archivosAdjuntos: []
     };
-    
+
     const docRef = await addDoc(actividadesRef, dataToSave);
-    
+
     const nuevaActividad: Actividad = {
       id: docRef.id,
       ...dataToSave
     };
-    
+
     // La función ya tiene validaciones internas, solo necesitamos llamarla una vez
     await crearPrestamosParaActividad(nuevaActividad);
-    
-    // Enviar notificaciones a administradores y vocales
-    await enviarNotificacionesNuevaActividad(nuevaActividad);
-    
+
     return nuevaActividad;
   } catch (error) {
-    handleFirebaseError(error, messages.actividades.service.errors.crear);
+    console.error('Error al crear la actividad:', error);
     throw error;
   }
 };
@@ -63,21 +83,11 @@ export const actualizarActividad = async (id: string, actividadData: Partial<Act
     await updateDoc(actividadRef, updateData);
     
     // Recuperar el documento actualizado
-    const actividadSnapshot = await getDoc(actividadRef);
-    
-    if (!actividadSnapshot.exists()) {
-      throw new Error(messages.actividades.service.exceptions.noExiste);
-    }
-    
-    const actividadActualizada = {
-      id: actividadSnapshot.id,
-      ...actividadSnapshot.data()
+    const updatedDoc = await getDoc(actividadRef);
+    return {
+      id: updatedDoc.id,
+      ...updatedDoc.data()
     } as Actividad;
-    
-    // Actualizar préstamos automáticamente
-    await crearPrestamosParaActividad(actividadActualizada);
-    
-    return actividadActualizada;
   } catch (error) {
     handleFirebaseError(error, messages.actividades.service.errors.actualizar);
     throw error;
@@ -116,14 +126,16 @@ export const obtenerActividad = async (id: string): Promise<Actividad> => {
 };
 
 // Listar actividades con caché
-export const listarActividades = async (filters?: any): Promise<Actividad[]> => {
+export const listarActividades = async (filters?: any, ignoreCache: boolean = false): Promise<Actividad[]> => {
   // Crear una clave para el caché basada en los filtros
   const cacheKey = filters ? JSON.stringify(filters) : 'all';
   
-  // Intentar obtener del caché primero
-  const cachedActividades = actividadCache.getActividadesList(cacheKey);
-  if (cachedActividades) {
-    return cachedActividades;
+  // Intentar obtener del caché primero, a menos que se indique ignorarlo
+  if (!ignoreCache) {
+    const cachedActividades = actividadCache.getActividadesList(cacheKey);
+    if (cachedActividades) {
+      return cachedActividades;
+    }
   }
   
   try {
@@ -219,7 +231,21 @@ export const añadirComentario = async (
 };
 
 // Obtener actividades próximas
-export const obtenerActividadesProximas = async (limit = 5): Promise<Actividad[]> => {
+export const obtenerActividadesProximas = async (
+  limit = 5, 
+  options?: { ignoreCache?: boolean }
+): Promise<Actividad[]> => {
+  const ignoreCache = options?.ignoreCache ?? false;
+  
+  // Usar caché a menos que explícitamente se pida ignorarlo
+  if (!ignoreCache) {
+    const cacheKey = `proximas_${limit}`;
+    const cachedActividades = actividadCache.getActividadesList(cacheKey);
+    if (cachedActividades) {
+      return cachedActividades;
+    }
+  }
+  
   try {
     const now = Timestamp.now();
     
@@ -235,6 +261,10 @@ export const obtenerActividadesProximas = async (limit = 5): Promise<Actividad[]
       id: doc.id,
       ...doc.data()
     } as Actividad)).slice(0, limit);
+    
+    // Guardar en caché
+    const cacheKey = `proximas_${limit}`;
+    actividadCache.setActividadesList(cacheKey, actividades);
     
     return actividades;
   } catch (error) {
@@ -367,20 +397,21 @@ export const unirseActividad = async (actividadId: string, usuarioId: string): P
   }
 }
 
-// Función auxiliar para crear o actualizar préstamos asociados a una actividad
-async function crearPrestamosParaActividad(actividad: Actividad): Promise<void> {
+// Cambiar de función auxiliar interna a función exportada
+export async function crearPrestamosParaActividad(actividad: Actividad): Promise<void> {
   if (!actividad.id) {
     console.warn('No se pueden crear préstamos para una actividad sin ID');
     return;
   }
   
   try {
-    // Solo procedemos si hay un responsable de material y materiales asignados
-    if (!actividad.responsableMaterialId || !actividad.materiales || actividad.materiales.length === 0) {
+    // Verificar primero si la actividad requiere material
+    if (!actividad.necesidadMaterial) {
+      console.log(`La actividad ${actividad.id} no requiere material, cancelando préstamos existentes`);
       // Verificar si había préstamos previos que necesitan cancelarse
       const prestamosExistentes = await obtenerPrestamosPorActividad(actividad.id);
       
-      // Si hay préstamos existentes pero ya no hay materiales, cancelarlos
+      // Si hay préstamos existentes pero la actividad no requiere material, cancelarlos
       if (prestamosExistentes.length > 0) {
         for (const prestamo of prestamosExistentes) {
           await actualizarPrestamo(prestamo.id as string, {
@@ -389,6 +420,12 @@ async function crearPrestamosParaActividad(actividad: Actividad): Promise<void> 
           });
         }
       }
+      return;
+    }
+    
+    // Solo procedemos si hay un responsable de material y materiales asignados
+    if (!actividad.responsableMaterialId || !actividad.materiales || actividad.materiales.length === 0) {
+      console.warn(`La actividad ${actividad.id} requiere material pero no tiene responsable o materiales asignados`);
       return;
     }
     
@@ -591,5 +628,115 @@ export const finalizarActividad = async (id: string): Promise<Actividad> => {
   } catch (error) {
     handleFirebaseError(error, messages.actividades.service.errors.finalizar);
     throw error;
+  }
+};
+
+// Modificar la función guardarActividad para usar transacciones
+export const guardarActividad = validateWithZod(
+  actividadCompleteSchema as unknown as z.ZodType<Actividad>,
+  async (actividadData: Actividad): Promise<Actividad> => {
+    try {
+      return await executeTransaction(async (transaction) => {
+        // Convertir fechas a Timestamp para Firebase
+        const fechaInicio = actividadData.fechaInicio instanceof Date 
+          ? Timestamp.fromDate(actividadData.fechaInicio)
+          : actividadData.fechaInicio;
+          
+        const fechaFin = actividadData.fechaFin instanceof Date
+          ? Timestamp.fromDate(actividadData.fechaFin)
+          : actividadData.fechaFin;
+        
+        const now = Timestamp.now();
+        
+        // Usar getUniqueParticipanteIds para garantizar participantes únicos
+        const participanteIds = getUniqueParticipanteIds(
+          actividadData.participanteIds,
+          actividadData.creadorId,
+          actividadData.responsableActividadId,
+          actividadData.responsableMaterialId
+        );
+        
+        // Determinar estado automáticamente basado en fechas
+        const estado = determinarEstadoActividad(fechaInicio, fechaFin, actividadData.estado);
+        
+        // Crear objeto base para guardar
+        let dataToSave: any = {
+          ...actividadData,
+          participanteIds,
+          fechaInicio,
+          fechaFin,
+          estado,
+          fechaActualizacion: now,
+          necesidadMaterial: actividadData.necesidadMaterial ?? false
+        };
+        
+        let nuevaActividadConId: Actividad;
+        
+        if (actividadData.id) {
+          // Actualizar actividad existente
+          const actividadRef = doc(db, 'actividades', actividadData.id);
+          transaction.update(actividadRef, dataToSave);
+          nuevaActividadConId = { id: actividadData.id, ...dataToSave };
+        } else {
+          // Crear nueva actividad
+          dataToSave.fechaCreacion = now;
+          const actividadesRef = collection(db, 'actividades');
+          const newDocRef = doc(actividadesRef);
+          transaction.set(newDocRef, dataToSave);
+          nuevaActividadConId = { id: newDocRef.id, ...dataToSave };
+        }
+        
+        // Los préstamos se gestionarán después de la transacción
+        return nuevaActividadConId;
+      });
+    } catch (error) {
+      logger.error("Error al guardar actividad con transacción:", error);
+      throw error;
+    }
+  }
+);
+
+// Mejorar la función de invalidación de caché
+export const invalidateActividadesCache = async (): Promise<void> => {
+  try {
+    // Limpiar toda la caché de actividades
+    actividadCache.clear();
+    console.log('Caché de actividades invalidado correctamente');
+    
+    // Marcar en sessionStorage que se debe recargar la lista en la próxima visita
+    sessionStorage.setItem('actividades_cache_invalidated', 'true');
+    
+    // Emitir evento para componentes que estén escuchando
+    const event = new CustomEvent('actividades-updated');
+    window.dispatchEvent(event);
+  } catch (error) {
+    console.error('Error al invalidar caché de actividades:', error);
+  }
+};
+
+// Añadir esta función nueva
+export const existeActividadConNombre = async (nombre: string, idExcluir?: string): Promise<boolean> => {
+  try {
+    const nombreNormalizado = nombre.trim().toLowerCase();
+    
+    // Consulta para buscar actividades con el mismo nombre
+    const actividadesQuery = query(
+      collection(db, 'actividades'),
+      where('nombreNormalizado', '==', nombreNormalizado)
+    );
+    
+    const snapshot = await getDocs(actividadesQuery);
+    
+    // Si estamos actualizando, excluimos la propia actividad
+    if (idExcluir) {
+      return snapshot.docs.some(doc => doc.id !== idExcluir);
+    }
+    
+    // Para nuevas actividades, cualquier resultado indica duplicado
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error al verificar nombre de actividad:', error);
+    // En caso de error, permitimos continuar pero lo registramos
+    return false;
   }
 };

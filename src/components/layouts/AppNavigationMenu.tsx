@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { 
   VStack, 
   Box, 
@@ -11,6 +11,7 @@ import {
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { RolUsuario } from '../../types/usuario';
 import { getRutaPorRol } from '../../utils/navigation';
+import { safeLog, useMemoizedObject } from '../../utils/performanceUtils';
 
 // Importamos iconos desde Chakra UI y React-Icons
 import { 
@@ -47,11 +48,11 @@ interface NavItem {
 const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) => {
   const location = useLocation();
   
-  // Obtener la ruta del dashboard según el rol
-  const dashboardPath = getRutaPorRol(userRole);
+  // Obtener la ruta del dashboard según el rol (memoizada)
+  const dashboardPath = useMemo(() => getRutaPorRol(userRole), [userRole]);
   
-  // Configurar los elementos de navegación unificados
-  const navItems: NavItem[] = [
+  // Configurar los elementos de navegación unificados (memoizados)
+  const navItems: NavItem[] = useMemo(() => [
     // Dashboard - para todos los roles con acceso
     { 
       label: 'Dashboard', 
@@ -150,12 +151,27 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiSettings,
       roles: ['admin'] 
     },
-  ];
+  ], [dashboardPath]);
   
-  // Filtrar solo los elementos que corresponden al rol actual
-  const filteredItems = navItems.filter(item => 
-    item.roles.includes(userRole)
+  // Filtrar solo los elementos que corresponden al rol actual (memoizado)
+  const filteredItems = useMemo(() => 
+    navItems.filter(item => item.roles.includes(userRole)),
+    [navItems, userRole]
   );
+  
+  // Log optimizado de la ruta actual
+  useEffect(() => {
+    safeLog('Ruta actual:', location.pathname);
+  }, [location.pathname]);
+
+  // Estilos base compartidos para los elementos de navegación
+  const baseItemStyle = useMemoizedObject(() => ({
+    py: 3,
+    px: 4,
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center"
+  }), []);
 
   return (
     <VStack spacing={0} align="stretch">
@@ -202,7 +218,6 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
         })}
         {userRole === 'admin' && (
           <>
-            {/* Otros enlaces de administrador */}
             <Link 
               as={RouterLink} 
               to="/admin/reportes" 

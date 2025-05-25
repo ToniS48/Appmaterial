@@ -17,6 +17,7 @@ import {
 } from '@chakra-ui/react';
 import { obtenerMaterial } from '../../services/materialService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
+import { Timestamp } from 'firebase/firestore'; // Importar Timestamp
 
 const MaterialDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -92,17 +93,17 @@ const MaterialDetallePage: React.FC = () => {
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <Box>
                 <Text fontWeight="bold">Fecha de adquisición:</Text>
-                <Text>{new Date(material.fechaAdquisicion).toLocaleDateString()}</Text>
+                <Text>{material.fechaAdquisicion instanceof Timestamp ? new Date(material.fechaAdquisicion.toDate()).toLocaleDateString() : new Date(material.fechaAdquisicion).toLocaleDateString()}</Text>
               </Box>
               
               <Box>
                 <Text fontWeight="bold">Última revisión:</Text>
-                <Text>{new Date(material.fechaUltimaRevision).toLocaleDateString()}</Text>
+                <Text>{material.fechaUltimaRevision instanceof Timestamp ? new Date(material.fechaUltimaRevision.toDate()).toLocaleDateString() : new Date(material.fechaUltimaRevision).toLocaleDateString()}</Text>
               </Box>
               
               <Box>
                 <Text fontWeight="bold">Próxima revisión:</Text>
-                <Text>{new Date(material.proximaRevision).toLocaleDateString()}</Text>
+                <Text>{material.proximaRevision instanceof Timestamp ? new Date(material.proximaRevision.toDate()).toLocaleDateString() : new Date(material.proximaRevision).toLocaleDateString()}</Text>
               </Box>
               
               {material.tipo === 'cuerda' && (

@@ -1,16 +1,15 @@
-import React, { forwardRef, useEffect, useState } from 'react';
+import React, { forwardRef, useEffect } from 'react';
 import { Input, useColorModeValue } from '@chakra-ui/react';
 import ReactDatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { es } from 'date-fns/locale';
+import { Controller } from 'react-hook-form';
 
 // Componente CustomInput que recibe la referencia
 const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, ...props }, ref) => {
-  // Usar hooks para obtener colores según el tema
   const defaultBg = useColorModeValue("white", "gray.700");
   const defaultBorderColor = useColorModeValue("gray.200", "gray.600");
   
-  // Usar valores proporcionados o los valores por defecto
   const bg = bgColor || defaultBg;
   const borderColor = defaultBorderColor;
   
@@ -27,61 +26,59 @@ const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChang
   );
 });
 
-CustomInput.displayName = 'CustomInput';
+// Asegurarse de que el valor sea una fecha válida
+const ensureDate = (value: any): Date | null => {
+  if (!value) return null;
+  
+  // Si ya es una instancia de Date, devolverla
+  if (value instanceof Date) return value;
+  
+  // Si es un timestamp de Firebase con método toDate
+  if (value && typeof value.toDate === 'function') {
+    return value.toDate();
+  }
+  
+  // Intentar convertir desde otros formatos
+  try {
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  } catch (e) {
+    console.error('Error convirtiendo fecha:', e);
+    return null;
+  }
+};
 
-// Extender las props para incluir cualquier prop que ReactDatePicker pueda recibir
 interface DatePickerProps {
+  selectedDate?: Date | null;
+  onChange?: (date: Date | null) => void;
   name?: string;
-  value?: Date | null; 
-  onChange?: (date: Date | null, event?: React.SyntheticEvent<any> | undefined) => void;
   control?: any;
   bgColor?: string;
-  [x: string]: any;
+  [key: string]: any;
 }
 
-const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(({
-  value,
-  onChange,
-  bgColor,
-  ...rest
-}, ref) => {
-  // Estado local para manejar la fecha seleccionada
-  const [selectedDate, setSelectedDate] = useState<Date | null>(value || null);
+const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>((props, ref) => {
+  const { selectedDate, onChange, bgColor, ...rest } = props;
   
-  // Actualizar el estado local cuando la prop value cambia
-  useEffect(() => {
-    // Solo actualizar si hay cambio real
-    if (value !== selectedDate) {
-      setSelectedDate(value || null);
-    }
-  }, [value, selectedDate]);
+  // Convertir a objeto Date válido
+  const safeDate = ensureDate(selectedDate);
   
-  // Manejar cambios en la fecha
-  const handleChange = (date: Date | null, event?: React.SyntheticEvent<any>) => {
-    // Actualizar estado local
-    setSelectedDate(date);
-    
-    // Llamar a onChange si existe
+  const handleChange = (date: Date | null) => {
     if (onChange) {
-      onChange(date, event);
+      onChange(date);
     }
   };
   
-  // Depuración
-  useEffect(() => {
-    console.debug('[DatePicker] Renderizando con fecha:', selectedDate);
-  }, [selectedDate]);
-  
-  // Eliminar explícitamente la referencia de las props restantes
+  // La referencia de las props restantes
   const { ref: _, ...restProps } = rest as any;
 
   return (
     <ReactDatePicker
-      selected={selectedDate}
+      selected={safeDate}
       onChange={handleChange}
       dateFormat="dd/MM/yyyy"
       locale={es}
-      isClearable={false}
+      isClearable={true}
       showMonthDropdown
       showYearDropdown
       dropdownMode="select"

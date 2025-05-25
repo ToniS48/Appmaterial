@@ -12,8 +12,8 @@ export interface Material {
   observaciones?: string;
   cantidad?: number;
   cantidadDisponible?: number;
-  fechaCreacion?: Timestamp | Date;
-  fechaActualizacion?: Timestamp | Date;
+  fechaCreacion?: Timestamp;
+  fechaActualizacion?: Timestamp;
   
   // Campos específicos para cuerdas
   longitud?: number;
@@ -30,4 +30,24 @@ export interface Material {
   // Campos específicos para varios
   categoria?: string;
   subcategoria?: string;
+  descripcion?: string;
+}
+
+// Tipo para representar un material en la UI (lista de materiales)
+export interface MaterialItem {
+  id: string;
+  nombre: string;
+  tipo: 'cuerda' | 'anclaje' | 'varios';
+  estado: string;
+  cantidadDisponible: number;
+  codigo?: string;
+  descripcion?: string;
+}
+
+// Tipo para campos de materiales en formularios
+export interface MaterialField {
+  id: string;
+  materialId: string;
+  nombre: string;
+  cantidad: number;
 }
