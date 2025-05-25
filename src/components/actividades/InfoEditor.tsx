@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   HStack,
@@ -30,6 +30,21 @@ const InfoEditor: React.FC<InfoEditorProps> = ({
       subtipo: data?.subtipo || []
     }
   });
+
+  // Efecto para resetear el formulario cuando cambian los datos
+  useEffect(() => {
+    const formData = {
+      nombre: data?.nombre || '',
+      lugar: data?.lugar || '',
+      fechaInicio: data?.fechaInicio || null,
+      fechaFin: data?.fechaFin || null,
+      tipo: data?.tipo || [],
+      subtipo: data?.subtipo || []
+    };
+    
+    console.log('InfoEditor - Reseteando formulario con nuevos datos:', formData);
+    methods.reset(formData);
+  }, [data, methods]);
 
   const onSubmit = (formData: any) => {
     console.log("Enviando datos desde InfoEditor:", formData);
