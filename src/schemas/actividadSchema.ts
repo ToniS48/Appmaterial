@@ -17,13 +17,13 @@ export const materialAsignadoSchema = z.object({
   cantidad: z.number().int().positive(validationMessages.positiveNumber)
 });
 
-// Esquema básico para actividades
+// Esquema básico para actividades (para validación del formulario)
 export const actividadBaseSchema = z.object({
   nombre: z.string().min(1, validationMessages.activity.nameRequired),
   lugar: z.string().min(1, validationMessages.activity.placeRequired),
   descripcion: z.string().optional(),
-  tipo: z.array(z.string()).min(1, validationMessages.activity.typeRequired),
-  subtipo: z.array(z.string()).min(1, validationMessages.activity.subtypeRequired),
+  tipo: z.array(z.string()).optional(), // Opcional en el formulario
+  subtipo: z.array(z.string()).optional(), // Opcional en el formulario
   fechaInicio: z.date({
     required_error: validationMessages.activity.startDateRequired,
     invalid_type_error: validationMessages.invalidDate
@@ -35,6 +35,12 @@ export const actividadBaseSchema = z.object({
   responsableActividadId: z.string().optional(),
   responsableMaterialId: z.string().optional(),
   necesidadMaterial: z.boolean().default(false)
+});
+
+// Esquema completo para actividades (para validación final al guardar)
+export const actividadCompletaSchema = actividadBaseSchema.extend({
+  tipo: z.array(z.string()).min(1, validationMessages.activity.typeRequired),
+  subtipo: z.array(z.string()).min(1, validationMessages.activity.subtypeRequired)
 });
 
 // Esquema para la pestaña de participantes

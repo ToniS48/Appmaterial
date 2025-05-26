@@ -41,32 +41,21 @@ export function useActividadInfoValidation() {
     }
     return validateField('lugar', lugar, { showToast: !silencioso });
   };
-
   const validateTipo = (tipo: string[], silencioso = true) => {
+    // Tipo es opcional en el formulario básico
     if (!tipo || tipo.length === 0) {
-      if (silencioso) {
-        return false; // No mostrar error si es silencioso
-      } else {
-        // Si no es silencioso, mostrar error y toast
-        setError('tipo', 'El tipo de actividad es obligatorio', !silencioso);
-        return 'El tipo de actividad es obligatorio';
-      }
+      return true; // No hay error si está vacío
     }
     return validateField('tipo', tipo, { showToast: !silencioso });
   };
 
   const validateSubtipo = (subtipo: string[], silencioso = true) => {
+    // Subtipo es opcional en el formulario básico
     if (!subtipo || subtipo.length === 0) {
-      if (silencioso) {
-        return false; // No mostrar error si es silencioso
-      } else {
-        // Si no es silencioso, mostrar error y toast
-        setError('subtipo', 'El subtipo de actividad es obligatorio', !silencioso);
-        return 'El subtipo de actividad es obligatorio';
-      }
+      return true; // No hay error si está vacío
     }
     return validateField('subtipo', subtipo, { showToast: !silencioso });
-  };  const validateFechaInicio = (fecha: Date | null | undefined, silencioso = true) => {
+  };const validateFechaInicio = (fecha: Date | null | undefined, silencioso = true) => {
     if (!fecha) {
       if (silencioso) {
         return false;

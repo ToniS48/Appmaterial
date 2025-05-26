@@ -1,6 +1,8 @@
 // Utilidades de rendimiento para optimizar operaciones y evitar violaciones del scheduler
 // Proporciona funciones para diferir, particionar y optimizar operaciones costosas
 
+import { useRef, useEffect, useCallback } from 'react';
+
 interface PerformanceConfig {
   maxChunkSize: number;
   maxExecutionTime: number;
@@ -365,7 +367,6 @@ export const performanceMonitor = new PerformanceMonitor();
 /**
  * Utilidades para optimizar el rendimiento y evitar violaciones de tiempo en la consola
  */
-import { useRef, useEffect, useCallback } from 'react';
 
 /**
  * Determina si estamos en modo desarrollo
@@ -456,7 +457,7 @@ export const useDebounce = <T extends (...args: any[]) => any>(
  * @param callback Función a ejecutar
  * @returns Función envuelta para ejecución diferida
  */
-export const deferCallback = <T extends (...args: any[]) => any>(
+export const deferSimpleCallback = <T extends (...args: any[]) => any>(
   callback: T
 ): ((...args: Parameters<T>) => void) => {
   return (...args: Parameters<T>) => {
