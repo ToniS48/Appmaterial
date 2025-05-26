@@ -1,6 +1,8 @@
 // Optimizador del scheduler de React para resolver violaciones de rendimiento
 // Intercepta y optimiza los message handlers que causan bloqueos en el hilo principal
 
+import { useEffect } from 'react';
+
 interface SchedulerOptimization {
   cleanup: () => void;
 }
@@ -17,17 +19,6 @@ const OPTIMIZATION_CONFIG = {
  * Configura el optimizador del scheduler para interceptar y optimizar
  * los message handlers que causan violaciones de rendimiento
  */
-export function setupSchedulerOptimizer(): () => void {
-  // Para evitar problemas de TypeScript, comentamos la interceptación directa
-  // y nos enfocamos en las optimizaciones de componentes React
-  
-  console.log('Optimizador del scheduler configurado');
-  
-  // Función de limpieza sin interceptación
-  return function cleanup() {
-    console.log('Optimizador del scheduler limpiado');
-  };
-}
 
 /**
  * Crea un callback optimizado que evita bloquear el hilo principal
@@ -77,86 +68,9 @@ function createOptimizedFrameCallback(originalCallback: FrameRequestCallback): F
   };
 }
 
-/**
- * Optimiza el cambio de pestañas para evitar violaciones
- */
-export function optimizeTabChange(originalTabChangeHandler: (index: number) => void) {
-  let lastChangeTime = 0;
-  const throttleDelay = OPTIMIZATION_CONFIG.throttleDelay;
 
-  return function(newIndex: number) {
-    const now = performance.now();
-    
-    if (now - lastChangeTime < throttleDelay) {
-      // Throttle changes too frequent
-      setTimeout(() => {
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(() => {
-            originalTabChangeHandler(newIndex);
-          });
-        } else {
-          originalTabChangeHandler(newIndex);
-        }
-      }, throttleDelay);
-    } else {
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          originalTabChangeHandler(newIndex);
-        });
-      } else {
-        originalTabChangeHandler(newIndex);
-      }
-    }
-    
-    lastChangeTime = now;
-  };
-}
 
-/**
- * Crea un validador optimizado que no bloquea el hilo principal
- */
-export function createOptimizedValidator<T>(originalValidator: (data: T) => boolean | string | null) {
-  return async function(data: T): Promise<boolean> {
-    return new Promise((resolve) => {
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          try {
-            const result = originalValidator(data);
-            // Si result es null o string vacío, significa válido
-            if (result === null || (typeof result === 'string' && result.length === 0)) {
-              resolve(true);
-            } else if (typeof result === 'boolean') {
-              resolve(result);
-            } else {
-              // result es un string con mensaje de error
-              resolve(false);
-            }
-          } catch (error) {
-            console.warn('Error en validador optimizado:', error);
-            resolve(false);
-          }
-        });
-      } else {        setTimeout(() => {
-          try {
-            const result = originalValidator(data);
-            // Si result es null o string vacío, significa válido
-            if (result === null || (typeof result === 'string' && result.length === 0)) {
-              resolve(true);
-            } else if (typeof result === 'boolean') {
-              resolve(result);
-            } else {
-              // result es un string con mensaje de error
-              resolve(false);
-            }
-          } catch (error) {
-            console.warn('Error en validador optimizado:', error);
-            resolve(false);
-          }
-        }, 0);
-      }
-    });
-  };
-}
+
 
 /**
  * Utilidad para procesar arrays grandes en chunks
@@ -213,11 +127,11 @@ export function optimizeDOMOperation(operation: () => void): void {
   } else {
     setTimeout(operation, 0);
   }
+}
 
 /**
  * Utilidades específicas para optimizar y prevenir violaciones de 'message' en scheduler.development.js
  */
-import { useEffect } from 'react';
 
 /**
  * Número de intentos máximos para validar debounce

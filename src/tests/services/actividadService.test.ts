@@ -2,10 +2,8 @@ import {
   crearActividad, 
   actualizarActividad, 
   obtenerActividad,
-  listarActividades
   listarActividades,
   guardarActividad
-
 } from '../../services/actividadService';
 import { Actividad } from '../../types/actividad';
 import { db } from '../../config/firebase';

@@ -15,7 +15,6 @@ import { ActividadFormPage } from '../pages/actividades/ActividadFormPage';
 import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
 import MaterialPage from '../pages/material/GestionMaterialPage';
 import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';
-import PerfilPage from '../pages/usuario/PerfilPage';
 import GestionMaterialPage from '../pages/material/GestionMaterialPage';
 import ProfilePage from '../pages/usuario/ProfilePage';
 import GestionUsuariosPage from '../pages/common/GestionUsuariosPage';
@@ -70,7 +69,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
-      <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesAdminPage /></ProtectedRoute>} />
+      <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
       <Route path="/admin/reportes" element={<ProtectedRoute allowedRoles={['admin']}><ReportesAdminPage /></ProtectedRoute>} />
       
       {/* Rutas específicas para vocal */}
@@ -112,7 +111,7 @@ const AppRoutes: React.FC = () => {
         }
       />      <Route path="/material" element={<ProtectedRoute allowedRoles={['admin', 'vocal']}><MaterialPage /></ProtectedRoute>} />
       <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['socio']}><MaterialInventoryPage /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><PerfilPage /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><ProfilePage /></ProtectedRoute>} />
       <Route 
         path="/notificaciones" 
         element={
@@ -129,7 +128,7 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute 
             allowedRoles={['admin', 'vocal', 'socio']}
           >
-            <MisPrestamosPag />
+            <MisPrestamosPage />
           </ProtectedRoute>
         } 
       />

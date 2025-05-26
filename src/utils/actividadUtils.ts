@@ -195,7 +195,6 @@ export const isValidUrl = (urlString: string): boolean => {
 }
 
 /**
-
  * Obtiene una lista única de IDs de participantes, incluyendo automáticamente
  * el creador y los responsables sin duplicados
  * @param participanteIds - Array de IDs de participantes seleccionados
@@ -206,7 +205,21 @@ export const isValidUrl = (urlString: string): boolean => {
  */
 export const getUniqueParticipanteIds = (
   participanteIds: string[],
+  creadorId: string,
+  responsableActividadId?: string,
+  responsableMaterialId?: string
+): string[] => {
+  const allIds = [
+    ...participanteIds,
+    creadorId,
+    responsableActividadId,
+    responsableMaterialId
+  ].filter((id): id is string => Boolean(id));
+  
+  return Array.from(new Set(allIds));
+};
 
+/**
  * Obtiene los valores por defecto para una nueva actividad o una existente
  * @param existingActivity Actividad existente (opcional)
  * @param currentUserId ID del usuario actual
@@ -257,48 +270,6 @@ export const getDefaultValues = (existingActivity?: Actividad, currentUserId?: s
 };
 
 /**
- * Obtiene los IDs de participantes únicos, incluyendo creador y responsables
- * @param participanteIds IDs de participantes actuales
- * @param creadorId ID del creador de la actividad
- * @param responsableActividadId ID del responsable de la actividad
- * @param responsableMaterialId ID del responsable del material
- * @returns Array de IDs de participantes únicos
- */
-export const getUniqueParticipanteIds = (
-  participanteIds: string[] = [], 
-  creadorId?: string,
-  responsableActividadId?: string,
-  responsableMaterialId?: string
-): string[] => {
-
-  const idsSet = new Set<string>();
-  
-  // Agregar participantes seleccionados
-  participanteIds.forEach(id => {
-    if (id && id.trim()) {
-      idsSet.add(id);
-    }
-  });
-  
-  // Agregar creador si existe
-  if (creadorId && creadorId.trim()) {
-    idsSet.add(creadorId);
-  }
-  
-  // Agregar responsable de actividad si existe
-  if (responsableActividadId && responsableActividadId.trim()) {
-    idsSet.add(responsableActividadId);
-  }
-  
-  // Agregar responsable de material si existe
-  if (responsableMaterialId && responsableMaterialId.trim()) {
-    idsSet.add(responsableMaterialId);
-  }
-  
-  return Array.from(idsSet);
-};
-
-/**
  * Valida que todos los participantes necesarios estén incluidos en la lista
  * @param participanteIds - Array de IDs de participantes
  * @param creadorId - ID del creador (debe estar incluido)
@@ -323,15 +294,7 @@ export const validateParticipantesRequeridos = (
   if (responsableMaterialId && !participanteIds.includes(responsableMaterialId)) {
     return false;
   }
-  
-  return true;
-
-  // Recopilar todos los IDs requeridos (sin nulos/undefined)
-  const requiredIds = [creadorId, responsableActividadId, responsableMaterialId]
-    .filter((id): id is string => Boolean(id));
-    
-  // Garantizar que todos los IDs requeridos están incluidos sin duplicados
-  return Array.from(new Set([...participanteIds, ...requiredIds]));
+    return true;
 };
 
 /**

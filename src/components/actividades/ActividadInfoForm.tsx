@@ -179,14 +179,12 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
         </FormControl>
       </SimpleGrid>
       
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
-        {/* Selección de tipo por botones */}
-        <FormControl isRequired isInvalid={!!validation.errors.tipo}>
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>        {/* Selección de tipo por botones */}
+        <FormControl isInvalid={!!validation.errors.tipo}>
           <FormLabel>Tipo de actividad</FormLabel>
           <Controller
             name="tipo"
             control={control}
-            rules={{ required: true }}
             render={({ field }) => (
               <Wrap spacing={2}>
                 {TIPOS_ACTIVIDAD.map((tipo) => (
@@ -208,15 +206,12 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           {validation.errors.tipo && (
             <FormErrorMessage>{validation.errors.tipo}</FormErrorMessage>
           )}
-        </FormControl>
-
-        {/* Selección de subtipo por botones */}
-        <FormControl isRequired isInvalid={!!validation.errors.subtipo}>
+        </FormControl>        {/* Selección de subtipo por botones */}
+        <FormControl isInvalid={!!validation.errors.subtipo}>
           <FormLabel>Subtipo</FormLabel>
           <Controller
             name="subtipo"
             control={control}
-            rules={{ required: true }}
             render={({ field }) => (
               <Wrap spacing={2}>
                 {SUBTIPOS_ACTIVIDAD.map((subtipo) => (

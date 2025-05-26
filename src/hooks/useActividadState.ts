@@ -134,7 +134,6 @@ export function useActividadState(initialData?: Partial<Actividad>) {
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
   }, []);
-
   return {
     actividad,
     updateInfo,
@@ -143,9 +142,4 @@ export function useActividadState(initialData?: Partial<Actividad>) {
     setActividad,
     reset
   };
-
-// Hook personalizado para usar este estado
-export function useActividadState(initialData?: Partial<Actividad>) {
-  // Implementación del hook con useReducer...
-
 }
