@@ -23,6 +23,7 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     totalOperations: 0,
     averageExecutionTime: 0
   });
+  const lastClickTimes = useRef<{ [key: string]: number }>({});
   // Optimización para operaciones de guardado
   const optimizedSave = useCallback(async (
     saveOperation: () => Promise<void>,
@@ -97,17 +98,44 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
       throw error;
     }
   }, [deferredTimeout, enableLogging]);
-
   // Click handlers optimizados usando el optimizador de eventos
   const createOptimizedClickHandler = useCallback((
     handler: (...args: any[]) => void | Promise<void>,
     options: { throttle?: boolean; defer?: boolean } = {}
   ) => {
-    return useOptimizedClickHandler(handler, {
-      throttleDelay: options.throttle ? throttleDelay : 0,
-      maxExecutionTime: 100
-    });
+    // En lugar de usar el hook aquí, retornamos una función optimizada manualmente
+    let lastExecution = 0;
+    const throttleTime = options.throttle ? throttleDelay : 0;
+    
+    return (...args: any[]) => {
+      const now = Date.now();
+      if (throttleTime > 0 && now - lastExecution < throttleTime) {
+        return;
+      }
+      lastExecution = now;
+      
+      if (options.defer) {
+        setTimeout(() => handler(...args), 0);
+      } else {
+        handler(...args);
+      }
+    };
   }, [throttleDelay]);
+
+  // Manejo de clics optimizado
+  const handleOptimizedClick = useCallback((actividadId: string) => {
+    // En lugar de usar useOptimizedClickHandler dentro de un callback,
+    // implementamos la lógica directamente
+    const now = Date.now();
+    const key = `click_${actividadId}`;
+    
+    if (lastClickTimes.current[key] && now - lastClickTimes.current[key] < 300) {
+      return; // Throttle de 300ms
+    }
+    
+    lastClickTimes.current[key] = now;
+    // Lógica del click aquí
+  }, []);
 
   // Obtener métricas de rendimiento
   const getMetrics = useCallback(() => ({
@@ -134,7 +162,8 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     optimizedLoad,
     createOptimizedClickHandler,
     getMetrics,
-    resetMetrics
+    resetMetrics,
+    handleOptimizedClick
   }), [
     optimizedSave,
     optimizedTabChange,
@@ -142,7 +171,8 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
     optimizedLoad,
     createOptimizedClickHandler,
     getMetrics,
-    resetMetrics
+    resetMetrics,
+    handleOptimizedClick
   ]);
 };
 
