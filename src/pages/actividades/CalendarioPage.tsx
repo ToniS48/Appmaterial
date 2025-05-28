@@ -4,8 +4,10 @@ import {
   Heading,
   Flex,
   Button,
+  HStack, // Añadir HStack
 } from '@chakra-ui/react';
 import { AddIcon } from '@chakra-ui/icons';
+import { FiCalendar } from 'react-icons/fi'; // Importar FiCalendar
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import CalendarioSimple from '../../components/actividades/CalendarioSimple'; // Usar el componente simplificado
@@ -26,21 +28,17 @@ const CalendarioPage: React.FC = () => {
         mx="auto"
       >
         <Flex 
-          justify="space-between" 
-          align={{ base: "flex-start", md: "center" }}
+          justify="center" // Centrar el contenido del Flex
+          align="center" // Alinear verticalmente al centro
           mb={5}
           direction={{ base: "column", md: "row" }}
           gap={3}
         >
-          <Heading size="lg">Calendario de Actividades</Heading>
-          <Button 
-            leftIcon={<AddIcon />} 
-            colorScheme="brand" 
-            onClick={() => navigate('/activities/create')}
-            width={{ base: "100%", md: "auto" }}
-          >
-            Nueva Actividad
-          </Button>
+          <HStack> {/* Usar HStack para el icono y el título */}
+            <FiCalendar size="28px" /> {/* Añadir icono */}
+            <Heading size="lg">Calendario de Actividades</Heading>
+          </HStack>
+          {/* Botón de Nueva Actividad eliminado */}
         </Flex>
 
         <CalendarioSimple mes={selectedMonth} />

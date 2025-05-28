@@ -70,6 +70,8 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   const activeBoxBgColor = useColorModeValue('white', 'gray.800');
   const inactiveBoxBgColor = useColorModeValue('gray.50', 'gray.900');
   const defaultBorderColor = useColorModeValue('gray.200', 'gray.700');
+  const weekendBgColor = useColorModeValue('gray.100', 'gray.750'); // Este será para días pasados
+  const weekendRedBgColor = useColorModeValue('red.100', 'red.700'); // Nuevo color rojo para fines de semana
   
   // Calcular los días del calendario
   useEffect(() => {
@@ -144,10 +146,12 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   
   // Formatear fecha
   const formatMonth = (date: Date): string => {
-    return date.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+    const monthName = date.toLocaleString('es-ES', { month: 'long' });
+    const year = date.getFullYear();
+    return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
   };
   
-  // Verificar si un día está en el mes actual
+  // Verificar si un día está en el mes currentMonth
   const isCurrentMonth = (day: Date): boolean => {
     return day.getMonth() === currentMonth.getMonth();
   };
@@ -155,6 +159,14 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   // Verificar si un día es hoy
   const isToday = (day: Date): boolean => {
     return isSameDay(day, new Date());
+  };
+
+  // Verificar si un día es pasado
+  const isPastDay = (day: Date): boolean => {
+    const today = normalizarFecha(new Date());
+    const dateToCompare = normalizarFecha(day);
+    if (!today || !dateToCompare) return false;
+    return dateToCompare.getTime() < today.getTime();
   };
   
   // Obtener actividades para un día específico
@@ -262,12 +274,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
             minW={{ base: "40px", md: "auto" }}
             aria-label="Mes anterior"
           >
-            <Box display={{ base: 'block', md: 'none' }}>
-              <ChevronLeftIcon boxSize={5} />
-            </Box>
-            <Box display={{ base: 'none', md: 'block' }}>
-              Mes anterior
-            </Box>
+            <ChevronLeftIcon boxSize={5} /> {/* Mostrar siempre el icono */}
           </Button>
           <Heading size={{ base: "sm", md: "md" }} textAlign="center" minW="140px">
             {formatMonth(currentMonth)}
@@ -278,60 +285,51 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
             minW={{ base: "40px", md: "auto" }}
             aria-label="Mes siguiente"
           >
-            <Box display={{ base: 'block', md: 'none' }}>
-              <ChevronRightIcon boxSize={5} />
-            </Box>
-            <Box display={{ base: 'none', md: 'block' }}>
-              Mes siguiente
-            </Box>
+            <ChevronRightIcon boxSize={5} /> {/* Mostrar siempre el icono */}
           </Button>
         </Flex>
 
-        {/* Filtros - centrados en móvil, alineados a la derecha en desktop */}
+        {/* Filtros y botón de acción */}
         <Flex 
-          gap={2} 
-          flexWrap="wrap"
+          direction={{ base: "column", md: "row" }}
+          gap={2} // Espacio entre el grupo de filtros y el botón
           width="100%"
-          justifyContent={{ base: "center", md: "flex-end" }}
+          justifyContent={{ base: "center", md: "space-between" }} // Centrado en móvil, espacio entre elementos en desktop
+          alignItems="center" // Centrar elementos verticalmente en desktop y los grupos en móvil
         >
-          <Select 
-            placeholder={messages.calendario.filtros.todosLosEstados}
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value)}
-            width={{ base: "100%", sm: "48%", md: "200px" }}
-            maxW="200px"
+          {/* Grupo de Selects (filtros) */}
+          <HStack
+            spacing={2} // Espacio entre los selects
+            width={{ base: "100%", md: "auto" }} // Ancho completo en móvil, auto en desktop para el grupo
+            justifyContent={{ base: "center", md: "flex-start" }} // Centrar selects en móvil, alinear a la izquierda en desktop
+            flexWrap="wrap" // Permitir que los selects se apilen en pantallas muy pequeñas si es necesario
           >
-            {estados.map(estado => (
-              <option key={estado} value={estado}>
-                {estado.charAt(0).toUpperCase() + estado.slice(1).replace('_', ' ')}
-              </option>
-            ))}
-          </Select>
+            <Select 
+              placeholder={messages.calendario.filtros.todosLosEstados}
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              width={{ base: "100%", sm: "200px" }} // Ancho completo en 'base', 200px desde 'sm'
+            >
+              {estados.map(estado => (
+                <option key={estado} value={estado}>
+                  {estado.charAt(0).toUpperCase() + estado.slice(1).replace('_', ' ')}
+                </option>
+              ))}
+            </Select>
 
-          <Select 
-            placeholder={messages.calendario.filtros.todosLosTipos}
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
-            width={{ base: "100%", sm: "48%", md: "200px" }}
-            maxW="200px"
-          >
-            {tipos.map(tipo => (
-              <option key={tipo} value={tipo}>
-                {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-              </option>
-            ))}
-          </Select>
-          
-          <Button 
-            leftIcon={<CalendarIcon />}
-            onClick={addAllToGoogleCalendar}
-            size="sm"
-            colorScheme="blue"
-            width={{ base: "100%", sm: "auto" }}
-            title={messages.calendario.botones.añadirTodasTitle}
-          >
-            {messages.calendario.botones.añadirTodas}
-          </Button>
+            <Select 
+              placeholder={messages.calendario.filtros.todosLosTipos}
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              width={{ base: "100%", sm: "200px" }} // Ancho completo en 'base', 200px desde 'sm'
+            >
+              {tipos.map(tipo => (
+                <option key={tipo} value={tipo}>
+                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                </option>
+              ))}
+            </Select>
+          </HStack>
         </Flex>
       </Flex>
 
@@ -342,14 +340,22 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
           const dayActivities = getActividadesForDay(day);
           if (!isActive && dayActivities.length === 0) return null;
           
+          const dayOfWeek = day.getDay(); // 0 (Domingo) a 6 (Sábado)
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const pastDay = isPastDay(day) && !isToday(day);
+
           return (
             <Box 
               key={index}
               mb={2} 
               p={2} 
-              bg={isActive ? "white" : "gray.50"}
+              bg={
+                isWeekend ? weekendRedBgColor : 
+                pastDay ? weekendBgColor : 
+                (isActive ? activeBoxBgColor : inactiveBoxBgColor)
+              }
               border="1px solid"
-              borderColor={isToday(day) ? 'brand.500' : 'gray.200'}
+              borderColor={isToday(day) ? 'brand.500' : defaultBorderColor}
               borderRadius="md"
             >
               <Text 
@@ -410,13 +416,21 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
           const dayActivities = getActividadesForDay(day);
           const isActive = isCurrentMonth(day);
           
+          const dayOfWeekForDesktop = day.getDay(); // 0 (Domingo) a 6 (Sábado)
+          const isWeekendForDesktop = dayOfWeekForDesktop === 0 || dayOfWeekForDesktop === 6;
+          const pastDayForDesktop = isPastDay(day) && !isToday(day);
+
           return (
             <Box 
               key={index} 
               height="120px"
               overflowY="auto"
               p={2} 
-              bg={isActive ? activeBoxBgColor : inactiveBoxBgColor}
+              bg={
+                isWeekendForDesktop ? weekendRedBgColor :
+                pastDayForDesktop ? weekendBgColor :
+                (isActive ? activeBoxBgColor : inactiveBoxBgColor)
+              }
               border="1px solid"
               borderColor={isToday(day) ? 'brand.500' : defaultBorderColor}
               opacity={isActive ? 1 : 0.6}
