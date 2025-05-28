@@ -43,6 +43,7 @@ import {
   WarningIcon, 
   SearchIcon 
 } from '@chakra-ui/icons';
+import { FiBox } from 'react-icons/fi'; // Añadir importación
 import { Link as RouterLink } from 'react-router-dom';
 import { PrinterIcon } from '../../components/layouts/DashboardIcons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -167,7 +168,10 @@ const GestionMaterialPage: React.FC = () => {
           direction={{ base: "column", md: "row" }}
           gap={3}
         >
-          <Heading size="md">Inventario de Material</Heading>
+          <HStack> {/* Envolver Heading en HStack para añadir icono */}
+            <FiBox size="24px" /> {/* Añadir icono */}
+            <Heading size="md">Inventario de Material</Heading>
+          </HStack>
           <HStack 
             spacing={3}
             width={{ base: "100%", md: "auto" }}
@@ -206,7 +210,7 @@ const GestionMaterialPage: React.FC = () => {
           gap={3}
           align={{ base: "stretch", md: "center" }}
         >
-          <InputGroup maxW={{ base: "100%", md: "300px" }}>
+          <InputGroup flex={{ base: "1 1 100%", md: "1 1 50%" }} > {/* Ajustado el flex basis */}
             <InputLeftElement pointerEvents="none">
               <SearchIcon color="gray.400" />
             </InputLeftElement>
@@ -217,10 +221,11 @@ const GestionMaterialPage: React.FC = () => {
             />
           </InputGroup>
           
-          <HStack 
-            spacing={3} 
-            flexWrap="wrap"
-            width="100%"
+          <Flex 
+            direction={{ base: "column", sm: "row" }} 
+            gap={3} 
+            width={{ base: "100%", md: "auto" }}
+            flex={{ base: "1 1 100%", md: "1 1 50%" }} // Ajustado el flex basis
           >
             <Select 
               placeholder="Todos los tipos" 
@@ -245,7 +250,7 @@ const GestionMaterialPage: React.FC = () => {
                 </option>
               ))}
             </Select>
-          </HStack>
+          </Flex>
         </Flex>
         
         {/* Tabla de materiales */}
