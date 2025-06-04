@@ -18,7 +18,7 @@ import {
   StatHelpText,
   useToast
 } from '@chakra-ui/react';
-import { FiPlay, FiStop, FiRefreshCw, FiZap, FiActivity } from 'react-icons/fi';
+import { FiPlay, FiRefreshCw, FiZap, FiActivity } from 'react-icons/fi';
 import { usePerformanceMonitor, testOperation, generateSyntheticWorkload } from '../../utils/performanceTestUtils';
 import { deferCallback } from '../../utils/performanceUtils';
 import { useOptimizedClickHandler } from '../../utils/eventOptimizer';

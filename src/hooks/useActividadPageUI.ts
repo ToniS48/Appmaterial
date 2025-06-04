@@ -28,8 +28,7 @@ interface UseActividadPageUIReturn {
  * Hook para gestionar todos los estados de la interfaz de usuario
  * de la página de actividad (pestañas, edición, diálogos)
  */
-export const useActividadPageUI = (): UseActividadPageUIReturn => {
-  // Estados de navegación
+export function useActividadPageUI(): UseActividadPageUIReturn {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   
   // Estados de edición por pestaña

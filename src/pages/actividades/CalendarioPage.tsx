@@ -1,20 +1,11 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Heading,
-  Flex,
-  Button,
-  HStack, // Añadir HStack
-} from '@chakra-ui/react';
-import { AddIcon } from '@chakra-ui/icons';
+import { Box, Heading, Flex, HStack } from '@chakra-ui/react';
 import { FiCalendar } from 'react-icons/fi'; // Importar FiCalendar
-import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import CalendarioSimple from '../../components/actividades/CalendarioSimple'; // Usar el componente simplificado
 
 const CalendarioPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+    const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   return (
     <DashboardLayout title="Calendario de Actividades">

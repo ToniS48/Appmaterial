@@ -9,11 +9,7 @@ interface UseActividadFormTabsProps {
   onFinalSubmit: () => Promise<boolean>;
 }
 
-export const useActividadFormTabs = ({ 
-  totalTabs, 
-  onDataUpdate, 
-  onFinalSubmit 
-}: UseActividadFormTabsProps) => {
+export const useActividadFormTabs = ({ totalTabs, onDataUpdate, onFinalSubmit }: UseActividadFormTabsProps) => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [completedTabs, setCompletedTabs] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,7 +139,7 @@ export const useActividadFormTabs = ({
   return {
     activeTabIndex,
     completedTabs,
-    isSubmitting,
+        isSubmitting,
     participantesEditorRef,
     nextTab,
     prevTab,

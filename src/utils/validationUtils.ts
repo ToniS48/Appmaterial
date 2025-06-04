@@ -1,120 +1,88 @@
-import messages from '../constants/messages';
-import { fetchSignInMethodsForEmail } from 'firebase/auth';
+// Utilidades de validación básicas
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
-import { handleFirebaseError } from './errorHandling';
-import { RolUsuario } from '../types/usuario'; // Añadir esta importación
-
-// Expresión regular única para validación de email (RFC 5322 compliant)
-const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+import { db } from '../config/firebase';
 
 /**
- * Verifica si un string tiene un formato de email válido
- * @param email - El email a validar
- * @returns true si el formato es válido, false en caso contrario
+ * Valida un email
  */
-export const isValidEmailFormat = (email: string): boolean => {
-  return Boolean(email && email.trim() && EMAIL_REGEX.test(email));
-};
-
-/**
- * Valida un campo de email
- * @param email - El email a validar
- * @returns String vacío si es válido, o mensaje de error
- */
-export const validateEmail = (email: string): string => {
-  if (!email.trim()) {
-    return messages.validation.emailRequired;
+export const validateEmail = (email: string): string | null => {
+  if (!email) {
+    return 'El email es requerido';
   }
   
-  if (!isValidEmailFormat(email)) {
-    return messages.validation.emailInvalid;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return 'El formato del email no es válido';
   }
-  return '';
+  
+  return null;
 };
 
 /**
- * Valida un campo de contraseña
- * @param password - La contraseña a validar
- * @returns String vacío si es válida, o mensaje de error
+ * Valida una contraseña
  */
-export const validatePassword = (password: string): string => {
+export const validatePassword = (password: string): string | null => {
   if (!password) {
-    return messages.validation.passwordRequired;
+    return 'La contraseña es requerida';
   }
+  
   if (password.length < 6) {
-    return messages.validation.passwordLength;
+    return 'La contraseña debe tener al menos 6 caracteres';
   }
-  return '';
+  
+  return null;
 };
 
 /**
- * Confirma si dos contraseñas coinciden
- * @param password - Contraseña principal
- * @param confirmPassword - Contraseña de confirmación
- * @returns String vacío si coinciden, o mensaje de error
+ * Valida confirmación de contraseña
  */
-export const validatePasswordsMatch = (password: string, confirmPassword: string): string => {
-  if (password !== confirmPassword) {
-    return messages.validation.passwordMismatch;
+export const validatePasswordConfirmation = (password: string, confirmation: string): string | null => {
+  if (password !== confirmation) {
+    return 'Las contraseñas no coinciden';
   }
-  return '';
+  
+  return null;
 };
 
 /**
- * Valida un campo de texto requerido
- * @param value - El valor a validar
- * @param errorMessage - El mensaje de error a mostrar
- * @returns String vacío si es válido, o mensaje de error
+ * Valida un campo requerido
  */
-export const validateRequiredField = (value: string, errorMessage: string): string => {
-  if (!value.trim()) {
-    return errorMessage;
+export const validateRequired = (value: any, fieldName: string): string | null => {
+  if (!value || (typeof value === 'string' && value.trim() === '')) {
+    return `${fieldName} es requerido`;
   }
-  return '';
+  
+  return null;
 };
 
 /**
- * Verifica si un email está disponible (no registrado)
- * @param email - El email a verificar
- * @returns Promise<boolean> - true si está disponible, false si ya existe
- * @throws Error si hay un problema de validación o conexión
+ * Valida si es un email válido (sin mensaje específico)
+ */
+export const isValidEmail = (email: string): boolean => {
+  if (!email) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+/**
+ * Valida si es un rol válido
+ */
+export const isValidRole = (rol: string): boolean => {
+  return ['admin', 'vocal', 'socio', 'usuario'].includes(rol);
+};
+
+/**
+ * Verifica si un email está disponible en Firebase
  */
 export const checkEmailAvailability = async (email: string): Promise<boolean> => {
-  if (!email || !email.trim()) {
-    return false;
-  }
-  
   try {
-    // Verificar formato de email antes de hacer consultas
-    if (!isValidEmailFormat(email)) {
-      throw new Error(messages.validation.emailInvalid);
-    }
-    
-    // Verificar en Firebase Auth
-    const methods = await fetchSignInMethodsForEmail(auth, email);
-    if (methods.length > 0) {
-      return false; // Ya existe en Auth
-    }
-    
-    // También verificar en Firestore
     const usuariosRef = collection(db, 'usuarios');
     const q = query(usuariosRef, where('email', '==', email));
-    const snapshot = await getDocs(q);
+    const querySnapshot = await getDocs(q);
     
-    return snapshot.empty;
-  } catch (error: any) {
-    // Usar handleFirebaseError para consistencia
-    handleFirebaseError(error, messages.validation.emailCheckError);
-    throw error;
+    return querySnapshot.empty; // true si está disponible (no existe)
+  } catch (error) {
+    console.error('Error checking email availability:', error);
+    throw new Error('Error al verificar disponibilidad del email');
   }
-};
-
-/**
- * Verifica si un rol es válido
- * @param rol - El rol a validar
- * @returns true si el rol es válido, false en caso contrario
- */
-export const isValidRol = (rol: string): rol is RolUsuario => {
-  return ['admin', 'vocal', 'socio', 'usuario'].includes(rol);
 };

@@ -39,6 +39,6 @@ export const repositories: RepositoryMap = {
 };
 
 // Función para limpiar caché de todos los repositorios
-export const clearAllCaches = (): void => {
+export const clearAllRepositoryCaches = (): void => {
   Object.values(repositories).forEach(repo => repo.clearCache());
 };

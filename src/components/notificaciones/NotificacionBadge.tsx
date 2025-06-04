@@ -1,7 +1,6 @@
 import React from 'react';
-import { Box, IconButton, Badge } from '@chakra-ui/react';
+import { Box, IconButton, Badge, ResponsiveValue } from '@chakra-ui/react';
 import { BellIcon } from '@chakra-ui/icons';
-import { ResponsiveValue } from '@chakra-ui/react';
 
 // Actualizamos la interfaz para incluir iconSize
 interface NotificacionBadgeProps {

@@ -16,7 +16,7 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { useReactToPrint } from 'react-to-print';
-import { PrinterIcon } from '../../components/layouts/DashboardIcons';
+import { FiPrinter } from 'react-icons/fi';
 import MaterialQRCode from '../../components/material/MaterialQRCode';
 import { listarMateriales } from '../../services/materialService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
@@ -208,7 +208,7 @@ const QRPrintPage: React.FC = () => {
           </Select>
 
           <Button 
-            leftIcon={<PrinterIcon />}
+            leftIcon={<FiPrinter />}
             colorScheme="brand" 
             onClick={handlePrint}
             ml="auto"

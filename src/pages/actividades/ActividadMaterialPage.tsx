@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Heading, Text, Spinner, Center, Alert, AlertIcon,
   Button, Stack, Card, CardBody, SimpleGrid, Flex,
@@ -7,21 +7,16 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
-import { FiPackage, FiCheckCircle } from 'react-icons/fi';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { obtenerActividad } from '../../services/actividadService';
-import { listarMateriales } from '../../services/materialService';
-import { crearPrestamo } from '../../services/prestamoService';
-import { useAuth } from '../../contexts/AuthContext';
 import { Actividad } from '../../types/actividad';
 import PrestamoForm from '../../components/prestamos/PrestamoForm';
 
 const ActividadMaterialPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const toast = useToast();
-  const { userProfile } = useAuth();
-  
+    
   const [actividad, setActividad] = useState<Actividad | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

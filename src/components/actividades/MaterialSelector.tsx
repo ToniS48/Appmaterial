@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFieldArray, Control } from 'react-hook-form';
 import {
   Box,
   Heading,
@@ -26,14 +27,23 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FiPackage } from 'react-icons/fi';
-import { Control, useFieldArray } from 'react-hook-form';
+import { MaterialRepository } from '../../repositories/MaterialRepository';
 import messages from '../../constants/messages';
-import { useMaterialQuery } from '../../utils/useMaterialQuery';
-import { normalizarMaterial } from '../../utils/materialUtils';
 import MaterialCard from '../material/MaterialCard';
 import MaterialRow from '../material/MaterialRow';
-import { MaterialItem, MaterialField } from '../material/types';
 import { useOptimizedClickHandler } from '../../utils/eventOptimizer';
+import { Material, MaterialItem } from '../../types/material';
+
+// Crear instancia del repositorio
+const materialRepository = new MaterialRepository();
+
+// Definir tipos faltantes
+interface MaterialField {
+  id?: string; // Agregado para compatibilidad con useFieldArray
+  materialId: string;
+  nombre: string;
+  cantidad: number;
+}
 
 export interface MaterialSelectorProps {
   control: Control<any>;
@@ -54,35 +64,55 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   materialesActuales = [],
   cardBg,
   borderColor
-}) => {
-  // Estados locales
+}) => {  // Estados locales
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<string | null>(null);
+  const [materialesDisponibles, setMaterialesDisponibles] = useState<MaterialItem[]>([]);
+  const [loadingMateriales, setLoadingMateriales] = useState<boolean>(true);
 
   // Hook para manejar el array de materiales
-  const { fields, append, remove } = useFieldArray({    control,
-    name
+  const { fields, append, remove, update } = useFieldArray({
+    control,
+    name: name as "materiales"
   });
 
   // Toast para notificaciones
   const toast = useToast();
-
-  // Convertir campos tipados
-  const typedFields = fields as MaterialField[];
+  // Convertir campos tipados - usar tipo correcto
+  const typedFields = fields as (MaterialField & { id: string })[];
+  // Función para convertir Material a MaterialItem
+  const convertirMaterialAItem = useCallback((material: Material): MaterialItem => {
+    return {
+      id: material.id,
+      nombre: material.nombre,
+      tipo: material.tipo,
+      estado: material.estado,
+      cantidadDisponible: material.cantidadDisponible,
+      codigo: material.codigo,
+      descripcion: material.descripcion
+    };
+  }, []);
 
   // Cargar materiales disponibles
-  const {
-    materialesDisponibles,
-    isLoading: materialesLoading,
-    error: materialesError
-  } = useMaterialQuery({
-    enabled: true,
-    materialesSeleccionados: typedFields,
-    searchTerm: '',
-    filtroTipo: 'todos'
-  });
+  useEffect(() => {
+    const cargarMateriales = async () => {
+      try {
+        setLoadingMateriales(true);
+        const materiales = await materialRepository.findMaterialesDisponibles();
+        const materialesItems = (materiales || []).map(convertirMaterialAItem);
+        setMaterialesDisponibles(materialesItems);
+      } catch (error) {
+        console.error('Error cargando materiales:', error);
+        setErrorState('Error cargando materiales');
+      } finally {
+        setLoadingMateriales(false);
+      }
+    };
+
+    cargarMateriales();
+  }, [convertirMaterialAItem]);
 
   // Calcular disponibilidad real de un material
   const calcularDisponibilidad = useCallback((material: MaterialItem): number => {
@@ -190,20 +220,13 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   const handleRemoveMaterialBase = useCallback((index: number) => {
     remove(index);
   }, [remove]);
-
   const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);
-
-  // Actualizar estados de loading y error
-  useEffect(() => {
-    setIsLoading(materialesLoading);
-    setErrorState(materialesError);
-  }, [materialesLoading, materialesError]);
 
   return (
     <Box>
       <Heading size="sm" mb={4}>Material necesario</Heading>
       
-      {isLoading ? (
+      {loadingMateriales ? (
         <Box textAlign="center" py={4}>
           <Spinner size="md" />
           <Text mt={2}>{messages.material.selector.cargando}</Text>

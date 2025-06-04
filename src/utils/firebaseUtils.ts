@@ -7,7 +7,6 @@ import { db } from '../config/firebase';
  */
 export const verificarConexionFirebase = async (): Promise<boolean> => {
   try {
-    // Intenta obtener un solo documento de cualquier colección
     const coleccionesRef = collection(db, 'actividades');
     const q = query(coleccionesRef, limit(1));
     await getDocs(q);

@@ -1,15 +1,14 @@
-import { collection, addDoc, updateDoc, doc, getDoc, getDocs, deleteDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, getDocs, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { handleFirebaseError } from '../utils/errorHandling';
 import { Material } from '../types/material';
+import { Usuario } from '../types/usuario';
 import { enviarNotificacionMasiva } from './notificacionService';
 import { obtenerUsuarioPorId, listarUsuarios } from './usuarioService';
-import { Usuario } from '../types/usuario';
 
 // Función para crear un nuevo material
-export const crearMaterial = async (materialData: any) => {
+export const crearMaterial = async (materialData: Omit<Material, 'id'>): Promise<Material> => {
   try {
-    // Colección principal 'material_deportivo'
     const collectionRef = collection(db, 'material_deportivo');
     const docRef = await addDoc(collectionRef, {
       ...materialData,
@@ -99,9 +98,8 @@ export const listarMateriales = async (filters?: { estado?: string }): Promise<M
 };
 
 // Función para eliminar un material
-export const eliminarMaterial = async (materialId: string) => {
+export const eliminarMaterial = async (materialId: string): Promise<{ id: string }> => {
   try {
-    // Corregido: referencia a documento en colección principal
     const materialRef = doc(db, 'material_deportivo', materialId);
     await deleteDoc(materialRef);
     return { id: materialId };
@@ -114,7 +112,7 @@ export const eliminarMaterial = async (materialId: string) => {
 // Crear servicio para registrar incidencias
 
 // Registrar incidencia de material
-export const registrarIncidenciaMaterial = async (
+export const registrarIncidencia = async (
   materialId: string,
   incidencia: {
     descripcion: string;
@@ -241,7 +239,12 @@ export const actualizarCantidadDisponible = async (materialId: string, cantidadD
 };
 
 // Obtener estadísticas de material
-export const obtenerEstadisticasMaterial = async () => {
+export const obtenerEstadisticasMaterial = async (): Promise<{
+  buenEstado: number;
+  enMantenimiento: number;
+  prestados: number;
+  bajaOPerdido: number;
+}> => {
   try {
     const materiales = await listarMateriales();
     return {

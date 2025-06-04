@@ -2,7 +2,7 @@
  * Repositorio específico para Actividades
  * Extiende BaseRepository con funcionalidades específicas del dominio
  */
-import { collection, query, where, orderBy, limit, Timestamp, and, or } from 'firebase/firestore';
+import { where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { BaseRepository, QueryOptions } from './BaseRepository';
 import { Actividad, EstadoActividad, TipoActividad } from '../types/actividad';
 import { validateActividad } from '../utils/actividadUtils';

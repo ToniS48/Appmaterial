@@ -25,7 +25,7 @@ interface UseActividadPageActionsReturn {
  * Hook para gestionar todas las acciones de la página de actividad
  * (calendario, finalizar, guardar, cancelar, utilidades)
  */
-export const useActividadPageActions = ({
+export function useActividadPageActions({
   actividadId,
   actividad,
   addedToCalendar,
@@ -33,7 +33,7 @@ export const useActividadPageActions = ({
   saveActividad,
   updateInfo,
   exitAllEditingModes
-}: UseActividadPageActionsProps): UseActividadPageActionsReturn => {
+}: UseActividadPageActionsProps): UseActividadPageActionsReturn {
   const toast = useToast();
 
   // Añadir actividad al calendario local

@@ -1,90 +1,65 @@
-// Utilidades para manejo de materiales
-import { MaterialField, MaterialItem } from '../components/material/types';
+// Utilidades básicas para materiales
+
+interface Material {
+  id: string;
+  nombre: string;
+  cantidad?: number;
+  cantidadDisponible?: number;
+}
 
 /**
- * Normaliza un valor de cantidad a un número válido
- * @param cantidad - Cantidad a normalizar (puede ser string, number o undefined)
- * @param defaultValue - Valor por defecto si la conversión falla (por defecto: 1)
- * @returns Valor numérico normalizado
+ * Valida si un material tiene estructura válida
  */
-export const normalizeCantidad = (cantidad: any, defaultValue: number = 1): number => {
-  if (typeof cantidad === 'number') return Math.max(0, cantidad);
-  if (typeof cantidad === 'string') {
-    const parsed = parseInt(cantidad, 10);
-    return isNaN(parsed) ? defaultValue : Math.max(0, parsed);
-  }
-  return defaultValue;
-};
-
-/**
- * Valida si un objeto es un material válido con propiedades requeridas
- * @param material - Objeto material a validar
- * @returns Boolean indicando si el material es válido
- */
-export const isMaterialValido = (material: any): boolean => {
-  return material && typeof material === 'object' && 
-         typeof material.id === 'string' && 
+export const isValidMaterial = (material: any): material is Material => {
+  return material && 
+         material.id && 
+         typeof material.id === 'string' &&
+         material.nombre && 
          typeof material.nombre === 'string';
 };
 
 /**
- * Normaliza un material para tener una estructura consistente
- * @param material - Material a normalizar
- * @returns Material normalizado con ID, materialId, nombre y cantidad
+ * Obtiene el stock disponible de un material
  */
-export const normalizarMaterial = (material: any): MaterialField => {
+export const getMaterialStock = (material: Material): number => {
   if (!material) {
-    return {
-      id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      materialId: '',
-      nombre: 'Material sin nombre',
-      cantidad: 1
-    };
+    return 0;
   }
   
-  return {
-    id: material.id || material.materialId || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    materialId: material.materialId || '',
-    nombre: material.nombre || 'Material sin nombre',
-    cantidad: normalizeCantidad(material.cantidad)
-  };
+  if (typeof material.cantidadDisponible === 'number') {
+    return material.cantidadDisponible;
+  }
+  
+  if (typeof material.cantidad === 'number') {
+    return material.cantidad;
+  }
+  
+  return 0;
 };
 
 /**
- * Genera un ID único basado en patrón temporal
- * @returns ID único basado en timestamp y cadena aleatoria
+ * Genera un ID único para un material
  */
-export const generateUniqueId = (): string => {
+export const generateMaterialId = (): string => {
   return `material-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
 /**
- * Calcula la disponibilidad real de un material teniendo en cuenta los ya seleccionados
- * @param material - Material a evaluar
- * @param materialesSeleccionados - Lista de materiales ya seleccionados
- * @returns Número de unidades disponibles
+ * Calcula el stock restante después de una operación
  */
-export const calcularDisponibilidadReal = (material: MaterialItem, materialesSeleccionados: MaterialField[]): number => {
+export const calculateRemainingStock = (material: Material, operationQuantity: number): number => {
   if (!material || !material.id) return 0;
   
-  // Obtener cuántas unidades ya están seleccionadas
-  const seleccionadasActualmente = materialesSeleccionados
-    .filter(field => field.materialId === material.id)
-    .reduce((total, field) => total + normalizeCantidad(field.cantidad), 0);
+  const currentStock = getMaterialStock(material);
+  const remaining = currentStock - operationQuantity;
   
-  // Para cuerdas individuales o materiales sin cantidadDisponible
-  if (material.tipo === 'cuerda' && (!material.cantidadDisponible && material.cantidadDisponible !== 0)) {
-    return seleccionadasActualmente > 0 ? 0 : 1;
-  }
-  
-  // Para otros tipos de material con cantidad
-  return Math.max(0, (material.cantidadDisponible || 0) - seleccionadasActualmente);
+  return Math.max(0, remaining); // No permitir stock negativo
 };
 
-// Constantes para mensajes de error
-export const ERROR_MESSAGES = {
-  NO_SELECTION: 'Debe seleccionar un material',
-  NOT_FOUND: 'El material seleccionado no existe',
-  INVALID_QUANTITY: 'La cantidad debe ser mayor que cero',
-  INSUFFICIENT: 'No hay suficientes unidades disponibles'
+/**
+ * Formatea información de stock para mostrar
+ */
+export const formatStockInfo = (material: Material): string => {
+  const stock = getMaterialStock(material);
+  return `Stock disponible: ${stock}`;
 };

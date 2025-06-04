@@ -251,21 +251,6 @@ export class AdvancedCache<T> {
 }
 
 // Exportar instancias para diferentes entidades
-export const actividadCache = new AdvancedCache<any>({
-  namespace: 'actividades',
-  ttl: 10 * 60 * 1000, // 10 minutos
-  storageType: 'local',
-  maxSize: 200
-});
-
-export const usuarioCache = new AdvancedCache<any>({
-  namespace: 'usuarios',
-  ttl: 30 * 60 * 1000, // 30 minutos
-  storageType: 'local'
-});
-
-export const materialCache = new AdvancedCache<any>({
-  namespace: 'materiales',
-  ttl: 15 * 60 * 1000, // 15 minutos
-  storageType: 'local'
-});
+export const actividadCache = new AdvancedCache({ namespace: 'actividad' });
+export const materialCache = new AdvancedCache({ namespace: 'material' });
+export const usuarioCache = new AdvancedCache({ namespace: 'usuario' });

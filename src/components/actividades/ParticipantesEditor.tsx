@@ -1,16 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, useCallback } from 'react';
 import {
-  Box, Button, Stack, Text, Grid, GridItem, Flex,
-  Heading, Card, CardBody, Checkbox, Input, InputGroup, InputLeftElement, Divider,
-  useDisclosure, useColorModeValue, FormControl, FormLabel, Select, HStack, Badge,
-  Table, Thead, Tbody, Tr, Th, Td, Radio, RadioGroup, useToast
+  Box, Button, Text, Grid, Flex,
+  Heading, Card, CardBody, Checkbox, Input,
+  useColorModeValue, FormControl, FormLabel, Select, HStack, Badge,
+  Table, Thead, Tbody, Tr, Th, Td, useToast
 } from '@chakra-ui/react';
 import { listarUsuarios } from '../../services/usuarioService';
-import { Usuario } from '../../types/usuario';
-import { Actividad } from '../../types/actividad';
-import { ParticipantesEditorProps } from '../../types/editor';
 import { FiGrid, FiList, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import { Usuario } from '../../types/usuario';
+
+// Interfaces
+interface ParticipantesEditorProps {
+  data: {
+    participanteIds?: string[];
+    creadorId?: string;
+    responsableActividadId?: string;
+    responsableMaterialId?: string;
+  };
+  onSave: (participantes: string[]) => void;
+  onResponsablesChange: (responsableId: string, responsableMaterialId: string) => void;
+  onCancel?: () => void;
+  mostrarBotones?: boolean;
+}
 
 // Definir interfaces para props de componentes
 interface UsuarioCardProps {
@@ -79,12 +91,12 @@ const UsuarioRow = React.memo<UsuarioRowProps>(({
   );
 });
 
-const ParticipantesEditor = React.forwardRef<
-  { submitForm: () => void },
-  ParticipantesEditorProps
->(({ data, onSave, onResponsablesChange, onCancel, mostrarBotones = true }, ref) => {
+// Componente principal con forwardRef
+const ParticipantesEditor = React.forwardRef((
+  { data, onSave, onResponsablesChange, onCancel, mostrarBotones = true }: ParticipantesEditorProps, 
+  ref: React.Ref<{ submitForm: () => boolean }>
+) => {
   const { currentUser, userProfile } = useAuth();
-  const toast = useToast();
   
   // Estados principales
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -113,10 +125,8 @@ const ParticipantesEditor = React.forwardRef<
   const [itemsPerPage] = useState(30);
   const [orden, setOrden] = useState<'nombre' | 'participante'>('nombre');
   const [vistaCompacta, setVistaCompacta] = useState(false);
-  
-  // Estilos
+    // Estilos
   const cardBg = useColorModeValue("white", "gray.700");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
 
   // Cargar usuarios una sola vez
   useEffect(() => {
@@ -165,12 +175,11 @@ const ParticipantesEditor = React.forwardRef<
       responsableId,
       responsableMaterialId
     ].filter(Boolean);
-    
-    // Verificar si hay algo que actualizar
+      // Verificar si hay algo que actualizar
     const idsAActualizar = idsRequeridos.filter(id => id && !selectedIds.includes(id));
     
     if (idsAActualizar.length > 0) {
-      setSelectedIds(prev => [...prev, ...idsAActualizar]);
+      setSelectedIds(prev => [...prev, ...idsAActualizar.filter(Boolean) as string[]]);
     }
   }, [data.creadorId, responsableId, responsableMaterialId, selectedIds]);
   
@@ -184,8 +193,7 @@ const ParticipantesEditor = React.forwardRef<
       setSelectedIds(prev => prev.filter(prevId => prevId !== id));
     } else {
       setSelectedIds(prev => [...prev, id]);
-    }
-  }, [selectedIds, data.creadorId, responsableId, responsableMaterialId]);
+    }  }, [selectedIds, data.creadorId, responsableId, responsableMaterialId]);
   
   // Manejar cambio de responsable principal
   const handleResponsableChange = useCallback((id: string) => {
@@ -210,10 +218,8 @@ const ParticipantesEditor = React.forwardRef<
     
     onResponsablesChange(responsableId, id);
   }, [selectedIds, responsableId, onResponsablesChange]);
-  
-  // Manejar cambio de rol
-  const handleRolChange = useCallback((uid: string, rol: string) => {
-    // Asegurar que el usuario está seleccionado
+    // Manejar cambio de rol
+  const handleRoleChange = useCallback((uid: string, rol: string) => {
     if (!selectedIds.includes(uid)) {
       setSelectedIds(prev => [...prev, uid]);
     }

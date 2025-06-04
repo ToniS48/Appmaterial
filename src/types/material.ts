@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export interface Material {
@@ -39,7 +40,7 @@ export interface MaterialItem {
   nombre: string;
   tipo: 'cuerda' | 'anclaje' | 'varios';
   estado: string;
-  cantidadDisponible: number;
+  cantidadDisponible: number | undefined;
   codigo?: string;
   descripcion?: string;
 }

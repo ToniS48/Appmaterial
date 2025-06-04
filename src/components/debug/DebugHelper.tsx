@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Text, Heading, Badge, Code, VStack, IconButton } from '@chakra-ui/react';
+import { Box, Text, Heading, Badge, VStack, IconButton } from '@chakra-ui/react';
 import { FiX } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';

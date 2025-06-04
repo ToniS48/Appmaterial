@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { Timestamp } from 'firebase/firestore';
 import {
   Box,
   Heading,
@@ -17,7 +18,6 @@ import {
 } from '@chakra-ui/react';
 import { obtenerMaterial } from '../../services/materialService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
-import { Timestamp } from 'firebase/firestore'; // Importar Timestamp
 
 const MaterialDetallePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

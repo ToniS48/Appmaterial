@@ -6,10 +6,10 @@ import {
   AlertDialogContent, AlertDialogOverlay, useDisclosure
 } from '@chakra-ui/react';
 import { FiCheckSquare } from 'react-icons/fi';
-import { useAuth } from '../../contexts/AuthContext';
 import { listarPrestamos, registrarDevolucion } from '../../services/prestamoService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { Prestamo } from '../../types/prestamo';
+import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 
 const MisPrestamosPag: React.FC = () => {
@@ -18,9 +18,9 @@ const MisPrestamosPag: React.FC = () => {
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<Prestamo | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const cancelRef = React.useRef<HTMLButtonElement>(null);
-  const toast = useToast();
   const { userProfile } = useAuth();
-
+  const toast = useToast();
+  
   // Cargar préstamos del usuario actual
   useEffect(() => {
     const cargarMisPrestamos = async () => {
@@ -29,11 +29,19 @@ const MisPrestamosPag: React.FC = () => {
       try {
         setIsLoading(true);
         // Filtrar por préstamos del usuario actual que estén activos
-        const misPrestamosEnUso = await listarPrestamos({ 
+        // Como el servicio no acepta múltiples estados, haremos dos consultas
+        const prestamosEnUso = await listarPrestamos({ 
           usuarioId: userProfile.uid,
-          estados: ['en_uso', 'pendiente']  // Cambiamos 'estado' por 'estados' para el servicio
+          estado: 'en_uso'
         });
-        setPrestamos(misPrestamosEnUso);
+        const prestamosPendientes = await listarPrestamos({ 
+          usuarioId: userProfile.uid,
+          estado: 'pendiente'
+        });
+        
+        // Combinar ambos resultados
+        const misPrestamosActivos = [...prestamosEnUso, ...prestamosPendientes];
+        setPrestamos(misPrestamosActivos);
       } catch (error) {
         console.error('Error al cargar préstamos:', error);
         toast({

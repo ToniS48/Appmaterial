@@ -7,11 +7,18 @@ import {
 import { FiFolder, FiSave } from 'react-icons/fi';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { Timestamp } from 'firebase/firestore';
-import { EnlacesEditorProps } from '../../types/editor';
 import { obtenerConfiguracionDrive } from '../../services/configuracionService';
 
 interface EnlacesEditorRef {
   submitForm: () => void;
+}
+
+interface EnlacesEditorProps {
+  data: any;
+  onSave: (data: any) => void;
+  onCancel?: () => void;
+  mostrarBotones?: boolean;
+  esNuevo?: boolean;
 }
 
 const EnlacesEditor = forwardRef<EnlacesEditorRef, EnlacesEditorProps>(
@@ -43,14 +50,13 @@ const EnlacesEditor = forwardRef<EnlacesEditorRef, EnlacesEditorProps>(
     const toast = useToast();
     const inputBg = useColorModeValue("white", "gray.700");
     const borderColor = useColorModeValue("gray.200", "gray.600");
-    
-    // Cargar configuración Drive
+      // Cargar configuración Drive
     useEffect(() => {
       const fetchConfig = async () => {
         try {
           const config = await obtenerConfiguracionDrive();
-          if (config?.googleDriveUrl) {
-            setCarpetaDrive(config.googleDriveUrl);
+          if (config) {
+            setCarpetaDrive(config);
           }
         } catch (error) {
           console.error("Error al obtener configuración de Drive:", error);

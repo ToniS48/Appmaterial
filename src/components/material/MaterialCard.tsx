@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MaterialItem } from '../../types/material';
 import {
   Card,
   CardBody,
@@ -11,7 +12,6 @@ import {
   IconButton
 } from '@chakra-ui/react';
 import { FiMinus, FiPlus } from 'react-icons/fi';
-import { MaterialItem } from './types';
 
 interface MaterialCardProps {
   material: MaterialItem;
@@ -110,8 +110,7 @@ const MaterialCard = React.memo(({
             >
               {material.tipo === 'cuerda' ? 'Cuerda' : 
                material.tipo === 'anclaje' ? 'Anclaje' : 'Varios'}
-            </Badge>
-            <Text 
+            </Badge>            <Text 
               fontSize="xs" 
               fontWeight="medium"
               color={disponibilidadReal === 0 ? "red.600" : 

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Box, Button, Text, Flex, useToast, VStack, HStack, Icon } from '@chakra-ui/react';
+import { Box, Button, Text, useToast, VStack, HStack, Icon } from '@chakra-ui/react';
 import { DownloadIcon } from '@chakra-ui/icons';
 import { useReactToPrint } from 'react-to-print';
 import messages from '../../constants/messages';

@@ -1,13 +1,13 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { Notificacion } from '../types/notificacion';
 import { 
   obtenerNotificacionesUsuario, 
-  marcarNotificacionLeida, 
+  marcarNotificacionComoLeida, 
   marcarTodasLeidas,
-  subscribeToNotificaciones
+  suscribirseANotificaciones
 } from '../services/notificacionService';
-import { useAuth } from './AuthContext';
 import { useToast } from '@chakra-ui/react';
+import { useAuth } from './AuthContext';
+import { Notificacion } from '../types/notificacion';
 import messages from '../constants/messages';
 
 interface NotificacionContextType {
@@ -27,8 +27,8 @@ export const NotificacionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [cargando, setCargando] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useAuth();
   const toast = useToast();
+  const { currentUser } = useAuth();
 
   // Calcular el número de notificaciones no leídas
   const notificacionesNoLeidas = notificaciones.filter(n => !n.leida).length;
@@ -56,7 +56,7 @@ export const NotificacionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!currentUser?.uid) return;
     
     // Iniciar el listener y guardar la función para desuscribirse
-    const unsubscribe = subscribeToNotificaciones(
+    const unsubscribe = suscribirseANotificaciones(
       currentUser.uid,
       (nuevasNotificaciones) => {
         setNotificaciones(nuevasNotificaciones);
@@ -76,7 +76,7 @@ export const NotificacionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Marcar una notificación como leída
   const marcarComoLeida = async (notificacionId: string) => {
     try {
-      await marcarNotificacionLeida(notificacionId);
+      await marcarNotificacionComoLeida(notificacionId);
       
       // Actualizar estado local
       setNotificaciones(prevState => 

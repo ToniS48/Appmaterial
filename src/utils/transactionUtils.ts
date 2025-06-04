@@ -1,5 +1,5 @@
 import { db } from '../config/firebase';
-import { runTransaction, DocumentReference } from 'firebase/firestore';
+import { runTransaction } from 'firebase/firestore';
 import { logger } from './loggerUtils';
 
 /**

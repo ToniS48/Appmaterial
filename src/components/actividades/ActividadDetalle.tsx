@@ -1,34 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Text,
   Heading,
-  Badge,
   Flex,
   Button,
   Stack,
-  Card,
-  CardBody,
   Divider,
   Avatar,
   HStack,
-  useToast,  // Añadido para resolver el error en la línea 39
-  Tooltip    // Añadido para resolver los errores en las líneas 248 y 258
+  useToast,
+  Tooltip
 } from '@chakra-ui/react';
-import { CalendarIcon, InfoIcon, CheckIcon } from '@chakra-ui/icons';
-import { Actividad } from '../../types/actividad';
-import PrestamoForm from '../prestamos/PrestamoForm';
+import { CheckIcon, CalendarIcon } from '@chakra-ui/icons';
 import { useAuth } from '../../contexts/AuthContext';
-import messages from '../../constants/messages';
 import { listarUsuariosPorIds } from '../../services/usuarioService';
-import { Usuario } from '../../types/usuario';
-import { Link as RouterLink } from 'react-router-dom';
 import { 
-  FiCalendar, FiEdit, FiTrash, FiPackage, FiEye, 
-  FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
+  FiPackage, FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
   FiAlertCircle, FiXCircle 
 } from 'react-icons/fi';
 import IconBadge from '../common/IconBadge';
+import { Actividad } from '../../types/actividad';
+import { Usuario } from '../../types/usuario';
 
 interface ActividadDetalleProps {
   actividad: Actividad;
@@ -38,17 +32,8 @@ interface ActividadDetalleProps {
 
 const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose, onActividadUpdated }) => {
   const [addedToCalendar, setAddedToCalendar] = useState<boolean>(false);
-  const toast = useToast();
-  const { userProfile } = useAuth();
+  const toast = useToast();  const { userProfile } = useAuth();
   const [participantes, setParticipantes] = useState<Usuario[]>([]);
-  
-  // Comprobar si el usuario actual es responsable o creador
-  const esResponsable = userProfile && 
-    (actividad.responsableActividadId === userProfile.uid || 
-     actividad.creadorId === userProfile.uid ||
-     actividad.responsableMaterialId === userProfile.uid);
-  
-  const esParticipante = userProfile && actividad.participanteIds?.includes(userProfile.uid);
 
   // Añadir useEffect para verificar si ya se ha añadido al calendario
   useEffect(() => {
@@ -62,21 +47,7 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
           console.error('Error parsing calendar activities from localStorage', e);
         }
       }
-    }
-  }, [actividad.id]);
-
-  // Formatear fecha para mostrar
-  const formatDate = (date: any) => {
-    if (!date) return "";
-    const d = date instanceof Date ? date : date.toDate();
-    return d.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+    }  }, [actividad.id]);
 
   // Función para crear URL de Google Calendar
   const addToGoogleCalendar = () => {

@@ -17,54 +17,53 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { DeleteIcon, CheckIcon, InfoIcon } from '@chakra-ui/icons';
-import { FaTools, FaCalendarAlt, FaBoxOpen } from 'react-icons/fa';
+import { FaBoxOpen, FaCalendarAlt, FaTools } from 'react-icons/fa';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
-import { useNotificaciones } from '../../contexts/NotificacionContext';
-import { obtenerNotificacionesUsuario, eliminarNotificacion, marcarNotificacionLeida, marcarTodasLeidas } from '../../services/notificacionService';
-import { Notificacion, TipoNotificacion } from '../../types/notificacion';
+import { obtenerNotificacionesUsuario, eliminarNotificacion, marcarNotificacionComoLeida, marcarTodasLeidas } from '../../services/notificacionService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Notificacion, TipoNotificacion } from '../../types/notificacion';
 import messages from '../../constants/messages';
 
 const NotificacionesPage: React.FC = () => {
-  const { notificaciones: notificacionesContext, cargarNotificaciones } = useNotificaciones();
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<string>('');
   const [mostrarLeidas, setMostrarLeidas] = useState<boolean>(false);
   const [cargando, setCargando] = useState<boolean>(true);
-  const { userProfile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+
+  // Función para cargar notificaciones
+  const cargarNotificaciones = async () => {
+    if (!userProfile?.uid) return;
+    
+    try {
+      setCargando(true);
+      const datos = await obtenerNotificacionesUsuario(
+        userProfile.uid, 
+        mostrarLeidas, 
+        100
+      );
+      setNotificaciones(datos);
+    } catch (error) {
+      console.error('Error al cargar notificaciones:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar todas las notificaciones',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // Cargar notificaciones con filtros
   useEffect(() => {
-    const cargarTodasNotificaciones = async () => {
-      if (!userProfile?.uid) return;
-      
-      try {
-        setCargando(true);
-        const datos = await obtenerNotificacionesUsuario(
-          userProfile.uid, 
-          mostrarLeidas, 
-          100
-        );
-        setNotificaciones(datos);
-      } catch (error) {
-        console.error('Error al cargar notificaciones:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudieron cargar todas las notificaciones',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setCargando(false);
-      }
-    };
-    
-    cargarTodasNotificaciones();
-  }, [userProfile?.uid, mostrarLeidas, toast]);
+    cargarNotificaciones();
+  }, [userProfile?.uid, mostrarLeidas]);
 
   // Aplicar filtros
   const notificacionesFiltradas = notificaciones.filter(n => {
@@ -101,7 +100,7 @@ const NotificacionesPage: React.FC = () => {
   // Marcar notificación como leída
   const handleMarcarComoLeida = async (id: string) => {
     try {
-      await marcarNotificacionLeida(id);
+      await marcarNotificacionComoLeida(id);
       
       // Actualizar la notificación en la lista local
       setNotificaciones(prevNotificaciones => 

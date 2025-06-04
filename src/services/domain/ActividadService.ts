@@ -3,15 +3,16 @@
  * Contiene toda la lógica de negocio relacionada con actividades
  * Utiliza repositorios para acceso a datos y mantiene separación de responsabilidades
  */
-import { Actividad, EstadoActividad, MaterialAsignado, TipoActividad, SubtipoActividad } from '../../types/actividad';
+import { Actividad, EstadoActividad, TipoActividad, SubtipoActividad, MaterialAsignado } from '../../types/actividad';
 import { Prestamo } from '../../types/prestamo';
-import { Usuario } from '../../types/usuario';
-import { actividadRepository, prestamoRepository, usuarioRepository, materialRepository } from '../../repositories';
-import { validateActividad, getUniqueParticipanteIds, determinarEstadoActividad } from '../../utils/actividadUtils';
-import { NotificacionService } from './NotificacionService';
+import { actividadRepository, prestamoRepository } from '../../repositories';
+import { validateActividad, getUniqueParticipanteIds } from '../../utils/actividadUtils';
+import { determinarEstadoActividad } from '../../utils/dateUtils';
 import * as prestamoService from '../prestamoService';
+import { crearPrestamosParaActividad } from '../actividadService';
 import { logger } from '../../utils/loggerUtils';
 import { Timestamp } from 'firebase/firestore';
+import { NotificacionService } from './NotificacionService';
 
 export interface CreateActividadRequest {
   nombre: string;
@@ -87,13 +88,15 @@ export class ActividadService {
         enlacesTopografias: [],
         enlacesDrive: [],
         enlacesWeb: []
-      };
+      };      // Crear la actividad
+      const nuevaActividad = await actividadRepository.create(actividadData);
 
-      // Crear la actividad
-      const nuevaActividad = await actividadRepository.create(actividadData);      // Gestionar préstamos si es necesario
+      // Gestionar préstamos si es necesario
       if (nuevaActividad.necesidadMaterial && nuevaActividad.materiales.length > 0) {
-        await prestamoService.crearPrestamosParaActividad(nuevaActividad);
-      }      // Enviar notificaciones
+        await crearPrestamosParaActividad(nuevaActividad);
+      }
+
+      // Enviar notificaciones
       await this.notificacionService.notificarNuevaActividad(nuevaActividad, nuevaActividad.participanteIds);
 
       logger.info('Actividad creada exitosamente', { actividadId: nuevaActividad.id });

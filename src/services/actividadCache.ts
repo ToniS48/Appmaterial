@@ -1,3 +1,4 @@
+
 import { Actividad } from '../types/actividad';
 
 // Clase para gestionar el caché de actividades

@@ -3,13 +3,12 @@
 import { enviarRecordatorioDevolucion } from './notificacionService';
 
 // Iniciar las tareas programadas
-export const iniciarTareasProgramadas = () => {
-  // Verificar si estamos en el cliente (en el navegador)
-  if (typeof window !== 'undefined') {
-    // Programar recordatorios de devolución para ejecutarse diariamente
+export const iniciarTareasProgramadas = (): void => {
+  try {
+    // Tarea para recordatorios de devolución
     setInterval(async () => {
       try {
-        await enviarRecordatorioDevolucion(2); // 2 días antes
+        // await enviarRecordatorioDevolucion(2); // 2 días antes - comentado por ahora
       } catch (error) {
         console.error('Error en tarea programada de recordatorios:', error);
       }
@@ -18,10 +17,12 @@ export const iniciarTareasProgramadas = () => {
     // También ejecutarlo al iniciar la app
     setTimeout(async () => {
       try {
-        await enviarRecordatorioDevolucion(2);
+        // await enviarRecordatorioDevolucion(2); - comentado por ahora
       } catch (error) {
         console.error('Error al enviar recordatorio inicial:', error);
       }
     }, 5000); // Esperar 5 segundos después de iniciar la app
+  } catch (error) {
+    console.error('Error al inicializar tareas programadas:', error);
   }
 };

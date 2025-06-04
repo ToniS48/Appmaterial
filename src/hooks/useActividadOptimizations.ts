@@ -3,7 +3,6 @@
 
 import { useCallback, useRef, useMemo } from 'react';
 import { deferCallback } from '../utils/performanceUtils';
-import { useOptimizedClickHandler } from '../utils/eventOptimizer';
 
 interface UseActividadOptimizationsConfig {
   throttleDelay?: number;
@@ -28,15 +27,11 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
   const optimizedSave = useCallback(async (
     saveOperation: () => Promise<void>,
     operationName: string = 'save'
-  ) => {
-    const startTime = performance.now();
+  ) => {    const startTime = performance.now();
     performanceMetrics.current.totalOperations++;
 
     try {
-      await deferCallback(saveOperation, { 
-        maxExecutionTime: 100,
-        idleTimeout: deferredTimeout 
-      });
+      await deferCallback(saveOperation);
       
       const executionTime = performance.now() - startTime;
       performanceMetrics.current.averageExecutionTime = 
@@ -49,8 +44,7 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
       performanceMetrics.current.violationCount++;
       console.error(`❌ Error en operación optimizada ${operationName}:`, error);
       throw error;
-    }
-  }, [deferredTimeout, enableLogging]);
+    }  }, [deferredTimeout, enableLogging]);
 
   // Optimización para navegación entre tabs
   const optimizedTabChange = useCallback((
@@ -59,9 +53,6 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
   ) => {
     deferCallback(() => {
       tabChangeOperation(newIndex);
-    }, { 
-      maxExecutionTime: 50,
-      idleTimeout: 8 
     });
   }, []);
 
@@ -76,15 +67,11 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
   // Optimización para operaciones de carga
   const optimizedLoad = useCallback(async (
     loadOperation: () => Promise<any>,
-    operationName: string = 'load'
-  ) => {
+    operationName: string = 'load'  ) => {
     const startTime = performance.now();
     
     try {
-      const result = await deferCallback(loadOperation, {
-        maxExecutionTime: 200,
-        idleTimeout: deferredTimeout
-      });
+      const result = await loadOperation();
       
       if (enableLogging) {
         const executionTime = performance.now() - startTime;
@@ -97,7 +84,7 @@ export const useActividadOptimizations = (config: UseActividadOptimizationsConfi
       console.error(`Error en carga optimizada ${operationName}:`, error);
       throw error;
     }
-  }, [deferredTimeout, enableLogging]);
+  }, [enableLogging]);
   // Click handlers optimizados usando el optimizador de eventos
   const createOptimizedClickHandler = useCallback((
     handler: (...args: any[]) => void | Promise<void>,

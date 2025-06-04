@@ -8,22 +8,21 @@ import { actividadCache } from './actividadCache';
 // Eliminar registrarDevolucion de la importación
 import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from './prestamoService';
 import { enviarNotificacionMasiva } from './notificacionService';
-import { listarUsuarios, obtenerUsuarioPorId as obtenerUsuario } from './usuarioService';
+import { listarUsuarios, obtenerUsuarioPorId } from './usuarioService';
 import { obtenerMaterial } from './materialService';
 import messages from '../constants/messages';
 import { determinarEstadoActividad } from '../utils/dateUtils';
 import { getUniqueParticipanteIds } from '../utils/actividadUtils';
 import { executeTransaction } from '../utils/transactionUtils';
 import { validateWithZod } from '../validation/validationMiddleware';
-import { actividadCompleteSchema } from '../schemas/actividadSchema';
 // Importar el logger
 import { logger } from '../utils/loggerUtils';
 import { z } from 'zod'; // También necesitamos importar z para el casting
+import { actividadCompleteSchema } from '../schemas/actividadSchema';
 
 // Crear una nueva actividad
-export const crearActividad = async (actividadData: Omit<Actividad, 'id' | 'fechaCreacion' | 'fechaActualizacion'>): Promise<Actividad> => {
-  try {
-    // Usar la función centralizada para obtener participantes únicos
+export async function crearActividad(actividadData: Omit<Actividad, 'id' | 'fechaCreacion' | 'fechaActualizacion'>): Promise<Actividad> {  try {
+    // Obtener participantes únicos
     const participanteIds = getUniqueParticipanteIds(
       actividadData.participanteIds,
       actividadData.creadorId,
@@ -231,10 +230,7 @@ export const añadirComentario = async (
 };
 
 // Obtener actividades próximas
-export const obtenerActividadesProximas = async (
-  limit = 5, 
-  options?: { ignoreCache?: boolean }
-): Promise<Actividad[]> => {
+export const obtenerActividadesProximas = async (limit: number = 10, options?: { ignoreCache?: boolean }): Promise<Actividad[]> => {
   const ignoreCache = options?.ignoreCache ?? false;
   
   // Usar caché a menos que explícitamente se pida ignorarlo
@@ -560,7 +556,12 @@ export const obtenerEstadisticasUsuarios = async () => {
 };
 
 // Obtener estadísticas de actividades
-export const obtenerEstadisticasActividades = async () => {
+export const obtenerEstadisticasActividades = async (): Promise<{
+  planificadas: number;
+  enCurso: number;
+  finalizadas: number;
+  canceladas: number;
+}> => {
   try {
     const actividades = await listarActividades();
     return {
@@ -576,7 +577,7 @@ export const obtenerEstadisticasActividades = async () => {
 };
 
 // Obtener comentarios de una actividad
-export const obtenerComentariosActividad = async (actividadId: string) => {
+export const obtenerComentarios = async (actividadId: string): Promise<Comentario[]> => {
   try {
     const actividad = await obtenerActividad(actividadId);
     return actividad.comentarios || [];
@@ -697,9 +698,7 @@ export const guardarActividad = validateWithZod(
 );
 
 // Mejorar la función de invalidación de caché
-export const invalidateActividadesCache = async (): Promise<void> => {
-  try {
-    // Limpiar toda la caché de actividades
+export const invalidarCacheActividades = (): void => {
     actividadCache.clear();
     console.log('Caché de actividades invalidado correctamente');
     
@@ -709,17 +708,35 @@ export const invalidateActividadesCache = async (): Promise<void> => {
     // Emitir evento para componentes que estén escuchando
     const event = new CustomEvent('actividades-updated');
     window.dispatchEvent(event);
-  } catch (error) {
-    console.error('Error al invalidar caché de actividades:', error);
-  }
 };
 
 // Añadir esta función nueva
-export const existeActividadConNombre = async (nombre: string, idExcluir?: string): Promise<boolean> => {
+export const buscarActividadesPorNombre = async (nombre: string): Promise<Actividad[]> => {
   try {
     const nombreNormalizado = nombre.trim().toLowerCase();
     
     // Consulta para buscar actividades con el mismo nombre
+    const actividadesQuery = query(
+      collection(db, 'actividades'),
+      where('nombreNormalizado', '==', nombreNormalizado)
+    );
+      const snapshot = await getDocs(actividadesQuery);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Actividad));
+  } catch (error) {
+    console.error('Error al buscar actividades por nombre:', error);
+    return [];
+  }
+};
+
+// Función para verificar nombre de actividad duplicado
+export const verificarNombreDuplicado = async (nombre: string, idExcluir?: string): Promise<boolean> => {
+  try {
+    const nombreNormalizado = nombre.trim().toLowerCase();
+    
     const actividadesQuery = query(
       collection(db, 'actividades'),
       where('nombreNormalizado', '==', nombreNormalizado)
@@ -740,3 +757,6 @@ export const existeActividadConNombre = async (nombre: string, idExcluir?: strin
     return false;
   }
 };
+
+// Alias para mantener compatibilidad
+export const obtenerUsuario = obtenerUsuarioPorId;

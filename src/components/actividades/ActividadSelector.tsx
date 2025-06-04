@@ -10,8 +10,8 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { listarActividades, obtenerActividad } from '../../services/actividadService';
+import { Controller, Control, FieldErrors } from 'react-hook-form';
 import { Actividad } from '../../types/actividad';
-import { Control, Controller, FieldErrors } from 'react-hook-form';
 
 interface ActividadSelectorProps {
   name: string;

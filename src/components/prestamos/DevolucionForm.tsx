@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import {
   Box, 
   Heading,
@@ -17,11 +18,10 @@ import {
   useToast,
   Flex
 } from '@chakra-ui/react';
-import { useForm, Controller } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
-import { registrarDevolucionConIncidencia } from '../../services/prestamoService';
-import { Prestamo } from '../../types/prestamo';
+import { registrarDevolucion, registrarDevolucionConIncidencia } from '../../services/prestamoService';
 import { useAuth } from '../../contexts/AuthContext';
+import { Prestamo } from '../../types/prestamo';
 import messages from '../../constants/messages'; // Importamos los mensajes centralizados
 import { Timestamp } from 'firebase/firestore';
 

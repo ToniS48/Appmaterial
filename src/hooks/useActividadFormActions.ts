@@ -115,7 +115,7 @@ export const useActividadFormActions = ({ actividadId }: UseActividadFormActions
     );
   };
 
-  const handleNecesidadMaterialChange = (necesita: boolean) => {
+    const handleNecesidadMaterialChange = (necesita: boolean) => {
     const updatedData = {
       ...formData,
       necesidadMaterial: necesita

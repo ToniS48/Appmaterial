@@ -1,4 +1,5 @@
 import React from 'react';
+import { UseFormRegister, FieldErrors, Control, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import {
   SimpleGrid,
   FormControl,
@@ -13,7 +14,6 @@ import {
   NumberDecrementStepper
 } from '@chakra-ui/react';
 import DatePicker from '../common/DatePicker';
-import { UseFormRegister, FieldErrors, Control, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 
 interface CuerdaFormProps {
   register: UseFormRegister<any>;

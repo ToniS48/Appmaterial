@@ -5,8 +5,7 @@
 import { 
   crearNotificacion as crearNotificacionFunc,
   enviarNotificacionMasiva,
-  enviarRecordatorioDevolucion,
-  crearRecordatorioPersonalizado
+  enviarRecordatorioDevolucion
 } from '../notificacionService';
 import { Notificacion, TipoNotificacion } from '../../types/notificacion';
 
@@ -31,12 +30,15 @@ export class NotificacionService {
   ): Promise<void> {
     return enviarNotificacionMasiva(usuarioIds, tipo, mensaje, enlace, entidadId, entidadTipo);
   }
-
   /**
    * Enviar recordatorio de devolución
    */
-  async enviarRecordatorioDevolucion(diasAntelacion: number = 2): Promise<void> {
-    return enviarRecordatorioDevolucion(diasAntelacion);
+  async enviarRecordatorioDevolucion(
+    usuarioId: string,
+    nombreMaterial: string,
+    fechaVencimiento: Date
+  ): Promise<void> {
+    return enviarRecordatorioDevolucion(usuarioId, nombreMaterial, fechaVencimiento);
   }
   /**
    * Crear recordatorio personalizado

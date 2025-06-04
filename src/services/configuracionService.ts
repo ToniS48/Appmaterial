@@ -7,13 +7,19 @@ interface DriveConfig {
   googleDriveDocFolder: string;
 }
 
-export const obtenerConfiguracionDrive = async (): Promise<DriveConfig> => {
-  const defaultConfig: DriveConfig = {
-    googleDriveUrl: '',
-    googleDriveTopoFolder: '',
-    googleDriveDocFolder: ''
-  };
-  
+interface ConfiguracionGlobal {
+  googleDriveUrl: string;
+  googleDriveTopoFolder: string;
+  googleDriveDocFolder: string;
+}
+
+const defaultConfig: ConfiguracionGlobal = {
+  googleDriveUrl: '',
+  googleDriveTopoFolder: '',
+  googleDriveDocFolder: ''
+};
+
+export const obtenerConfiguracion = async (): Promise<ConfiguracionGlobal> => {
   try {
     const docRef = doc(db, "configuracion", "global");
     const docSnap = await getDoc(docRef);
@@ -31,5 +37,15 @@ export const obtenerConfiguracionDrive = async (): Promise<DriveConfig> => {
   } catch (error) {
     console.error("Error al obtener configuración:", error);
     return defaultConfig;
+  }
+};
+
+export const obtenerConfiguracionDrive = async (): Promise<string> => {
+  try {
+    const config = await obtenerConfiguracion();
+    return config.googleDriveUrl;
+  } catch (error) {
+    console.error("Error al obtener configuración de Drive:", error);
+    return '';
   }
 };

@@ -43,17 +43,16 @@ import {
   CheckboxGroup
 } from '@chakra-ui/react';
 import { FiSend, FiTrash2, FiEye, FiUser, FiUsers, FiFilter } from 'react-icons/fi';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNotificaciones } from '../../contexts/NotificacionContext';
 import { listarUsuarios } from '../../services/usuarioService';
 import { 
   obtenerNotificacionesUsuario, 
   enviarNotificacionMasiva, 
-  marcarNotificacionLeida, 
+  marcarNotificacionComoLeida, 
   eliminarNotificacion 
 } from '../../services/notificacionService';
 import { Notificacion, TipoNotificacion } from '../../types/notificacion';
 import { Usuario } from '../../types/usuario';
+import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -66,6 +65,21 @@ const GestionNotificaciones: React.FC = () => {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<string>('');
   const [filtroUsuario, setFiltroUsuario] = useState<string>('');
+  const { userProfile } = useAuth();
+  const toast = useToast();
+  
+  // Modal controls
+  const {
+    isOpen: isFilterOpen,
+    onOpen: onFilterOpen,
+    onClose: onFilterClose
+  } = useDisclosure();
+  
+  const {
+    isOpen: isViewOpen,
+    onOpen: onViewOpen,
+    onClose: onViewClose
+  } = useDisclosure();
   
   // Estado para nueva notificación
   const [destinatarios, setDestinatarios] = useState<string[]>([]);
@@ -78,15 +92,11 @@ const GestionNotificaciones: React.FC = () => {
   const [rolSeleccionado, setRolSeleccionado] = useState<string>('');
   
   // Modales
-  const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
-  const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure();
-  const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
+      const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
   
   // Hooks
-  const toast = useToast();
-  const { userProfile } = useAuth();
-  const { cargarNotificaciones: recargarNotificacionesGlobales } = useNotificaciones();
-  
+  // useToast hook ya está declarado arriba
+      
   // Cargar datos iniciales
   useEffect(() => {
     const cargarDatos = async () => {
@@ -184,9 +194,9 @@ const GestionNotificaciones: React.FC = () => {
         usuariosSeleccionados,
         tipoNotificacion,
         mensaje,
-        undefined,
-        undefined,
-        enlace || undefined
+        undefined, // entidadId
+        undefined, // entidadTipo  
+        enlace || undefined // enlace
       );
       
       toast({
@@ -206,7 +216,6 @@ const GestionNotificaciones: React.FC = () => {
       
       // Recargar notificaciones para ver la nueva
       await cargarNotificaciones();
-      recargarNotificacionesGlobales();
       
     } catch (error) {
       console.error('Error al enviar notificación:', error);
@@ -225,7 +234,7 @@ const GestionNotificaciones: React.FC = () => {
   // Marcar notificación como leída
   const marcarLeida = async (id: string) => {
     try {
-      await marcarNotificacionLeida(id);
+      await marcarNotificacionComoLeida(id);
       
       // Actualizar lista local
       setNotificaciones(prev => 
@@ -240,7 +249,6 @@ const GestionNotificaciones: React.FC = () => {
         isClosable: true,
       });
       
-      recargarNotificacionesGlobales();
     } catch (error) {
       console.error('Error al marcar como leída:', error);
       toast({
@@ -269,7 +277,6 @@ const GestionNotificaciones: React.FC = () => {
         isClosable: true,
       });
       
-      recargarNotificacionesGlobales();
     } catch (error) {
       console.error('Error al eliminar notificación:', error);
       toast({

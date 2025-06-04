@@ -7,10 +7,7 @@ interface UseActividadFormAutoSaveProps {
   isEditing: boolean;
 }
 
-export const useActividadFormAutoSave = ({ 
-  methods, 
-  isEditing 
-}: UseActividadFormAutoSaveProps) => {
+export const useActividadFormAutoSave = ({ methods, isEditing }: UseActividadFormAutoSaveProps) => {
   const lastChangeTimeRef = useRef<number>(Date.now());
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [hasRecoveredDraft, setHasRecoveredDraft] = useState(false);
@@ -78,7 +75,7 @@ export const useActividadFormAutoSave = ({
   };
 
   const checkUnsavedChanges = (): boolean => {
-    return methods.formState.isDirty;
+        return methods.formState.isDirty;
   };
 
   return {

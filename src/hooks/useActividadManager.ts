@@ -89,7 +89,7 @@ export const useActividadManager = (actividadId?: string) => {
       });
     } finally {
       setLoading(false);
-    }
+      }
   };
   
   return {

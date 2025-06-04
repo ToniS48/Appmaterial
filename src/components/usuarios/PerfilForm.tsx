@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { 
   Box, 
   Button, 
@@ -16,10 +17,9 @@ import {
   Center,
   VStack
 } from '@chakra-ui/react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { useAuth } from '../../contexts/AuthContext';
 import { actualizarUsuario } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PerfilFormData {
   nombre: string;

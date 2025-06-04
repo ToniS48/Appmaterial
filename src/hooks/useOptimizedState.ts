@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useState, useRef } from 'react';
 
 export function useOptimizedState<T>(initialState: T) {
   const [state, setState] = useState<T>(initialState);

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import { Material } from '../../types/material';
 import {
   Box, 
   Text, 
@@ -30,11 +32,9 @@ import {
   TabPanel
 } from '@chakra-ui/react';
 import { FiSearch, FiEye, FiFilter } from 'react-icons/fi';
-import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales } from '../../services/materialService';
 import messages from '../../constants/messages';
-import { Material } from '../../types/material';
 
 // Estados de material con colores para el inventario
 const ESTADOS_MATERIAL = [

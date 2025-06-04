@@ -1,4 +1,4 @@
-import { Actividad, MaterialAsignado } from './actividad';
+import { Actividad } from './actividad';
 
 /**
  * Interfaz base para todos los editores de la aplicación

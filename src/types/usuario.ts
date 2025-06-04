@@ -1,3 +1,4 @@
+
 import { Timestamp, FieldValue } from 'firebase/firestore';
 
 export type RolUsuario = 'admin' | 'vocal' | 'socio' | 'invitado';

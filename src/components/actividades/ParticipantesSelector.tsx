@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Usuario } from '../../types/usuario';
 import {
   Modal,
   ModalOverlay,
@@ -23,7 +24,6 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { SearchIcon, CloseIcon } from '@chakra-ui/icons';
-import { Usuario } from '../../types/usuario';
 
 interface ParticipantesSelectorProps {
   isOpen: boolean;

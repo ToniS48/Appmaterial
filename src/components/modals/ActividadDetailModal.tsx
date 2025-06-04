@@ -1,4 +1,6 @@
 import React from 'react';
+import { Actividad } from '../../types/actividad';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Modal,
   ModalOverlay,
@@ -11,8 +13,6 @@ import {
   Box
 } from '@chakra-ui/react';
 import { FiPackage } from 'react-icons/fi';
-import { Actividad } from '../../types/actividad';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface ActividadDetailModalProps {
   actividad: Actividad;
@@ -32,7 +32,7 @@ const ActividadDetailModal: React.FC<ActividadDetailModalProps> = ({
   onGestionarMaterial
 }) => {
   const { userProfile } = useAuth();
-
+  
   // Comprobar si el usuario es responsable o creador
   const esCreador = userProfile?.uid === actividad.creadorId;
   const esResponsableActividad = userProfile?.uid === actividad.responsableActividadId;

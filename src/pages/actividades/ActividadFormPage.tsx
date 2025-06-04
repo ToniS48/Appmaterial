@@ -1,27 +1,28 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useForm, FormProvider } from 'react-hook-form';
 import { 
   Box, Tabs, TabList, Tab, TabPanels, TabPanel, Container, 
   Button, HStack, Center, Spinner, Alert, Spacer, Flex, useToast
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiArrowRight, FiSave, FiFileText, FiUsers, FiPackage, FiLink, FiCheck, FiX } from 'react-icons/fi';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { ActividadInfoForm } from '../../components/actividades/ActividadInfoForm';
 import ParticipantesEditor from '../../components/actividades/ParticipantesEditor';
 import MaterialEditor from '../../components/actividades/MaterialEditor';
 import EnlacesEditor from '../../components/actividades/EnlacesEditor';
-import { FormProvider, useForm } from 'react-hook-form';
 import { Actividad } from '../../types/actividad';
 import { useZodValidation } from '../../hooks/useZodValidation';
-import { actividadBaseSchema } from '../../schemas/actividadSchema';
 import { useActividadForm } from '../../hooks/useActividadForm';
+import { actividadBaseSchema } from '../../schemas/actividadSchema';
+import { createOptimizedValidator } from '../../utils/performanceUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
 import validationMessages from '../../constants/validationMessages';
 import { useActividadOptimizations } from '../../hooks/useActividadOptimizations';
-import { setupSchedulerOptimizer, optimizeTabChange, createOptimizedValidator } from '../../utils/reactSchedulerOptimizer';
+import { setupSchedulerOptimizer, optimizeTabChange } from '../../utils/reactSchedulerOptimizer';
 
-export const ActividadFormPage = () => {
+export default function ActividadFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
@@ -188,12 +189,10 @@ export const ActividadFormPage = () => {
       setError('Error al procesar los datos: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     } finally {
       setIsSubmitting(false);
-    }
-  };
+    }  };
   
   // Añadir una función helper para validar la primera pestaña
-  const validateInfoTab = (data: Partial<Actividad>, silencioso = true): boolean => {
-    // Validar todos los campos requeridos
+  const validateFirstTab = (data: any, silencioso: boolean = false) => {
     const nombreValido = validation.validateNombre(data.nombre || '', silencioso) === undefined;
     const lugarValido = validation.validateLugar(data.lugar || '', silencioso) === undefined;
     const tipoValido = validation.validateTipo(data.tipo || [], silencioso) === undefined;
@@ -590,8 +589,7 @@ export const ActividadFormPage = () => {
         </FormProvider>
         
         {error && <Alert status="error" mt={4}>{error}</Alert>}
-        {successMessage && <Alert status="success" mt={4}>{successMessage}</Alert>}
-      </Container>
+        {successMessage && <Alert status="success" mt={4}>{successMessage}</Alert>}      </Container>
     </DashboardLayout>
   );
-};
+}

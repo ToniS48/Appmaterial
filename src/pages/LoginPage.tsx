@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Container, Flex, Link, Text, VStack, Image, Center } from '@chakra-ui/react';
 import LoginForm from '../components/auth/LoginForm';
-import messages from '../constants/messages';
 import logoEspemo from '../assets/images/logoEspemo.png';
 
 const LoginPage: React.FC = () => {

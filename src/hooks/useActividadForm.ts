@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { Actividad, EstadoActividad } from '../types/actividad';
+import { Actividad } from '../types/actividad';
 import { 
   obtenerActividad, 
   crearActividad, 
@@ -9,10 +9,10 @@ import {
 import { Timestamp } from 'firebase/firestore';
 import { determinarEstadoActividad } from '../utils/dateUtils';
 import { 
-  validateActividadComplete,
-  getStandardizedActivityData,
+  validateActividad,
   standardizeLinks,
-  standardizeMaterials
+  standardizeMaterials,
+  getDefaultActivityData
 } from '../utils/actividadUtils';
 import { useZodValidation } from './useZodValidation';
 import { actividadBaseSchema } from '../schemas/actividadSchema';
@@ -22,23 +22,22 @@ interface UseActividadFormProps {
   usuarioId?: string;
 }
 
-export const useActividadForm = ({ actividadId, usuarioId }: UseActividadFormProps) => {
+export function useActividadForm({ actividadId, usuarioId }: UseActividadFormProps) {
   const [formData, setFormData] = useState<Partial<Actividad>>({});
   const [loading, setLoading] = useState(!!actividadId);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
-    // Colocar el hook en el nivel superior
+  
+  // Colocar el hook en el nivel superior
   const { validate } = useZodValidation(actividadBaseSchema);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      setError(null);
-      try {
-        const initialData = actividadId
+      setError(null);      try {        const initialData = actividadId
           ? await obtenerActividad(actividadId)
-          : getStandardizedActivityData(null, usuarioId);
+          : getDefaultActivityData(undefined, usuarioId);
 
         setFormData(initialData);
       } catch (e: any) {

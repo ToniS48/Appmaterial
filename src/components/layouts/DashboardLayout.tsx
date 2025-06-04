@@ -1,7 +1,6 @@
 import React from 'react';
-import { Box, Flex, useBreakpointValue } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
 import AppHeader from './AppHeader';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -9,8 +8,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
-  const { userProfile } = useAuth();
-
+  
   return (
     <Flex h="100vh" direction="column">
       {/* Header con menú de navegación */}

@@ -68,7 +68,7 @@ export interface AppActions {
   // Cache Actions
   updateCache: (entity: keyof AppState['cache'], data: any[]) => void;
   invalidateCache: (entity: keyof AppState['cache']) => void;
-  getCacheAge: (entity: keyof AppState['cache']) => number;
+  getCacheAge: (entity: Exclude<keyof AppState['cache'], 'lastUpdated'>) => number;
 
   // Form Actions
   updateActividadForm: (data: Partial<AppState['forms']['actividad']>) => void;
@@ -119,7 +119,7 @@ export const useAppStore = create<AppState & AppActions>()(
 
     // UI Actions
     setLoading: (loading: boolean) =>
-      set((state) => ({
+      set((state: AppState) => ({
         ui: { ...state.ui, isLoading: loading }
       })),
 
@@ -219,9 +219,7 @@ export const useAppStore = create<AppState & AppActions>()(
             [entity]: 0
           }
         }
-      })),
-
-    getCacheAge: (entity: keyof AppState['cache']) => {
+      })),    getCacheAge: (entity: Exclude<keyof AppState['cache'], 'lastUpdated'>) => {
       const lastUpdated = get().cache.lastUpdated[entity] || 0;
       return Date.now() - lastUpdated;
     },
@@ -290,7 +288,7 @@ export const useUserProfile = () => useAppStore((state) => state.user.profile);
 export const useIsAuthenticated = () => useAppStore((state) => state.user.isAuthenticated);
 
 // Hook para cache con TTL (Time To Live)
-export const useCacheWithTTL = (entity: keyof AppState['cache'], ttlMs: number = 5 * 60 * 1000) => {
+export const useCacheWithTTL = (entity: Exclude<keyof AppState['cache'], 'lastUpdated'>, ttlMs: number = 300000) => {
   const cache = useAppStore((state) => state.cache);
   const getCacheAge = useAppStore((state) => state.getCacheAge);
   
