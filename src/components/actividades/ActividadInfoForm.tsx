@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   FormControl, FormLabel, FormErrorMessage, Input,
-  Checkbox, SimpleGrid, Textarea, Box, Button, Wrap, WrapItem,
-  HStack, Tag, TagLabel, TagCloseButton, Flex
+  SimpleGrid, Textarea, Box, Button, Wrap, WrapItem
 } from '@chakra-ui/react';
 import { Controller, useFormContext } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
 import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
 import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD } from '../../constants/actividadOptions';
-import { TipoActividad, SubtipoActividad, TipoActividadOption, SubtipoActividadOption } from '../../types/actividad';
-import { FiX } from 'react-icons/fi';
-import validationMessages from '../../constants/validationMessages';
+import { TipoActividad, SubtipoActividad } from '../../types/actividad';
 
 // Definir tipos específicos para mejorar la seguridad de tipo
 type FilterCallback<T> = (value: T) => boolean;
-type FindOptionCallback<T extends string, U extends {value: T, label: string}> = (option: U) => boolean;
 
 // Interfaz para las propiedades del componente
 interface ActividadInfoFormProps {
@@ -24,6 +20,7 @@ interface ActividadInfoFormProps {
 export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }) => {
   const { register, control, watch, setValue } = useFormContext();
   const validation = useActividadInfoValidation();
+  const { handleFieldTouched } = validation;
   
   // Observar fechas y tipos seleccionados para validación cruzada
   const fechaInicio = watch('fechaInicio');
@@ -42,13 +39,6 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     return value !== null && value !== undefined && typeof value === 'string';
   };
 
-  // Función helper tipada para encontrar opciones en arrays
-  const findOptionByValue = <T extends string, U extends {value: T, label: string}>(
-    options: ReadonlyArray<U>,
-    value: T
-  ): U | undefined => {
-    return options.find((option) => option.value === value);
-  };
 
   // Manejar selección de tipo con tipado correcto
   const handleTipoToggle = (value: TipoActividad): void => {
@@ -85,16 +75,7 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
       newValues = [...subtiposSeleccionados.filter(isValidValue), value];
     }
     setValue('subtipo', newValues);
-    validation.validateSubtipo(newValues);
-  };
-
-  // Añadir estado para control de campos tocados
-  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
-
-  // Marcar un campo como tocado cuando el usuario interactúa con él
-  const handleFieldTouched = (fieldName: string) => {
-    setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
-  };
+    validation.validateSubtipo(newValues);  };
 
   return (
     <Box>

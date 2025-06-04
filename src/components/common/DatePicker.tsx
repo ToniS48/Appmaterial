@@ -1,9 +1,8 @@
-import React, { forwardRef, useEffect } from 'react';
+import React, { forwardRef } from 'react';
 import { Input, useColorModeValue } from '@chakra-ui/react';
 import ReactDatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { es } from 'date-fns/locale';
-import { Controller } from 'react-hook-form';
 
 // Componente CustomInput que recibe la referencia
 const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, ...props }, ref) => {

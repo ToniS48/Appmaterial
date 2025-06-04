@@ -3,7 +3,7 @@ import {
   Box, Button, Heading, Text, Flex, Badge, Card, CardBody, HStack, Icon
 } from '@chakra-ui/react';
 import { FiCalendar, FiMapPin, FiX } from 'react-icons/fi';
-import { Actividad } from '../../types/actividad';
+import { Actividad, TipoActividad, SubtipoActividad } from '../../types/actividad';
 
 interface ActividadPageHeaderProps {
   actividad: Actividad;
@@ -49,15 +49,14 @@ export const ActividadPageHeader: React.FC<ActividadPageHeaderProps> = ({
               <FiMapPin style={{ marginRight: '8px' }} />
               <Text>{actividad.lugar}</Text>
             </Flex>
-            
-            <HStack mt={2} spacing={2}>
-              {actividad.tipo?.map(tipo => (
+              <HStack mt={2} spacing={2}>
+              {actividad.tipo?.map((tipo: TipoActividad) => (
                 <Badge key={tipo} colorScheme="blue" fontSize="0.8em" borderRadius="full" px={2}>
                   {tipo}
                 </Badge>
               ))}
               
-              {actividad.subtipo?.map(subtipo => (
+              {actividad.subtipo?.map((subtipo: SubtipoActividad) => (
                 <Badge key={subtipo} colorScheme="teal" fontSize="0.8em" borderRadius="full" px={2}>
                   {subtipo}
                 </Badge>

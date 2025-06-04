@@ -161,9 +161,8 @@ jest.mock('../contexts/NotificacionContext', () => ({
 
 // Mock de servicios de notificación
 jest.mock('../services/notificacionService', () => ({
-  obtenerNotificacionesUsuario: jest.fn().mockResolvedValue([]),
-  subscribeToNotificaciones: jest.fn().mockReturnValue(() => {}),
-  marcarNotificacionLeida: jest.fn().mockResolvedValue(undefined),
+  obtenerNotificacionesUsuario: jest.fn().mockResolvedValue([]),  suscribirseANotificaciones: jest.fn().mockReturnValue(() => {}),
+  marcarNotificacionComoLeida: jest.fn().mockResolvedValue(undefined),
   marcarTodasLeidas: jest.fn().mockResolvedValue(undefined),
   crearNotificacion: jest.fn().mockResolvedValue({})
 }));

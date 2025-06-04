@@ -1,10 +1,10 @@
-import { where, orderBy, Timestamp } from 'firebase/firestore';
+import { where, orderBy } from 'firebase/firestore';
 import { Material } from '../types/material';
+import { Usuario } from '../types/usuario';
 import { BaseService } from './core/BaseService';
 import { validationService } from './core/ValidationService';
 import { enviarNotificacionMasiva } from './notificacionService';
 import { obtenerUsuarioPorId, listarUsuarios } from './usuarioService';
-import { Usuario } from '../types/usuario';
 
 /**
  * Servicio refactorizado de Material que usa BaseService
@@ -239,10 +239,9 @@ class MaterialService extends BaseService<Material> {
       }
       
       const materiales = await this.getAll(constraints);
-      
-      // Filtrar por cantidad disponible si se especifica
+        // Filtrar por cantidad disponible si se especifica
       if (filtros?.cantidad) {
-        return materiales.filter(m => 
+        return materiales.filter((m: Material) => 
           (m.cantidadDisponible || 1) >= filtros.cantidad!
         );
       }

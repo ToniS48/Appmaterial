@@ -23,22 +23,22 @@ import {
   ModalCloseButton,
   useToast
 } from '@chakra-ui/react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowBackIcon, ViewIcon } from '@chakra-ui/icons';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { obtenerPrestamosUsuario } from '../../services/prestamoService';
-import { useAuth } from '../../contexts/AuthContext';
 import { Prestamo } from '../../types/prestamo';
 import DevolucionForm from '../../components/prestamos/DevolucionForm';
+import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 
 const DevolucionMaterialPage: React.FC = () => {
-  const { userProfile } = useAuth();
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [selectedPrestamo, setSelectedPrestamo] = useState<Prestamo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { userProfile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -51,8 +51,12 @@ const DevolucionMaterialPage: React.FC = () => {
         setError(null);
         
         // Obtener préstamos activos del usuario actual
-        const data = await obtenerPrestamosUsuario(userProfile.uid, false);
-        setPrestamos(data);
+        const data = await obtenerPrestamosUsuario(userProfile.uid);
+        // Filtrar solo los préstamos activos (no devueltos)
+        const prestamosActivos = data.filter(prestamo => 
+          prestamo.estado !== 'devuelto' && prestamo.estado !== 'cancelado'
+        );
+        setPrestamos(prestamosActivos);
       } catch (err) {
         console.error("Error al cargar préstamos:", err);
         setError(messages.prestamos.errorCargar);

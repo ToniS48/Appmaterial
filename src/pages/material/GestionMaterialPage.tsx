@@ -33,7 +33,8 @@ import {
   Divider,
   Spinner,
   Card,
-  CardBody
+  CardBody,
+  Link
 } from '@chakra-ui/react';
 import { 
   AddIcon, 
@@ -43,9 +44,8 @@ import {
   WarningIcon, 
   SearchIcon 
 } from '@chakra-ui/icons';
-import { FiBox } from 'react-icons/fi'; // Añadir importación
+import { FiBox, FiPrinter } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
-import { PrinterIcon } from '../../components/layouts/DashboardIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales, eliminarMaterial } from '../../services/materialService';
 import MaterialForm from '../../components/material/MaterialForm';
@@ -176,11 +176,10 @@ const GestionMaterialPage: React.FC = () => {
             spacing={3}
             width={{ base: "100%", md: "auto" }}
             flexDirection={{ base: "column", sm: "row" }}
-          >
-            <Button
+          >            <Button
               as={RouterLink}
               to="/material/print-qr"
-              leftIcon={<PrinterIcon />}
+              leftIcon={<FiPrinter />}
               colorScheme="brand"
               variant="outline"
               width={{ base: "100%", sm: "auto" }}

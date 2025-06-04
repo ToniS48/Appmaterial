@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { listarUsuarios } from '../services/usuarioService';
 import { obtenerPrestamosPorActividad } from '../services/prestamoService';
+import { Actividad } from '../types/actividad';
 import { Usuario } from '../types/usuario';
 import { Prestamo } from '../types/prestamo';
-import { Actividad } from '../types/actividad';
 
 interface UseActividadPageDataProps {
   actividad: Actividad | null;
@@ -25,11 +25,11 @@ interface UseActividadPageDataReturn {
  * Hook para gestionar la carga de datos adicionales de la página de actividad
  * (participantes, préstamos, estado del calendario)
  */
-export const useActividadPageData = ({
+export function useActividadPageData({
   actividad,
   actividadId,
   loading
-}: UseActividadPageDataProps): UseActividadPageDataReturn => {
+}: UseActividadPageDataProps): UseActividadPageDataReturn {
   const [participantes, setParticipantes] = useState<Usuario[]>([]);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [addedToCalendar, setAddedToCalendar] = useState(false);

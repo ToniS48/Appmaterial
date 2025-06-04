@@ -38,9 +38,10 @@ export const actividadBaseSchema = z.object({
 });
 
 // Esquema completo para actividades (para validación final al guardar)
-export const actividadCompletaSchema = actividadBaseSchema.extend({
+export const actividadCompleteSchema = actividadBaseSchema.extend({
   tipo: z.array(z.string()).min(1, validationMessages.activity.typeRequired),
-  subtipo: z.array(z.string()).min(1, validationMessages.activity.subtypeRequired)
+  subtipo: z.array(z.string()).min(1, validationMessages.activity.subtypeRequired),
+  participanteIds: z.array(z.string()).min(1, validationMessages.activity.participantsMin)
 });
 
 // Esquema para la pestaña de participantes
@@ -74,15 +75,4 @@ export const fechasSchema = z.object({
 );
 
 // Esquema completo para validación final de actividad
-export const actividadCompleteSchema = actividadBaseSchema
-  .merge(participantesSchema)
-  .merge(materialesSchema)
-  .merge(enlacesSchema)
-  // Aplicar el refine directamente aquí en lugar de usar merge con fechasSchema
-  .refine(
-    data => data.fechaInicio <= data.fechaFin,
-    {
-      message: validationMessages.endDateBeforeStart,
-      path: ['fechaFin']
-    }
-  );
+export const actividadFinalSchema = actividadCompleteSchema;

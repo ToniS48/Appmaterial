@@ -1,62 +1,66 @@
-import { NavigateFunction } from 'react-router-dom';
-import { Usuario, RolUsuario } from '../types/usuario';
+// Utilidades básicas de navegación
+import { RolUsuario } from '../types/usuario';
 
-// Mapeo de roles a rutas (dashboard)
-export const ROL_ROUTES: Record<RolUsuario, string> = {
-  admin: '/admin',
-  vocal: '/vocal',
-  socio: '/socio',
-  invitado: '/invitado'  // Asegurar consistencia con la ruta en AppRoutes
+// Rutas por rol
+const ROL_ROUTES: Record<RolUsuario, string> = {
+  'admin': '/admin',
+  'vocal': '/vocal',
+  'socio': '/socio',
+  'invitado': '/dashboard'
 };
 
 /**
- * Obtiene la ruta correspondiente al rol del usuario
- * @param rol Rol del usuario
- * @returns Ruta correspondiente al dashboard de ese rol
+ * Obtiene la ruta para un rol específico
  */
-export const getRutaPorRol = (rol: string): string => {
+export const getRouteForRole = (rol: RolUsuario): string => {
   if (rol in ROL_ROUTES) {
     return ROL_ROUTES[rol as RolUsuario];
   }
-  return '/login'; // Default fallback
+  
+  return '/dashboard'; // ruta por defecto
+};
+
+interface NavigationOptions {
+  fallbackRoute?: string;
+  replace?: boolean;
+  forceRedirect?: boolean;
+}
+
+/**
+ * Navega a una ruta específica con opciones
+ */
+export const navigateToRoute = (
+  route: string,
+  options: NavigationOptions = {}
+): void => {
+  try {
+    const { fallbackRoute = '/dashboard', replace = false } = options;
+    
+    if (typeof window !== 'undefined') {
+      if (replace) {
+        window.location.replace(route || fallbackRoute);
+      } else {
+        window.location.href = route || fallbackRoute;
+      }
+    }
+  } catch (error) {
+    console.error('Error al navegar:', error);
+  }
 };
 
 /**
- * Navegación basada en rol de usuario
- * @param navigate - Función de navegación de React Router
- * @param userProfile - Perfil del usuario
- * @param options - Opciones adicionales de configuración
+ * Alias para compatibilidad
  */
-export const navigateByUserRole = (
-  navigate: NavigateFunction,
-  userProfile: Usuario | null,
-  options: {
-    fallbackRoute?: string;
-    replace?: boolean;
-    forceRedirect?: boolean;
-  } = {}
-): void => {
-  const { 
-    fallbackRoute = '/login',
-    replace = true,
-    forceRedirect = false
-  } = options;
-  
-  if (!userProfile) {
-    navigate(fallbackRoute, { replace });
-    return;
-  }
-  
-  const targetRoute = ROL_ROUTES[userProfile.rol] || fallbackRoute;
-  
-  // Si forceRedirect es true, siempre navega aunque esté en la misma ruta
-  if (forceRedirect) {
-    navigate(targetRoute, { replace });
-  } else {
-    // Evitar navegación circular si ya está en la ruta correcta
-    const currentPath = window.location.pathname;
-    if (currentPath !== targetRoute) {
-      navigate(targetRoute, { replace });
-    }
-  }
+export const getRutaPorRol = (rol: RolUsuario): string => {
+  return getRouteForRole(rol);
 };
+
+/**
+ * Navega al usuario según su rol
+ */
+export const navigateByUserRole = (rol: RolUsuario, navigate: (path: string) => void): void => {
+  const path = getRutaPorRol(rol);
+  navigate(path);
+};
+
+export {};

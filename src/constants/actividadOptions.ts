@@ -1,4 +1,5 @@
-import { TipoActividad, SubtipoActividad, TipoActividadOption, SubtipoActividadOption } from '../types/actividad';
+
+import { TipoActividadOption, SubtipoActividadOption } from '../types/actividad';
 
 export const TIPOS_ACTIVIDAD: TipoActividadOption[] = [
   { value: 'espeleologia', label: 'Espeleología' },

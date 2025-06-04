@@ -1,7 +1,7 @@
 // Archivo de pruebas específico para validar las optimizaciones de rendimiento
 // Este archivo puede ser importado en cualquier componente para probar las optimizaciones
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface PerformanceTestResults {
   violationCount: number;

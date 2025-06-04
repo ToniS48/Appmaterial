@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { debounce } from 'lodash';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import debounce from 'lodash/debounce';
 import { checkEmailAvailability, validateEmail } from '../utils/validationUtils';
 import { handleFirebaseError } from '../utils/errorHandling';
 import messages from '../constants/messages';
@@ -106,29 +106,31 @@ export function useFormValidation<T extends FormValues>(
     
     // Verificar si es un dominio de email desechable conocido
     return DISPOSABLE_EMAIL_DOMAINS.includes(domain);
-  };
+  };  // Función debounced para verificar disponibilidad de email con optimizaciones
+  const debouncedCheckEmail = useRef<ReturnType<typeof debounce>>();
 
-  // Función debounced para verificar disponibilidad de email con optimizaciones
-  const debouncedCheckEmail = debounce(async (email: string) => {
-    // No verificar si el email está vacío o es obviamente inválido
-    if (!email || email.trim().length === 0) {
-      return;
-    }
-
-    try {
-      setLoadingState('validating_email');
-      
-      // Validar el formato del email antes de continuar
-      const emailFormatError = validateEmail(email);
-      if (emailFormatError) {
-        setErrors(prev => ({ ...prev, email: emailFormatError }));
+  // Inicializar la función debounced
+  useEffect(() => {
+    debouncedCheckEmail.current = debounce(async (email: string) => {
+      // No verificar si el email está vacío o es obviamente inválido
+      if (!email || email.trim().length === 0) {
         return;
       }
-      
-      // Verificar si el email podría ser desechable o temporario
-      if (isPotentiallyInvalidEmail(email)) {
-        setErrors(prev => ({ ...prev, email: messages.validation.disposableEmail }));
-        return;
+
+      try {
+        setLoadingState('validating_email');
+        
+        // Validar el formato del email antes de continuar
+        const emailFormatError = validateEmail(email);
+        if (emailFormatError) {
+          setErrors(prev => ({ ...prev, email: emailFormatError }));
+          return;
+        }
+        
+        // Verificar si el email podría ser desechable o temporario
+        if (isPotentiallyInvalidEmail(email)) {
+          setErrors(prev => ({ ...prev, email: messages.validation.disposableEmail }));
+          return;
       }
       
       // Verificar y limpiar el caché si es necesario
@@ -192,11 +194,14 @@ export function useFormValidation<T extends FormValues>(
         } catch (error) {
           handleFirebaseError(error, messages.validation.emailCheckError);
         }
+      }      } finally {
+        setLoadingState('idle');
       }
-    } finally {
-      setLoadingState('idle');
-    }
-  }, debounceTime);
+    }, debounceTime);
+  }, [shouldCheckEmail, debounceTime]);
+
+  // Crear la referencia para acceder al método cancel
+  const checkEmailAvailabilityDebounced = debouncedCheckEmail.current;
 
   // Manejador de cambios en campos
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,14 +215,13 @@ export function useFormValidation<T extends FormValues>(
       const error = validateField(name, value);
       
       setErrors(prev => ({ ...prev, [name]: error }));
-      
-      // Para email, verificar disponibilidad si no hay errores de formato
+        // Para email, verificar disponibilidad si no hay errores de formato
       if (name === 'email' && shouldValidateEmail) {
         if (!error && value.trim()) {  // Solo verificar si no hay error de formato y no está vacío
-          debouncedCheckEmail(value);
+          checkEmailAvailabilityDebounced?.(value);
         } else {
           // Cancelar cualquier verificación pendiente si el email no es válido
-          debouncedCheckEmail.cancel();
+          checkEmailAvailabilityDebounced?.cancel();
           setLoadingState('idle');
         }
       }
@@ -239,11 +243,10 @@ export function useFormValidation<T extends FormValues>(
       });
     }
   };
-
   // Validar todo el formulario
   const validateForm = async (): Promise<boolean> => {
     const newErrors: FormErrors = {};
-    debouncedCheckEmail.cancel(); // Cancelar cualquier verificación pendiente
+    checkEmailAvailabilityDebounced?.cancel(); // Cancelar cualquier verificación pendiente
     
     // Validar cada campo
     for (const fieldName in validationRules) {
@@ -316,14 +319,13 @@ export function useFormValidation<T extends FormValues>(
     // Ahora ejecutamos una limpieza del caché en lugar de mantenerlo indefinidamente
     cleanupExpiredCache();
   };
-  
-  // Limpiar debounce al desmontar
+    // Limpiar debounce al desmontar
   useEffect(() => {
     return () => {
-      debouncedCheckEmail.cancel();
+      checkEmailAvailabilityDebounced?.cancel();
       // También podríamos ejecutar cleanupExpiredCache aquí
     };
-  }, []);
+  }, [checkEmailAvailabilityDebounced]);
 
   return {
     values,

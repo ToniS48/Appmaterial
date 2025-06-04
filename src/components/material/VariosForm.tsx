@@ -1,4 +1,5 @@
 import React from 'react';
+import { UseFormRegister, FieldErrors, Control } from 'react-hook-form';
 import {
   SimpleGrid,
   FormControl,
@@ -12,7 +13,6 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper
 } from '@chakra-ui/react';
-import { UseFormRegister, FieldErrors, Control } from 'react-hook-form';
 
 interface VariosFormProps {
   register: UseFormRegister<any>;

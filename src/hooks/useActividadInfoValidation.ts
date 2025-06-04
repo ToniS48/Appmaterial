@@ -1,8 +1,8 @@
 import { useZodValidation } from './useZodValidation';
-import { actividadBaseSchema } from '../schemas/actividadSchema';
 import { useToast } from '@chakra-ui/react';
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import validationMessages from '../constants/validationMessages';
+import { actividadBaseSchema } from '../schemas/actividadSchema';
 
 /**
  * Hook personalizado para validación de la información básica de actividades
@@ -88,7 +88,7 @@ export function useActividadInfoValidation() {
     // Determinar si hay error de fechas
     const tieneError = fechaInicio > fechaFin;
     const yaExisteError = Boolean(errors.fechaFin);
-      // Solo actualizar el estado si hay un cambio en la condición de error
+    // Solo actualizar el estado si hay un cambio en la condición de error
     if (tieneError !== prevErrorRef.current) {
       prevErrorRef.current = tieneError;
       
@@ -100,6 +100,12 @@ export function useActividadInfoValidation() {
     }
   }, [setError, clearErrors, errors.fechaFin]);
 
+  // Función para manejar cuando un campo es tocado
+  const handleFieldTouched = useCallback((fieldName: string) => {
+    // Aquí se puede agregar lógica adicional si es necesario
+    // Por ahora solo registramos que el campo fue tocado
+  }, []);
+
   return {
     ...validation,
     validateNombre,
@@ -109,5 +115,6 @@ export function useActividadInfoValidation() {
     validateFechaInicio,
     validateFechaFin,
     validateFechas,
+    handleFieldTouched,
   };
 }

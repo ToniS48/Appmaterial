@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
@@ -6,9 +6,6 @@ import messages from '../../constants/messages';
 import { validateEmail, validatePassword } from '../../utils/validationUtils';
 import { navigateByUserRole } from '../../utils/navigation';
 import { EmailField, PasswordField } from '../common/FormFields';
-import { useFormValidation } from '../../hooks/useFormValidation';
-import { LoadingState } from '../../types/ui';
-import { useTheme } from '../../contexts/ThemeContext';
 import {
   Box,
   Button,
@@ -19,38 +16,48 @@ import {
 const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const { login, resetPassword, userProfile } = useAuth();
-  const theme = useTheme();
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  
+  const [loadingState, setLoadingState] = useState<'idle' | 'submitting' | 'resetting_password'>('idle');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Limpiar errores al cambiar el valor
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
   
   const validationRules = {
     email: validateEmail,
     password: validatePassword
   };
-  
-  const { 
-    values: formData, 
-    errors: formErrors, 
-    handleChange, 
-    validateForm,
-    loadingState,
-    setLoadingState
-  } = useFormValidation(
-    {
-      email: '',
-      password: ''
-    },
-    validationRules,
-    { validateOnChange: true }
-  );
 
+  const validateForm = async (): Promise<boolean> => {
+    const newErrors: Record<string, string> = {};
+    
+    const emailError = validateEmail(formData.email);
+    if (emailError) newErrors.email = emailError;
+    
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) newErrors.password = passwordError;
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
   useEffect(() => {
     if (userProfile && loadingState === 'submitting') {
-      navigateByUserRole(navigate, userProfile, { 
-        replace: true,
-        forceRedirect: true 
-      });
+      navigateByUserRole(userProfile.rol, navigate);
       setLoadingState('idle');
     }
-  }, [userProfile, loadingState, navigate, setLoadingState]);
+  }, [userProfile, loadingState, navigate]);
 
   const handleForgotPassword = async () => {
     if (!formData.email) {
@@ -98,12 +105,11 @@ const LoginForm: React.FC = () => {
   const isLoading = loadingState !== 'idle';
 
   return (
-    <form onSubmit={handleSubmit} className="form-container">
-      <Box className="form-group" mb={4}>
+    <form onSubmit={handleSubmit} className="form-container">      <Box className="form-group" mb={4}>
         <EmailField
           value={formData.email}
           onChange={handleChange}
-          error={formErrors.email}
+          error={errors.email}
           isDisabled={isLoading}
           label={messages.auth.login.emailLabel}
         />
@@ -113,7 +119,7 @@ const LoginForm: React.FC = () => {
         <PasswordField
           value={formData.password}
           onChange={handleChange}
-          error={formErrors.password}
+          error={errors.password}
           isDisabled={isLoading}
           label={messages.auth.login.passwordLabel}
         />

@@ -39,12 +39,12 @@ import {
   SearchIcon,
   DeleteIcon
 } from '@chakra-ui/icons';
+import { Timestamp } from 'firebase/firestore';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
-import { useAuth } from '../../contexts/AuthContext';
 import { listarUsuarios, eliminarUsuario } from '../../services/usuarioService';
 import UsuarioForm from '../../components/usuarios/UsuarioForm';
 import { Usuario, RolUsuario } from '../../types/usuario';
-import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Definimos los permisos basados en roles
 const PERMISOS_POR_ROL: Record<RolUsuario, {
@@ -89,12 +89,12 @@ const GestionUsuariosPage: React.FC = () => {
   
   // Contextos y hooks
   const { userProfile } = useAuth();
+  const toast = useToast();
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
-  const toast = useToast();
   
   // Asegurar que siempre tengamos un rol válido
-  const rolUsuario = userProfile?.rol || 'invitado';
+  const rolUsuario = (userProfile?.rol || 'invitado') as RolUsuario;
   const permisos = PERMISOS_POR_ROL[rolUsuario];
   const esAdmin = rolUsuario === 'admin';
   

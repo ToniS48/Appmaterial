@@ -1,17 +1,11 @@
-import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Prestamo, EstadoPrestamo } from '../types/prestamo';
-import { handleFirebaseError } from '../utils/errorHandling';
-import { actualizarCantidadDisponible, registrarIncidenciaMaterial } from './materialService';
-import { enviarNotificacionMasiva } from './notificacionService';
-import { listarUsuarios } from './usuarioService';
-import { Usuario } from '../types/usuario';
-import { Actividad } from '../types/actividad';
 
 // Crear un nuevo préstamo
 export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise<Prestamo> => {
   try {
-    // Asegurarse que la fecha de préstamo existe
+    // Asegurar que la fecha de préstamo esté definida
     if (!prestamoData.fechaPrestamo) {
       prestamoData.fechaPrestamo = Timestamp.now();
     }
@@ -19,422 +13,215 @@ export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise
     const prestamosRef = collection(db, 'prestamos');
     const docRef = await addDoc(prestamosRef, prestamoData);
     
-    // Actualizar la cantidad disponible del material
-    await actualizarCantidadDisponible(
-      prestamoData.materialId, 
-      -prestamoData.cantidadPrestada // Restamos la cantidad prestada
-    );
-    
-    // Crear objeto con ID para retornar
     const nuevoPrestamoConId = {
       id: docRef.id,
       ...prestamoData
     };
     
-    // Enviar notificaciones
-    await enviarNotificacionNuevoPrestamo(nuevoPrestamoConId);
-    
     return nuevoPrestamoConId;
   } catch (error) {
-    handleFirebaseError(error, 'Error al crear préstamo');
+    console.error('Error al crear préstamo:', error);
     throw error;
   }
 };
 
-// Enviar notificación de nuevo préstamo
-async function enviarNotificacionNuevoPrestamo(prestamo: Prestamo): Promise<void> {
+// Obtener préstamos por usuario
+export const obtenerPrestamosPorUsuario = async (usuarioId: string): Promise<Prestamo[]> => {
   try {
-    // 1. Notificar al usuario que recibe el préstamo
-    await enviarNotificacionMasiva(
-      [prestamo.usuarioId],
-      'prestamo',
-      `Se te ha asignado el material: ${prestamo.nombreMaterial} (${prestamo.cantidadPrestada} unidades)`,
-      prestamo.id,
-      'prestamo',
-      `/material`
-    );
-    
-    // 2. Notificar a administradores y vocales
-    const usuarios = await listarUsuarios();
-    const adminsYVocales = usuarios.filter((u: Usuario) => u.rol === 'admin' || u.rol === 'vocal');
-    
-    if (adminsYVocales.length > 0) {
-      await enviarNotificacionMasiva(
-        adminsYVocales.map((u: Usuario) => u.uid),
-        'prestamo',
-        `Nuevo préstamo: ${prestamo.nombreMaterial} para ${prestamo.nombreUsuario}`,
-        prestamo.id,
-        'prestamo',
-        `/admin/prestamos`
-      );
-    }
-  } catch (error) {
-    console.error('Error al enviar notificaciones de préstamo:', error);
-    // No lanzamos error para no interrumpir la creación del préstamo
-  }
-}
-
-// Enviar notificación de devolución de material
-async function enviarNotificacionDevolucion(prestamo: Prestamo, tieneIncidencia: boolean = false): Promise<void> {
-  try {
-    // 1. Notificar al usuario que devolvió el material
-    await enviarNotificacionMasiva(
-      [prestamo.usuarioId],
-      'devolucion',
-      `Has devuelto correctamente: ${prestamo.nombreMaterial} (${prestamo.cantidadPrestada} unidades)`,
-      prestamo.id,
-      'prestamo',
-      `/material`
-    );
-    
-    // 2. Notificar a administradores y vocales
-    const usuarios = await listarUsuarios();
-    const adminsYVocales = usuarios.filter((u: Usuario) => u.rol === 'admin' || u.rol === 'vocal');
-    
-    if (adminsYVocales.length > 0) {
-      const mensajeBase = `Devolución registrada: ${prestamo.nombreMaterial} por ${prestamo.nombreUsuario}`;
-      const mensaje = tieneIncidencia ? 
-        `${mensajeBase} - ¡ATENCIÓN! Se ha reportado una incidencia` : 
-        mensajeBase;
-      
-      await enviarNotificacionMasiva(
-        adminsYVocales.map((u: Usuario) => u.uid),
-        'devolucion',
-        mensaje,
-        prestamo.id,
-        'prestamo',
-        `/admin/prestamos`
-      );
-    }
-  } catch (error) {
-    console.error('Error al enviar notificaciones de devolución:', error);
-    // No lanzamos error para no interrumpir el registro de devolución
-  }
-}
-
-// Actualizar un préstamo existente
-export const actualizarPrestamo = async (id: string, prestamoData: Partial<Prestamo>): Promise<Prestamo> => {
-  try {
-    const prestamoRef = doc(db, 'prestamos', id);
-    
-    // Obtener el préstamo actual para comparar cambios
-    const prestamoActualSnapshot = await getDoc(prestamoRef);
-    
-    if (!prestamoActualSnapshot.exists()) {
-      throw new Error('El préstamo no existe');
-    }
-    
-    const prestamoActual = prestamoActualSnapshot.data() as Prestamo;
-    
-    // Actualizar el préstamo
-    await updateDoc(prestamoRef, prestamoData);
-    
-    // Si el estado cambia a devuelto y no tenía fecha de devolución, actualizamos la cantidad disponible
-    if (
-      prestamoData.estado === 'devuelto' && 
-      prestamoActual.estado !== 'devuelto' &&
-      !prestamoActual.fechaDevolucion
-    ) {
-      // Devolver el material al inventario
-      await actualizarCantidadDisponible(
-        prestamoActual.materialId, 
-        prestamoActual.cantidadPrestada // Sumamos la cantidad que se devuelve
-      );
-      
-      // Actualizar fecha de devolución si no se proporcionó una
-      if (!prestamoData.fechaDevolucion) {
-        await updateDoc(prestamoRef, {
-          fechaDevolucion: Timestamp.now()
-        });
-      }
-    }
-    
-    // Recuperar el documento actualizado
-    const prestamoSnapshot = await getDoc(prestamoRef);
-    
-    return {
-      id: prestamoSnapshot.id,
-      ...prestamoSnapshot.data()
-    } as Prestamo;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al actualizar préstamo');
-    throw error;
-  }
-};
-
-// Registrar devolución de préstamo
-export const registrarDevolucion = async (id: string, observaciones?: string): Promise<Prestamo> => {
-  try {
-    const datosDevolucion = {
-      estado: 'devuelto' as EstadoPrestamo,
-      fechaDevolucion: Timestamp.now()
-    };
-    
-    if (observaciones) {
-      Object.assign(datosDevolucion, { observaciones });
-    }
-    
-    // Actualiza el préstamo
-    const prestamoActualizado = await actualizarPrestamo(id, datosDevolucion);
-    
-    // Enviar notificaciones
-    await enviarNotificacionDevolucion(prestamoActualizado);
-    
-    return prestamoActualizado;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al registrar devolución');
-    throw error;
-  }
-};
-
-// Registrar devolución de préstamo con posible incidencia
-export const registrarDevolucionConIncidencia = async (
-  id: string, 
-  observaciones?: string,
-  incidencia?: {
-    tipo?: 'daño' | 'perdida' | 'mantenimiento' | 'otro';
-    gravedad?: 'baja' | 'media' | 'alta' | 'critica';
-    descripcion?: string;
-  }
-): Promise<Prestamo> => {
-  try {
-    const prestamoRef = doc(db, 'prestamos', id);
-    const prestamoSnapshot = await getDoc(prestamoRef);
-    
-    if (!prestamoSnapshot.exists()) {
-      throw new Error('Préstamo no encontrado');
-    }
-    
-    const prestamoActual = {
-      id,
-      ...prestamoSnapshot.data()
-    } as Prestamo;
-    
-    // Marcar préstamo como devuelto
-    const datosDevolucion = {
-      estado: 'devuelto' as EstadoPrestamo,
-      fechaDevolucion: Timestamp.now(),
-      observaciones: observaciones || ''
-    };
-    
-    // Actualizar el préstamo como devuelto
-    await updateDoc(prestamoRef, datosDevolucion);
-    
-    // Devolver el material al inventario
-    await actualizarCantidadDisponible(
-      prestamoActual.materialId, 
-      prestamoActual.cantidadPrestada // Sumamos la cantidad que se devuelve
-    );
-    
-    // Si hay incidencia, registrarla 
-    if (incidencia && incidencia.tipo) {
-      // Obtener material
-      const materialRef = doc(db, 'material_deportivo', prestamoActual.materialId);
-      const materialSnapshot = await getDoc(materialRef);
-      
-      if (materialSnapshot.exists()) {
-        const material = {
-          id: materialSnapshot.id,
-          ...materialSnapshot.data()
-        };
-        
-        // Registrar la incidencia
-        await registrarIncidenciaMaterial(material.id, {
-          descripcion: incidencia.descripcion || 'Sin descripción',
-          reportadoPor: prestamoActual.usuarioId, 
-          tipo: incidencia.tipo,
-          gravedad: incidencia.gravedad
-        });
-      }
-    }
-    
-    // Enviar notificaciones
-    await enviarNotificacionDevolucion(prestamoActual, !!incidencia);
-    
-    // Devolver el préstamo actualizado
-    const prestamoActualizadoSnapshot = await getDoc(prestamoRef);
-    return {
-      id,
-      ...prestamoActualizadoSnapshot.data()
-    } as Prestamo;
-    
-  } catch (error) {
-    handleFirebaseError(error, 'Error al registrar devolución');
-    throw error;
-  }
-};
-
-// Obtener un préstamo por ID
-export const obtenerPrestamo = async (id: string): Promise<Prestamo> => {
-  try {
-    const prestamoRef = doc(db, 'prestamos', id);
-    const prestamoSnapshot = await getDoc(prestamoRef);
-    
-    if (!prestamoSnapshot.exists()) {
-      throw new Error('Préstamo no encontrado');
-    }
-    
-    return {
-      id: prestamoSnapshot.id,
-      ...prestamoSnapshot.data()
-    } as Prestamo;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al obtener préstamo');
-    throw error;
-  }
-};
-
-// Listar préstamos con filtros opcionales
-export const listarPrestamos = async (filters?: any): Promise<Prestamo[]> => {
-  try {
-    let prestamoQuery = query(
+    const q = query(
       collection(db, 'prestamos'),
+      where('usuarioId', '==', usuarioId),
       orderBy('fechaPrestamo', 'desc')
     );
     
-    if (filters) {
-      // Filtrar por estado (string único)
-      if (filters.estado) {
-        prestamoQuery = query(
-          prestamoQuery,
-          where('estado', '==', filters.estado)
-        );
-      }
-      
-      // Filtrar por múltiples estados (array)
-      if (filters.estados && Array.isArray(filters.estados)) {
-        prestamoQuery = query(
-          prestamoQuery,
-          where('estado', 'in', filters.estados)
-        );
-      }
-      
-      // Filtrar por usuario
-      if (filters.usuarioId) {
-        prestamoQuery = query(
-          prestamoQuery,
-          where('usuarioId', '==', filters.usuarioId)
-        );
-      }
-      
-      // Filtrar por actividad
-      if (filters.actividadId) {
-        prestamoQuery = query(
-          prestamoQuery,
-          where('actividadId', '==', filters.actividadId)
-        );
-      }
-      
-      // Filtrar por material
-      if (filters.materialId) {
-        prestamoQuery = query(
-          prestamoQuery,
-          where('materialId', '==', filters.materialId)
-        );
-      }
-    }
-    
-    const prestamosSnapshot = await getDocs(prestamoQuery);
-    const prestamos = prestamosSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Prestamo));
-    
-    return prestamos;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al listar préstamos');
-    throw error;
-  }
-};
-
-// Obtener préstamos activos (no devueltos)
-export const obtenerPrestamosActivos = async (): Promise<Prestamo[]> => {
-  try {
-    const prestamoQuery = query(
-      collection(db, 'prestamos'),
-      where('estado', '!=', 'devuelto'),
-      orderBy('estado'),
-      orderBy('fechaPrestamo')
-    );
-    
-    const prestamosSnapshot = await getDocs(prestamoQuery);
-    const prestamos = prestamosSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Prestamo));
-    
-    return prestamos;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al obtener préstamos activos');
-    throw error;
-  }
-};
-
-// Obtener préstamos de un usuario
-export const obtenerPrestamosUsuario = async (usuarioId: string, incluirDevueltos = false): Promise<Prestamo[]> => {
-  try {
-    let prestamoQuery;
-    
-    if (incluirDevueltos) {
-      prestamoQuery = query(
-        collection(db, 'prestamos'),
-        where('usuarioId', '==', usuarioId),
-        orderBy('fechaPrestamo', 'desc')
-      );
-    } else {
-      prestamoQuery = query(
-        collection(db, 'prestamos'),
-        where('usuarioId', '==', usuarioId),
-        where('estado', '!=', 'devuelto'),
-        orderBy('fechaPrestamo')
-      );
-    }
-    
-    const prestamosSnapshot = await getDocs(prestamoQuery);
-    const prestamos = prestamosSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Prestamo));
-    
-    return prestamos;
-  } catch (error) {
-    handleFirebaseError(error, 'Error al obtener préstamos del usuario');
-    throw error;
-  }
-};
-
-// Obtener préstamos relacionados con una actividad específica
-export const obtenerPrestamosPorActividad = async (actividadId: string): Promise<Prestamo[]> => {
-  try {
-    // Usando la función existente con un filtro adicional
-    const prestamosQuery = query(
-      collection(db, 'prestamos'),
-      where('actividadId', '==', actividadId)
-    );
-    
-    const snapshot = await getDocs(prestamosQuery);
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }) as Prestamo);
   } catch (error) {
-    handleFirebaseError(error, 'Error al obtener préstamos por actividad');
+    console.error('Error al obtener préstamos por usuario:', error);
     throw error;
   }
 };
 
-// Crear préstamos para una actividad específica
-export const crearPrestamosParaActividad = async (actividad: Actividad) => {
-  // Solo procesar si la actividad tiene necesidad de material
-  if (!actividad.necesidadMaterial) {
-    console.log('La actividad no requiere material, no se crean préstamos');
-    return [];
-  }
-  
+// Actualizar estado de préstamo
+export const actualizarEstadoPrestamo = async (prestamoId: string, nuevoEstado: EstadoPrestamo): Promise<void> => {
   try {
-    // Resto del código para crear préstamos...
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    await updateDoc(prestamoRef, { 
+      estado: nuevoEstado,
+      fechaActualizacion: serverTimestamp()
+    });
   } catch (error) {
-    console.error('Error al crear préstamos para la actividad:', error);
+    console.error('Error al actualizar estado de préstamo:', error);
     throw error;
   }
 };
+
+// Obtener préstamo por ID
+export const obtenerPrestamoPorId = async (prestamoId: string): Promise<Prestamo | null> => {
+  try {
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    const docSnap = await getDoc(prestamoRef);
+    
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Prestamo;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error al obtener préstamo por ID:', error);
+    throw error;
+  }
+};
+
+// Registrar devolución de préstamo
+export const registrarDevolucion = async (prestamoId: string, observaciones?: string): Promise<void> => {
+  try {
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    await updateDoc(prestamoRef, {
+      estado: 'devuelto' as EstadoPrestamo,
+      fechaDevolucion: serverTimestamp(),
+      observacionesDevolucion: observaciones || ''
+    });
+  } catch (error) {
+    console.error('Error al registrar devolución:', error);
+    throw error;
+  }
+};
+
+// Registrar devolución con incidencia opcional
+export const registrarDevolucionConIncidencia = async (
+  prestamoId: string, 
+  observaciones?: string,
+  incidencia?: {
+    tipo: string | undefined;
+    gravedad: string | undefined;
+    descripcion: string;
+  }
+): Promise<void> => {
+  try {
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    const updateData: any = {
+      estado: 'devuelto' as EstadoPrestamo,
+      fechaDevolucion: serverTimestamp(),
+      observacionesDevolucion: observaciones || ''
+    };
+
+    // Si hay incidencia, agregar campos de incidencia
+    if (incidencia) {
+      updateData.incidencia = {
+        tipo: incidencia.tipo,
+        gravedad: incidencia.gravedad,
+        descripcion: incidencia.descripcion,
+        fechaRegistro: serverTimestamp()
+      };
+      
+      // Cambiar estado según la gravedad de la incidencia
+      if (incidencia.tipo === 'perdida') {
+        updateData.estado = 'perdido' as EstadoPrestamo;
+      } else if (incidencia.gravedad === 'alta' || incidencia.gravedad === 'critica') {
+        updateData.estado = 'estropeado' as EstadoPrestamo;
+      }
+    }
+    
+    await updateDoc(prestamoRef, updateData);
+  } catch (error) {
+    console.error('Error al registrar devolución con incidencia:', error);
+    throw error;
+  }
+};
+
+// Listar todos los préstamos con filtros opcionales
+export const listarPrestamos = async (filtros?: {
+  usuarioId?: string;
+  estado?: EstadoPrestamo;
+  actividadId?: string;
+}): Promise<Prestamo[]> => {
+  try {
+    let q = query(collection(db, 'prestamos'), orderBy('fechaPrestamo', 'desc'));
+    
+    if (filtros?.usuarioId) {
+      q = query(q, where('usuarioId', '==', filtros.usuarioId));
+    }
+    
+    if (filtros?.estado) {
+      q = query(q, where('estado', '==', filtros.estado));
+    }
+    
+    if (filtros?.actividadId) {
+      q = query(q, where('actividadId', '==', filtros.actividadId));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      prestamos.push({
+        id: doc.id,
+        ...doc.data()
+      } as Prestamo);
+    });
+    
+    return prestamos;
+  } catch (error) {
+    console.error('Error al listar préstamos:', error);
+    throw error;
+  }
+};
+
+// Obtener préstamos por actividad
+export const obtenerPrestamosPorActividad = async (actividadId: string): Promise<Prestamo[]> => {
+  try {
+    const q = query(
+      collection(db, 'prestamos'),
+      where('actividadId', '==', actividadId),
+      orderBy('fechaPrestamo', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      prestamos.push({
+        id: doc.id,
+        ...doc.data()
+      } as Prestamo);
+    });
+    
+    return prestamos;
+  } catch (error) {
+    console.error('Error al obtener préstamos por actividad:', error);
+    throw error;
+  }
+};
+
+// Actualizar préstamo existente
+export const actualizarPrestamo = async (prestamoId: string, prestamoData: Partial<Prestamo>): Promise<Prestamo> => {
+  try {
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    
+    // Filtrar datos actualizables (sin ID)
+    const { id, ...dataToUpdate } = prestamoData;
+    
+    await updateDoc(prestamoRef, dataToUpdate);
+    
+    // Obtener el préstamo actualizado
+    const prestamoActualizado = await obtenerPrestamoPorId(prestamoId);
+    if (!prestamoActualizado) {
+      throw new Error('No se pudo obtener el préstamo actualizado');
+    }
+    
+    return prestamoActualizado;
+  } catch (error) {
+    console.error('Error al actualizar préstamo:', error);
+    throw error;
+  }
+};
+
+// Alias para compatibilidad
+export const obtenerPrestamosUsuario = obtenerPrestamosPorUsuario;

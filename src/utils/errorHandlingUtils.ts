@@ -1,7 +1,7 @@
-import { FirebaseError } from 'firebase/app';
 import { logger } from './loggerUtils';
-import { createStandaloneToast } from '@chakra-ui/react'; // Cambiado de toast a createStandaloneToast
-import theme from '../styles/theme'; // Importar el tema de la aplicación
+import { createStandaloneToast } from '@chakra-ui/react';
+import { FirebaseError } from 'firebase/app';
+import theme from '../styles/theme';
 
 // Crear una instancia independiente de toast que no requiere un contexto React
 const { toast } = createStandaloneToast({ theme });

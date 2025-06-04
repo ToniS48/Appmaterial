@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tr, Td, IconButton } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
-import { MaterialField } from './types';
+import { MaterialField } from '../../types/material';
 
 interface MaterialRowProps {
   material: MaterialField;

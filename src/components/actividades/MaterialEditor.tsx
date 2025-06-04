@@ -5,15 +5,22 @@ import {
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import MaterialSelector from './MaterialSelector';
-import { MaterialEditorProps } from '../../types/editor';
 import { MaterialAsignado } from '../../types/actividad';
-import { normalizarMaterial } from '../../utils/materialUtils';
 
 interface MaterialItem {
   materialId: string;
   nombre: string;
   cantidad: number | string;
   [key: string]: any; // Para cualquier otra propiedad que pueda existir
+}
+
+interface MaterialEditorProps {
+  data: any;
+  onSave: (data: any) => void;
+  onCancel?: () => void;
+  onNecesidadMaterialChange?: (necesidad: boolean) => void;
+  mostrarBotones?: boolean;
+  isInsideForm?: boolean;
 }
 
 const MaterialEditor = forwardRef<
@@ -23,10 +30,8 @@ const MaterialEditor = forwardRef<
   const { control, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: {
       materiales: data.materiales || []
-    }
-  });
+    }  });
 
-  const [materiales] = useState<MaterialAsignado[]>(data.materiales || []);
   const [necesidadMaterial, setNecesidadMaterial] = useState<boolean>(data.necesidadMaterial || false);
   
   const cardBg = useColorModeValue("white", "gray.700");

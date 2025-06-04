@@ -81,16 +81,8 @@ export const checkLoginStatus = async (email: string): Promise<LoginStatus> => {
 };
 
 // Registra un intento de inicio de sesión
-export const recordLoginAttempt = async (email: string, success: boolean, isRegistration = false) => {
+export const registerLoginAttempt = async (email: string, success: boolean): Promise<LoginStatus> => {
   try {
-    // Si es un registro, no hacer seguimiento de intentos
-    if (isRegistration) {
-      return {
-        blocked: false,
-        attemptsRemaining: MAX_LOGIN_ATTEMPTS
-      };
-    }
-    
     const emailHash = hashEmail(email);
     const attemptsRef = doc(db, "loginAttempts", emailHash);
     

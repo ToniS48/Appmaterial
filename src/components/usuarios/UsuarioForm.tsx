@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { 
   Box, 
   Button, 
@@ -15,11 +16,10 @@ import {
   Switch,
   Textarea
 } from '@chakra-ui/react';
-import { useForm, SubmitHandler } from 'react-hook-form';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 import { actualizarUsuario, crearUsuario } from '../../services/usuarioService';
-import { Usuario, RolUsuario } from '../../types/usuario';
+import { RolUsuario, Usuario } from '../../types/usuario';
 
 // Interfaz extendida para el formulario
 interface UsuarioFormData {

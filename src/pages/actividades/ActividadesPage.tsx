@@ -30,10 +30,11 @@ import {
   TabPanels,
   Tab,
   TabPanel,
-  useToast
+  useToast,
+  Link
 } from '@chakra-ui/react';
 import { AddIcon, CalendarIcon } from '@chakra-ui/icons';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { listarActividades, obtenerActividadesProximas, obtenerActividadesClasificadas, unirseActividad } from '../../services/actividadService';
 import { Actividad } from '../../types/actividad';
@@ -73,8 +74,7 @@ const ActividadesPage: React.FC = () => {
       setProximasActividades(actividadesProximas);
       
       // Cargar actividades clasificadas
-      const { actividadesResponsable, actividadesParticipante } = 
-        await obtenerActividadesClasificadas(userProfile?.uid || '');
+              await obtenerActividadesClasificadas(userProfile?.uid || '');
       
       setActividadesResponsable(actividadesResponsable);
       setActividadesParticipante(actividadesParticipante);
@@ -105,8 +105,7 @@ const ActividadesPage: React.FC = () => {
       setProximasActividades(actividadesProximas);
       
       // Cargar actividades clasificadas
-      const { actividadesResponsable, actividadesParticipante } = 
-        await obtenerActividadesClasificadas(userProfile?.uid || '');
+              await obtenerActividadesClasificadas(userProfile?.uid || '');
       
       setActividadesResponsable(actividadesResponsable);
       setActividadesParticipante(actividadesParticipante);
@@ -183,12 +182,8 @@ const ActividadesPage: React.FC = () => {
       actividad.creadorId === userProfile?.uid || 
       actividad.responsableActividadId === userProfile?.uid || 
       actividad.responsableMaterialId === userProfile?.uid;
-    
-    // Determinar si el usuario es participante pero no responsable
-    const esParticipante = 
-      userProfile?.uid && 
-      actividad.participanteIds?.includes(userProfile?.uid) &&
-      !esResponsable;
+      // Determinar si el usuario es participante pero no responsable
+    const esParticipante = !esResponsable;
 
     return (
       <ActividadCard 

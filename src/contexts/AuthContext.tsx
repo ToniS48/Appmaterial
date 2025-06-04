@@ -11,7 +11,7 @@ import {
   inMemoryPersistence
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import { obtenerOCrearUsuarioPorId, actualizarUltimoAcceso } from '../services/usuarioService';
+import { obtenerOCrearUsuario, actualizarUltimoAcceso } from '../services/usuarioService';
 import { Usuario } from '../types/usuario';
 import { toast } from 'react-toastify';
 import { handleFirebaseError } from '../utils/errorHandling';
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUserProfile = async (): Promise<void> => {
     if (currentUser) {
       try {
-        const updatedProfile = await obtenerOCrearUsuarioPorId(currentUser.uid, currentUser.email || '');
+        const updatedProfile = await obtenerOCrearUsuario(currentUser.uid, currentUser.email || '');
         setUserProfile(updatedProfile);
       } catch (error) {
         console.error('Error al actualizar perfil de usuario:', error);
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Función para cargar el perfil del usuario
   const loadUserProfile = async (user: User) => {
     try {
-      const userProfileData = await obtenerOCrearUsuarioPorId(user.uid, user.email || '');
+      const userProfileData = await obtenerOCrearUsuario(user.uid, user.email || '');
       
       // Verificar si el usuario está activo
       if (!userProfileData.activo) {

@@ -45,9 +45,7 @@ export const getErrorMessage = (error: FirebaseError | any, defaultMessage?: str
  * @returns El mensaje de error formateado
  * @note Esta función muestra un toast con el mensaje de error
  */
-export const handleFirebaseError = (error: FirebaseError | any, defaultMessage?: string): string => {
-  console.error('Error:', error);
-  
+export const handleFirebaseErrorWithToast = (error: any, defaultMessage: string = 'Ha ocurrido un error'): string => {
   const errorMessage = getErrorMessage(error, defaultMessage);
   toast.error(errorMessage);
   
@@ -60,7 +58,6 @@ export const handleFirebaseError = (error: FirebaseError | any, defaultMessage?:
  * @param defaultMessage - Mensaje por defecto si no hay código de error específico
  * @returns El mensaje de error formateado
  */
-export const getFirebaseErrorMessage = (error: FirebaseError | any, defaultMessage?: string): string => {
-  console.error('Error:', error);
+export const handleFirebaseError = (error: any, defaultMessage: string = 'Ha ocurrido un error'): string => {
   return getErrorMessage(error, defaultMessage);
 };

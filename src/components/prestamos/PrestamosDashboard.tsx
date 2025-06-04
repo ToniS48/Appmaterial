@@ -39,10 +39,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { listarPrestamos, registrarDevolucion } from '../../services/prestamoService';
 import { Prestamo, EstadoPrestamo } from '../../types/prestamo';
+import { RolUsuario } from '../../types/usuario';
 import PrestamoForm from './PrestamoForm';
 import DashboardLayout from '../layouts/DashboardLayout';
 import messages from '../../constants/messages';
-import { RolUsuario } from '../../types/usuario';
 
 interface PrestamosDashboardProps {
   rol: RolUsuario; // 'admin' o 'vocal'

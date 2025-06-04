@@ -11,7 +11,7 @@ import Dashboard from '../pages/Dashboard';
 import ActividadesPage from '../pages/actividades/ActividadesPage';
 import CalendarioPage from '../pages/actividades/CalendarioPage';
 import ActividadPage from '../pages/actividades/ActividadPage';
-import { ActividadFormPage } from '../pages/actividades/ActividadFormPage';
+import ActividadFormPage from '../pages/actividades/ActividadFormPage';
 import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
 import MaterialPage from '../pages/material/GestionMaterialPage';
 import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';

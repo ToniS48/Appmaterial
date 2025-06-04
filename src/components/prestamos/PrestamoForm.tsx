@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -19,22 +19,21 @@ import {
   AlertIcon,
   Text,
 } from '@chakra-ui/react';
+import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import messages from '../../constants/messages';
-import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { useAuth } from '../../contexts/AuthContext';
 import DatePicker from '../common/DatePicker';
-import { crearPrestamo, actualizarPrestamo } from '../../services/prestamoService';
+import { crearPrestamo, actualizarEstadoPrestamo, actualizarPrestamo } from '../../services/prestamoService';
 import { listarMateriales, obtenerMaterial } from '../../services/materialService';
 import { listarUsuarios } from '../../services/usuarioService';
 import { listarActividades, obtenerActividad } from '../../services/actividadService';
 import { Prestamo, EstadoPrestamo } from '../../types/prestamo';
-import { Usuario } from '../../types/usuario';
 import { Actividad } from '../../types/actividad';
+import { Usuario } from '../../types/usuario';
+import { Material } from '../../types/material';
 import { Timestamp } from 'firebase/firestore';
 import ActividadSelector from '../actividades/ActividadSelector';
 import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
-import { useOptimizedClickHandler } from '../../utils/eventOptimizer';
-import { deferCallback } from '../../utils/performanceUtils';
 
 interface PrestamoFormData {
   materialId: string;
@@ -180,10 +179,9 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
           setValue('cantidadPrestada', maxCantidad);
         }
       }
-    }
-  }, [materialId, materiales, setValue, cantidadPrestada]);
+    }  }, [materialId, materiales, setValue, cantidadPrestada]);
 
-  const handleActivitySelected = (actividad: Actividad | null) => {
+  const handleActivitySelect = (actividad: Actividad | null) => {
     setSelectedActivity(actividad);
     if (actividad && actividad.materiales && actividad.materiales.length > 0) {
       const materialActividad = actividad.materiales[0];

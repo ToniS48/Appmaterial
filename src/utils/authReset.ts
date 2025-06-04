@@ -3,9 +3,8 @@ import { getAuth, signOut } from 'firebase/auth';
 /**
  * Función simplificada para reiniciar el estado de autenticación
  */
-export const resetCompleto = async () => {
+export const resetAuthState = async (): Promise<boolean> => {
   try {
-    // 1. Cerrar sesión si hay alguna activa
     const auth = getAuth();
     if (auth.currentUser) {
       await signOut(auth);

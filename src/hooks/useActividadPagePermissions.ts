@@ -16,12 +16,11 @@ interface UseActividadPagePermissionsReturn {
 /**
  * Hook para gestionar permisos y cálculos derivados de la actividad
  */
-export const useActividadPagePermissions = ({
+export function useActividadPagePermissions({
   actividad,
   currentUserId
-}: UseActividadPagePermissionsProps): UseActividadPagePermissionsReturn => {
-  
-  // Determinar si el usuario actual es responsable
+}: UseActividadPagePermissionsProps): UseActividadPagePermissionsReturn {
+  // Determinar si es responsable (creador o responsable de actividad/material)
   const esResponsable = useMemo(() => {
     if (!currentUserId || !actividad) return false;
     

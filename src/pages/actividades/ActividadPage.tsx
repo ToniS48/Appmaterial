@@ -1,6 +1,6 @@
 // filepath: c:\Users\Sonia\Documents\Espemo\Apps\AppMaterial\src\pages\actividades\ActividadPage.clean.tsx
 import React, { useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Button, Alert, AlertIcon, Spinner, Center, Heading, Text,
   Flex, Badge, Card, CardBody, Grid, GridItem, List, ListItem, 
@@ -16,12 +16,28 @@ import ParticipantesEditor from '../../components/actividades/ParticipantesEdito
 import MaterialEditor from '../../components/actividades/MaterialEditor';
 import EnlacesEditor from '../../components/actividades/EnlacesEditor';
 import { useActividadForm } from '../../hooks/useActividadForm';
-import { useActividadPageData } from '../../hooks/useActividadPageData';
 import { useActividadPageUI } from '../../hooks/useActividadPageUI';
-import { useActividadPageActions } from '../../hooks/useActividadPageActions';
+import { useActividadPageData } from '../../hooks/useActividadPageData';
 import { useActividadPagePermissions } from '../../hooks/useActividadPagePermissions';
+import { useActividadPageActions } from '../../hooks/useActividadPageActions';
 import { ActividadPageHeader } from '../../components/actividades/ActividadPageHeader';
 import { Actividad } from '../../types/actividad';
+import { Material } from '../../types/material';
+
+// Tipos para los materiales en el formulario
+interface MaterialFormData {
+  materialId: string;
+  nombre?: string;
+  cantidad?: number | string;
+}
+
+// Tipos para los enlaces
+interface EnlacesData {
+  enlacesWikiloc: { url: string; esEmbed: boolean }[];
+  enlacesTopografias: string[];
+  enlacesDrive: string[];
+  enlacesWeb: string[];
+}
 
 /**
  * Página dedicada para mostrar todos los datos referentes a una actividad
@@ -48,7 +64,6 @@ const ActividadPage: React.FC = () => {
 
   // Cast seguro a Actividad para componentes
   const actividad = formData as Actividad;
-
   // Hook para datos adicionales (participantes, préstamos, calendario)
   const {
     participantes,
@@ -56,7 +71,8 @@ const ActividadPage: React.FC = () => {
     addedToCalendar,
     setAddedToCalendar,
     loadingData,
-    errorData
+    errorData,
+    reloadData
   } = useActividadPageData({
     actividad,
     actividadId: id,
@@ -79,17 +95,16 @@ const ActividadPage: React.FC = () => {
     setIsConfirmOpen,
     exitAllEditingModes
   } = useActividadPageUI();
-
   // Hook para permisos y cálculos
   const {
     esResponsable,
     puedeEditar,
+    puedeGestionar,
     totalEnlaces
   } = useActividadPagePermissions({
-    actividad,
-    currentUserId: userProfile?.uid
+    currentUserId: userProfile?.uid,
+    actividad
   });
-
   // Hook para acciones (calendario, finalizar, guardar, etc.)
   const {
     handleAddToCalendar,
@@ -164,7 +179,7 @@ const ActividadPage: React.FC = () => {
                 <ListItem>
                   <Text fontWeight="bold">Tipos:</Text>
                   <Flex wrap="wrap" gap={2}>
-                    {actividad.tipo?.map(tipo => (
+                    {actividad.tipo?.map((tipo: string) => (
                       <Badge key={tipo} colorScheme="blue">
                         {tipo}
                       </Badge>
@@ -175,7 +190,7 @@ const ActividadPage: React.FC = () => {
                 <ListItem>
                   <Text fontWeight="bold">Subtipos:</Text>
                   <Flex wrap="wrap" gap={2}>
-                    {actividad.subtipo?.map(subtipo => (
+                    {actividad.subtipo?.map((subtipo: string) => (
                       <Badge key={subtipo} colorScheme="teal">
                         {subtipo}
                       </Badge>
@@ -319,7 +334,7 @@ const ActividadPage: React.FC = () => {
           {editingMaterial ? (
             <MaterialEditor 
               data={actividad} 
-              onSave={(materiales) => {
+              onSave={(materiales: MaterialFormData[]) => {
                 updateMaterial(materiales);
                 setEditingMaterial(false);
               }}
@@ -339,11 +354,9 @@ const ActividadPage: React.FC = () => {
                     Editar material
                   </Button>
                 )}
-              </Flex>
-
-              {actividad.materiales && actividad.materiales.length > 0 ? (
+              </Flex>              {actividad.materiales && actividad.materiales.length > 0 ? (
                 <List spacing={3}>
-                  {actividad.materiales.map((material, index) => (
+                  {actividad.materiales.map((material, index: number) => (
                     <ListItem key={index}>
                       <Flex justify="space-between">
                         <Text>{material.nombre}</Text>
@@ -372,7 +385,7 @@ const ActividadPage: React.FC = () => {
         {editingEnlaces ? (
           <EnlacesEditor
             data={actividad}
-            onSave={(enlaces) => {
+            onSave={(enlaces: EnlacesData) => {
               updateEnlaces(enlaces);
               setEditingEnlaces(false);
             }}
@@ -398,7 +411,7 @@ const ActividadPage: React.FC = () => {
               <Heading size="sm" mb={2}>Enlaces Wikiloc</Heading>
               {actividad.enlacesWikiloc?.length ? (
                 <List spacing={2} mb={4}>
-                  {actividad.enlacesWikiloc.map((enlace, index) => (
+                  {actividad.enlacesWikiloc.map((enlace: { url: string; esEmbed: boolean }, index: number) => (
                     <ListItem key={index}>
                       <Button
                         as="a"
@@ -422,7 +435,7 @@ const ActividadPage: React.FC = () => {
               <Heading size="sm" mb={2}>Enlaces Topografías</Heading>
               {actividad.enlacesTopografias?.length ? (
                 <List spacing={2} mb={4}>
-                  {actividad.enlacesTopografias.map((enlace, index) => (
+                  {actividad.enlacesTopografias.map((enlace: string, index: number) => (
                     <ListItem key={index}>
                       <Button
                         as="a"
@@ -446,7 +459,7 @@ const ActividadPage: React.FC = () => {
               <Heading size="sm" mb={2}>Enlaces Google Drive</Heading>
               {actividad.enlacesDrive?.length ? (
                 <List spacing={2} mb={4}>
-                  {actividad.enlacesDrive.map((enlace, index) => (
+                  {actividad.enlacesDrive.map((enlace: string, index: number) => (
                     <ListItem key={index}>
                       <Button
                         as="a"
@@ -470,7 +483,7 @@ const ActividadPage: React.FC = () => {
               <Heading size="sm" mb={2}>Enlaces Web</Heading>
               {actividad.enlacesWeb?.length ? (
                 <List spacing={2}>
-                  {actividad.enlacesWeb.map((enlace, index) => (
+                  {actividad.enlacesWeb.map((enlace: string, index: number) => (
                     <ListItem key={index}>
                       <Button
                         as="a"

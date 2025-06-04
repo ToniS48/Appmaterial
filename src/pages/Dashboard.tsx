@@ -2,27 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   SimpleGrid,
   Heading,
-  VStack,
-  Button,
-  HStack,
-  Badge,
-  Text,
-  useToast,
   Spinner,
   Center,
-  Box
+  Box,
+  Text
 } from '@chakra-ui/react';
 import DashboardLayout from '../components/layouts/DashboardLayout';
-import StatsCard from '../components/dashboard/StatsCard';
 import { renderAccessCard } from '../utils/dashboardUtils';
 import {
   FiPackage, FiCalendar, FiBell, FiEye
 } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
-import messages from '../constants/messages';
-import { safeLog } from '../utils/performanceUtils';
 import AdminDashboard from './admin/AdminDashboard'; 
-import VocalDashboard from './vocal/VocalDashboard'; 
+import VocalDashboard from './vocal/VocalDashboard';
 
 const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -55,31 +47,22 @@ const Dashboard: React.FC = () => {
         setError("No se pudo cargar el perfil de usuario");
       }
     } catch (err) {
-      safeLog("Error al cargar el Dashboard:", err);
+      console.log("Error al cargar el Dashboard:", err);
       setError("Error al cargar el dashboard");
     }
   }, [userProfile]);
 
-  useEffect(() => {
-    safeLog('Dashboard montado para rol:', userProfile?.rol);
-    return () => {
-      safeLog('Dashboard desmontado');
-    };
-  }, [userProfile?.rol]);
-
   const getDashboardTitle = useMemo(() => {
-    if (isAdmin) return messages.dashboard.titulo.admin;
-    if (isVocal) return messages.dashboard.titulo.vocal;
-    if (isSocio) return messages.dashboard.titulo.socio;
-    return messages.dashboard.titulo.invitado;
+    if (isAdmin) return "Dashboard Administrador";
+    if (isVocal) return "Dashboard Vocal";
+    if (isSocio) return "Dashboard Socio";
+    return "Dashboard Invitado";
   }, [isAdmin, isVocal, isSocio]);
   
   const getWelcomeMessage = useMemo(() => {
-    const message = isSocio ? messages.dashboard.bienvenida.socio :
-                    messages.dashboard.bienvenida.invitado;
-    
-    return message.replace('{nombre}', userProfile?.nombre || '');
-  }, [isSocio, isInvitado, userProfile?.nombre]);
+    const baseMessage = isSocio ? "Bienvenido/a Socio" : "Bienvenido/a Invitado";
+    return `${baseMessage} ${userProfile?.nombre || ''}`;
+  }, [isSocio, userProfile?.nombre]);
 
 
   if (isLoading) {
@@ -91,8 +74,7 @@ const Dashboard: React.FC = () => {
       </DashboardLayout>
     );
   }
-  
-  if (error) {
+    if (error) {
     return (
       <DashboardLayout title="Error">
         <Box p={5} bg="red.50" color="red.600" borderRadius="md">

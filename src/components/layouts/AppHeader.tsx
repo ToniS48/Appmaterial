@@ -42,14 +42,14 @@ import {
   Button
 } from '@chakra-ui/react';
 import { HamburgerIcon } from '@chakra-ui/icons';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotificaciones } from '../../contexts/NotificacionContext';
 import NotificacionBadge from '../notificaciones/NotificacionBadge';
 import NotificacionPanel from '../notificaciones/NotificacionPanel';
 import logoEspemo from '../../assets/images/logoEspemo.png';
 import AppNavigationMenu from './AppNavigationMenu';
-import { FiLogOut, FiMenu, FiHome, FiUser, FiAlertTriangle } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUser, FiAlertTriangle } from 'react-icons/fi';
 import { getRutaPorRol } from '../../utils/navigation';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -65,7 +65,6 @@ interface HeaderProps {
 const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
   const { userProfile, logout } = useAuth();
   const { notificacionesNoLeidas } = useNotificaciones();
-  const navigate = useNavigate();
   const [notificacionesOpen, setNotificacionesOpen] = useState(false);
   
   // Estado y funciones para el drawer del sidebar
@@ -118,15 +117,12 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
       if (adminIds.length === 0) {
         throw new Error("No se encontraron administradores para enviar el reporte");
       }
-      
-      // Enviar notificación a todos los administradores
+        // Enviar notificación a todos los administradores
       await enviarNotificacionMasiva(
         adminIds,
         'sistema',
-        `Reporte de error/sugerencia: ${reportMessage.substring(0, 50)}${reportMessage.length > 50 ? '...' : ''}`,
-        'reporte',
-        'error_reporte',
-        '/admin/reportes'  // Ruta donde se podrían ver todos los reportes
+        'Reporte de error/sugerencia',
+        `${reportMessage.substring(0, 100)}${reportMessage.length > 100 ? '...' : ''}`
       );
       
       // También guardar el reporte en una colección dedicada

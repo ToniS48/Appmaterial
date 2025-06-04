@@ -5,10 +5,8 @@ import {
   Text, 
   VStack, 
   Heading, 
-  Badge, 
   useColorModeValue, 
   Button, 
-  Spinner, 
   Flex,
   HStack,
   Select,
@@ -21,7 +19,7 @@ import {
   ModalBody,
   useToast
 } from '@chakra-ui/react';
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
+import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { Actividad, EstadoActividad, TipoActividad } from '../../types/actividad';
 import { listarActividades } from '../../services/actividadService';
 import ActividadDetalle from './ActividadDetalle';
@@ -30,30 +28,25 @@ import {
   safeISOString, 
   isSameDay, 
   toDate, 
-  normalizarFecha, 
-  compareDates 
+  normalizarFecha 
 } from '../../utils/dateUtils';
 
-// Días de la semana
-const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
 // Opciones de filtro
-const estados: EstadoActividad[] = ['planificada', 'en_curso', 'finalizada', 'cancelada'];
-const tipos: TipoActividad[] = ['espeleologia', 'barranquismo', 'exterior'];
+const estadosActividad: EstadoActividad[] = ['planificada', 'en_curso', 'finalizada', 'cancelada'];
+const tiposActividad: TipoActividad[] = ['espeleologia', 'barranquismo', 'exterior'];
 
 interface CalendarioSimpleProps {
   mes?: Date;
 }
 
 const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() }) => {
-  const [selectedDate, setSelectedDate] = useState<Date>(mes);
   const [currentMonth, setCurrentMonth] = useState<Date>(mes);
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [filtroEstado, setFiltroEstado] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [selectedActivity, setSelectedActivity] = useState<Actividad | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -63,15 +56,13 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
     en_curso: 'green.500',
     finalizada: 'blue.500',
     cancelada: 'red.500'
-  };
-  
+  };  
   // Mover hooks useColorModeValue al nivel superior
-  const headerBgColor = useColorModeValue('gray.100', 'gray.700');
   const activeBoxBgColor = useColorModeValue('white', 'gray.800');
   const inactiveBoxBgColor = useColorModeValue('gray.50', 'gray.900');
   const defaultBorderColor = useColorModeValue('gray.200', 'gray.700');
   const weekendBgColor = useColorModeValue('gray.100', 'gray.750'); // Este será para días pasados
-  const weekendRedBgColor = useColorModeValue('red.100', 'red.700'); // Nuevo color rojo para fines de semana
+  const weekendRedBgColor = useColorModeValue('red.100', 'red.700'); // Color rojo para fines de semana
   
   // Calcular los días del calendario
   useEffect(() => {
@@ -121,10 +112,9 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
         const actividades = await listarActividades(filtros);
         setActividades(actividades);
       } catch (error) {
-        console.error("Error al cargar actividades:", error);
-        toast({
-          title: messages.calendario.toast.error.titulo,
-          description: messages.calendario.toast.error.descripcion,
+        console.error("Error al cargar actividades:", error);        toast({
+          title: "Error",
+          description: "No se pudieron cargar las actividades",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -193,65 +183,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
       const coincideFin = dayNormalized.getTime() === finNormalized.getTime();
       
       return diaEnRango || coincideInicio || coincideFin;
-    });
-  };
-
-  // Función para añadir varias actividades a Google Calendar
-  const addAllToGoogleCalendar = () => {
-    // Obtener actividades visibles (aplicando filtros actuales)
-    const actividadesVisibles = actividades.filter(actividad => {
-      const matchesEstado = !filtroEstado || actividad.estado === filtroEstado;
-      const matchesTipo = !filtroTipo || actividad.tipo.includes(filtroTipo as TipoActividad);
-      return matchesEstado && matchesTipo;
-    });
-  
-    if (actividadesVisibles.length === 0) {
-      toast({
-        title: messages.calendario.toast.sinActividades.titulo,
-        description: messages.calendario.toast.sinActividades.descripcion,
-        status: "info",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-  
-    // Preguntar al usuario si está seguro
-    const confirmMessage = messages.calendario.confirmacion.añadirGoogleCalendar
-      .replace(/{count}/g, actividadesVisibles.length.toString());
-      
-    if (window.confirm(confirmMessage)) {
-      // Añadir cada actividad a Google Calendar
-      actividadesVisibles.forEach(actividad => {
-        const inicio = toDate(actividad.fechaInicio);
-        const fin = toDate(actividad.fechaFin);
-        
-        if (inicio && fin) {
-          const url = new URL('https://calendar.google.com/calendar/render');
-          url.searchParams.append('action', 'TEMPLATE');
-          url.searchParams.append('text', actividad.nombre);
-          url.searchParams.append('dates', 
-            `${safeISOString(inicio).replace(/-|:|\.\d+/g, '')}/
-             ${safeISOString(fin).replace(/-|:|\.\d+/g, '')}`);
-          url.searchParams.append('details', actividad.descripcion || '');
-          url.searchParams.append('location', actividad.lugar || '');
-          
-          window.open(url.toString(), '_blank');
-        } else {
-          console.error(`No se pudo añadir actividad "${actividad.nombre}" a Google Calendar: fechas inválidas`);
-        }
-      });
-      
-      toast({
-        title: messages.calendario.toast.exportacion.titulo,
-        description: messages.calendario.toast.exportacion.descripcion
-          .replace('{count}', actividadesVisibles.length.toString()),
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
+    });  };
   
   return (
     <Box>
@@ -303,14 +235,13 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
             width={{ base: "100%", md: "auto" }} // Ancho completo en móvil, auto en desktop para el grupo
             justifyContent={{ base: "center", md: "flex-start" }} // Centrar selects en móvil, alinear a la izquierda en desktop
             flexWrap="wrap" // Permitir que los selects se apilen en pantallas muy pequeñas si es necesario
-          >
-            <Select 
+          >            <Select 
               placeholder={messages.calendario.filtros.todosLosEstados}
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
               width={{ base: "100%", sm: "200px" }} // Ancho completo en 'base', 200px desde 'sm'
             >
-              {estados.map(estado => (
+              {estadosActividad.map(estado => (
                 <option key={estado} value={estado}>
                   {estado.charAt(0).toUpperCase() + estado.slice(1).replace('_', ' ')}
                 </option>
@@ -323,7 +254,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
               onChange={(e) => setFiltroTipo(e.target.value)}
               width={{ base: "100%", sm: "200px" }} // Ancho completo en 'base', 200px desde 'sm'
             >
-              {tipos.map(tipo => (
+              {tiposActividad.map(tipo => (
                 <option key={tipo} value={tipo}>
                   {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
                 </option>

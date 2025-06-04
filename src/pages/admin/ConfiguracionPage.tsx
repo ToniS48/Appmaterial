@@ -25,7 +25,6 @@ import {
   SimpleGrid
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons'; // Añadir esta importación
-import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -33,8 +32,7 @@ import messages from '../../constants/messages';
 
 const ConfiguracionPage: React.FC = () => {
   const toast = useToast();
-  const { userProfile } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState({
     notificacionesEmail: true,
     diasRecordatorio: 7,
@@ -49,9 +47,7 @@ const ConfiguracionPage: React.FC = () => {
     googleDriveDocFolder: ''
   });
   
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  
+      
   // Simular carga de configuraciones
   React.useEffect(() => {
     const cargarConfiguraciones = async () => {
@@ -112,7 +108,7 @@ const ConfiguracionPage: React.FC = () => {
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+        
     if (type === 'checkbox') {
       const target = e.target as HTMLInputElement;
       setSettings({

@@ -3,23 +3,20 @@ import {
   Box,
   Text,
   Heading,
-  Badge,
   Flex,
   Button,
-  HStack,
   Card,
   CardBody,
   Divider
 } from '@chakra-ui/react';
 import { 
   FiCalendar, FiEdit, FiTrash, FiPackage, FiEye, 
-  FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
+  FiStar, FiUser, FiCheckCircle, FiClock, 
   FiAlertCircle, FiXCircle, FiUserPlus 
 } from 'react-icons/fi';
 import IconBadge from '../common/IconBadge';
-import { Actividad } from '../../types/actividad';
 import { useAuth } from '../../contexts/AuthContext';
-import messages from '../../constants/messages';
+import { Actividad } from '../../types/actividad';
 
 // OPTIMIZACIÓN DE RENDIMIENTO
 const deferCallback = (callback: () => void) => {

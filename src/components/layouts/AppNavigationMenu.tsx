@@ -9,9 +9,9 @@ import {
   Tooltip 
 } from '@chakra-ui/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { RolUsuario } from '../../types/usuario';
 import { getRutaPorRol } from '../../utils/navigation';
-import { safeLog, useMemoizedObject } from '../../utils/performanceUtils';
+import { logger } from '../../utils/performanceUtils';
+import { RolUsuario } from '../../types/usuario';
 
 // Importamos iconos desde Chakra UI y React-Icons
 import { 
@@ -158,20 +158,10 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
     navItems.filter(item => item.roles.includes(userRole)),
     [navItems, userRole]
   );
-  
-  // Log optimizado de la ruta actual
+    // Log optimizado de la ruta actual
   useEffect(() => {
-    safeLog('Ruta actual:', location.pathname);
+    logger.debug('Ruta actual:', location.pathname);
   }, [location.pathname]);
-
-  // Estilos base compartidos para los elementos de navegación
-  const baseItemStyle = useMemoizedObject(() => ({
-    py: 3,
-    px: 4,
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center"
-  }), []);
 
   return (
     <VStack spacing={0} align="stretch">

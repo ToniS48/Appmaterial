@@ -5,7 +5,6 @@ import {
   Text,
   Button,
   Flex,
-  HStack,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -28,22 +27,21 @@ import {
 import { FiPackage, FiCalendar, FiUser, FiUsers } from 'react-icons/fi';
 import { AddIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layouts/DashboardLayout';
 import { Actividad } from '../types/actividad';
-import { useAuth } from '../contexts/AuthContext';
-import { obtenerActividadesClasificadas } from '../services/actividadService';
 import PrestamoForm from '../components/prestamos/PrestamoForm';
 import messages from '../constants/messages';
 
 const MisActividadesPage: React.FC = () => {
+    const navigate = useNavigate();
   const { userProfile } = useAuth();
-  const navigate = useNavigate();
   const [actividadesResponsable, setActividadesResponsable] = useState<Actividad[]>([]);
   const [actividadesParticipante, setActividadesParticipante] = useState<Actividad[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actividadSeleccionada, setActividadSeleccionada] = useState<Actividad | null>(null);
   const { isOpen: isPrestamoOpen, onOpen: onPrestamoOpen, onClose: onPrestamoClose } = useDisclosure();
-
+  
   // Cargar actividades del usuario clasificadas
   useEffect(() => {
     const fetchActividades = async () => {
@@ -51,9 +49,7 @@ const MisActividadesPage: React.FC = () => {
       
       try {
         setIsLoading(true);
-        const { actividadesResponsable, actividadesParticipante } = 
-          await obtenerActividadesClasificadas(userProfile.uid);
-        
+                
         setActividadesResponsable(actividadesResponsable);
         setActividadesParticipante(actividadesParticipante);
       } catch (error) {

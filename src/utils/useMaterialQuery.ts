@@ -2,11 +2,11 @@
  * Hook para cargar materiales con filtros y opciones específicas
  * Versión unificada para el inventario de materiales
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { MaterialItem, MaterialField } from '../components/material/types';
-import { calcularDisponibilidadReal } from './materialUtils';
+import { getMaterialStock } from './materialUtils';
+import { MaterialItem, MaterialField } from '../types/material';
 
 interface UseMaterialQueryResult {
   materiales: MaterialItem[];
@@ -46,11 +46,10 @@ export const useMaterialQuery = (options: UseMaterialQueryOptions = {}): UseMate
   const [materiales, setMateriales] = useState<MaterialItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Función para calcular disponibilidad real (memoizada por materialId y cantidad seleccionada)
+    // Función para calcular disponibilidad real (memoizada por materialId y cantidad seleccionada)
   const calcularDisponibilidad = useCallback((material: MaterialItem): number => {
-    return calcularDisponibilidadReal(material, materialesSeleccionados);
-  }, [materialesSeleccionados]);
+    return getMaterialStock(material);
+  }, []);
   
   // Función para cargar los materiales
   const cargarMateriales = useCallback(async () => {

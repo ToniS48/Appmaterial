@@ -10,7 +10,7 @@ import {
   updateDoc,
   arrayUnion,
   deleteDoc,
-  Timestamp // Importar Timestamp
+  Timestamp 
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword, 
@@ -18,13 +18,13 @@ import {
   sendEmailVerification
 } from 'firebase/auth';
 import { db, auth } from '../config/firebase';
-import { Usuario, RolUsuario } from '../types/usuario'; // Importar RolUsuario
+import { Usuario, RolUsuario } from '../types/usuario';
 import { handleFirebaseError } from '../utils/errorHandling';
 import { checkEmailAvailability } from '../utils/validationUtils';
 import messages from '../constants/messages';
-import { enviarNotificacionMasiva } from './notificacionService'; // Importar enviarNotificacionMasiva
+import { enviarNotificacionMasiva } from './notificacionService';
 
-// Mejorar la función de registro de usuario
+// Función de registro de usuario
 export const registrarUsuario = async (userData: {
   email: string;
   password: string;
@@ -34,7 +34,7 @@ export const registrarUsuario = async (userData: {
   activo: boolean;
 }): Promise<void> => {
   try {
-    // Verificar disponibilidad de email con la función centralizada
+    // Verificar disponibilidad de email
     const isEmailAvailable = await checkEmailAvailability(userData.email);
     if (!isEmailAvailable) {
       throw new Error('Este correo electrónico ya está registrado');
@@ -57,13 +57,15 @@ export const registrarUsuario = async (userData: {
         email: userData.email,
         nombre: userData.nombre,
         apellidos: userData.apellidos,
-        rol: userData.rol || 'invitado',
-        activo: userData.activo, // Usar el valor proporcionado (normalmente true)
-        pendienteVerificacion: true, // Por defecto requiere verificación
+        rol: userData.rol,
+        activo: userData.activo,
+        pendienteVerificacion: true,
+        eliminado: false,
         fechaCreacion: Timestamp.now(),
-        fechaRegistro: serverTimestamp(),
-        ultimaConexion: serverTimestamp()
+        fechaRegistro: Timestamp.now(),
+        ultimaConexion: Timestamp.now()
       };
+      
       await setDoc(usuarioRef, userDataFirestore);
       
       // Actualizar el displayName en Authentication
@@ -110,8 +112,21 @@ export const obtenerUsuarioPorId = async (uid: string): Promise<Usuario | null> 
   }
 };
 
-// Añade o modifica esta función
-export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Promise<Usuario> => {
+// Función para actualizar último acceso
+export const actualizarUltimoAcceso = async (uid: string): Promise<void> => {
+  try {
+    const usuarioRef = doc(db, 'usuarios', uid);
+    await updateDoc(usuarioRef, {
+      ultimaConexion: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error al actualizar última conexión:', error);
+    // No lanzamos error para no interrumpir el login
+  }
+};
+
+// Obtener o crear usuario (para contexto de autenticación)
+export const obtenerOCrearUsuario = async (uid: string, email: string): Promise<Usuario> => {
   try {
     const usuario = await obtenerUsuarioPorId(uid);
     
@@ -132,14 +147,15 @@ export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Pro
         nombre: email.split('@')[0],
         apellidos: '',
         rol: 'invitado' as RolUsuario,
-        activo: true, // CAMBIAR A true para permitir el login inicial
+        activo: true,
         pendienteVerificacion: true,
-        eliminado: false, // Inicializar como no eliminado
+        eliminado: false,
         fechaCreacion: ahora,
         fechaRegistro: ahora,
         ultimaConexion: ahora
       };
-        await setDoc(doc(db, 'usuarios', uid), nuevoUsuario);
+      
+      await setDoc(doc(db, 'usuarios', uid), nuevoUsuario);
       
       // Enviar notificación a administradores y vocales
       await enviarNotificacionNuevoUsuario(nuevoUsuario);
@@ -153,7 +169,7 @@ export const obtenerOCrearUsuarioPorId = async (uid: string, email: string): Pro
 };
 
 // Actualizar usuario existente
-export const actualizarUsuario = async (uid: string, userData: {
+export const actualizarUsuario = async (uid: string, updates: {
   nombre?: string;
   apellidos?: string;
   rol?: RolUsuario;
@@ -164,26 +180,17 @@ export const actualizarUsuario = async (uid: string, userData: {
 }): Promise<void> => {
   try {
     const usuarioRef = doc(db, 'usuarios', uid);
-    await updateDoc(usuarioRef, {
-      ...userData,
-      // Si se actualiza el rol, asegurarse de que sea del tipo RolUsuario
-      ...(userData.rol && { rol: userData.rol as RolUsuario })
-    });
+    
+    // Preparar los datos de actualización
+    const updateData: any = {
+      ...updates,
+      fechaActualizacion: Timestamp.now()
+    };
+    
+    await updateDoc(usuarioRef, updateData);
   } catch (error) {
     handleFirebaseError(error, 'Error al actualizar usuario');
     throw error;
-  }
-};
-
-// Función para actualizar el último acceso del usuario
-export const actualizarUltimoAcceso = async (uid: string): Promise<void> => {
-  try {
-    const userRef = doc(db, 'usuarios', uid);
-    await updateDoc(userRef, {
-      ultimaConexion: Timestamp.now() // Usar Timestamp.now() en lugar de serverTimestamp()
-    });
-  } catch (error) {
-    handleFirebaseError(error, messages.errors.lastAccess);
   }
 };
 
@@ -212,7 +219,7 @@ export const crearUsuario = async (userData: {
   observaciones?: string;
 }): Promise<Usuario> => {
   try {
-    // Verificar disponibilidad de email con la función centralizada
+    // Verificar disponibilidad de email
     const isEmailAvailable = await checkEmailAvailability(userData.email);
     if (!isEmailAvailable) {
       throw new Error('Este correo electrónico ya está registrado');
@@ -247,9 +254,9 @@ export const crearUsuario = async (userData: {
       nombre: userData.nombre,
       apellidos: userData.apellidos,
       rol: userData.rol,
-      activo: true, // CAMBIAR A true para permitir el login inicial
+      activo: true,
       pendienteVerificacion: true,
-      eliminado: false, // Añadir este campo para controlar usuarios eliminados
+      eliminado: false,
       fechaCreacion: Timestamp.now(),
       fechaRegistro: Timestamp.now(),
       ultimaConexion: Timestamp.now()
@@ -283,7 +290,6 @@ export const crearUsuario = async (userData: {
 // Eliminar usuario
 export const eliminarUsuario = async (uid: string): Promise<void> => {
   try {
-    // En lugar de eliminar el documento, actualizarlo con estado eliminado
     const usuarioRef = doc(db, 'usuarios', uid);
     const docSnap = await getDoc(usuarioRef);
     
@@ -297,33 +303,28 @@ export const eliminarUsuario = async (uid: string): Promise<void> => {
       eliminado: true,
       fechaEliminacion: Timestamp.now()
     });
-    
-    console.log('Usuario marcado como eliminado en Firestore');
-    
-    // Comentario informativo sobre la necesidad de eliminar en Auth
-    console.log('IMPORTANTE: Recuerda eliminar también el usuario en Firebase Auth desde la consola');
-    
   } catch (error) {
     handleFirebaseError(error, 'Error al marcar usuario como eliminado');
     throw error;
   }
 };
 
-// Añadir esta función para obtener múltiples usuarios por sus IDs
-
+// Listar usuarios por IDs
 export const listarUsuariosPorIds = async (userIds: string[]): Promise<Usuario[]> => {
   try {
-    // Si no hay IDs, devolver array vacío
     if (!userIds.length) return [];
     
-    const promises = userIds.map(async (userId) => {
-      const usuario = await obtenerUsuarioPorId(userId);
-      return usuario;
-    });
+    const usuarios: Usuario[] = [];
     
-    const usuarios = await Promise.all(promises);
-    // Filtrar posibles nulls (usuarios no encontrados)
-    return usuarios.filter((usuario: Usuario | null) => usuario !== null) as Usuario[];
+    // Obtener usuarios de a uno por vez para evitar problemas con Firestore
+    for (const userId of userIds) {
+      const usuario = await obtenerUsuarioPorId(userId);
+      if (usuario) {
+        usuarios.push(usuario);
+      }
+    }
+    
+    return usuarios;
   } catch (error) {
     handleFirebaseError(error, 'Error al listar usuarios por IDs');
     throw error;
@@ -331,7 +332,11 @@ export const listarUsuariosPorIds = async (userIds: string[]): Promise<Usuario[]
 };
 
 // Obtener estadísticas de usuarios
-export const obtenerEstadisticasUsuarios = async () => {
+export const obtenerEstadisticasUsuarios = async (): Promise<{
+  activos: number;
+  inactivos: number;
+  pendientes: number;
+}> => {
   try {
     const usuarios = await listarUsuarios();
     return {
@@ -348,25 +353,19 @@ export const obtenerEstadisticasUsuarios = async () => {
 // Función para notificar a admins y vocales sobre un nuevo usuario
 async function enviarNotificacionNuevoUsuario(usuario: Usuario): Promise<void> {
   try {
-    // Obtener todos los usuarios con roles admin y vocal
+    // Obtener administradores y vocales
     const usuarios = await listarUsuarios();
-    const usuariosNotificar = usuarios.filter(u => u.rol === 'admin' || u.rol === 'vocal');
+    const adminsYVocales = usuarios.filter((u: Usuario) => u.rol === 'admin' || u.rol === 'vocal');
     
-    if (usuariosNotificar.length > 0) {
-      // Extraer solo los IDs de usuario
-      const usuarioIds = usuariosNotificar.map(u => u.uid);
-      
-      // Crear mensaje de notificación
+    if (adminsYVocales.length > 0) {
       const mensaje = `Nuevo usuario registrado: ${usuario.nombre} ${usuario.apellidos} (${usuario.email})`;
-      
-      // Enviar notificación masiva
-      await enviarNotificacionMasiva(
-        usuarioIds,
+        await enviarNotificacionMasiva(
+        adminsYVocales.map((u: Usuario) => u.uid),
         'sistema',
         mensaje,
         usuario.uid,
         'usuario',
-        '/admin/usuarios' // Enlace directo a la gestión de usuarios (para admins)
+        '/admin/usuarios'
       );
     }
   } catch (error) {

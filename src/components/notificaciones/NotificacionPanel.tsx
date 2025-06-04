@@ -1,4 +1,7 @@
 import React from 'react';
+import { FaBoxOpen, FaCalendarAlt } from 'react-icons/fa';
+import { Notificacion } from '../../types/notificacion';
+import { useNotificaciones } from '../../contexts/NotificacionContext';
 import {
   Box,
   VStack,
@@ -16,20 +19,11 @@ import {
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { InfoIcon, CheckIcon, WarningIcon, TimeIcon } from '@chakra-ui/icons';
-import { FaTools, FaCalendarAlt, FaBoxOpen } from 'react-icons/fa';
-import { useNotificaciones } from '../../contexts/NotificacionContext';
-import { Notificacion } from '../../types/notificacion';
 import messages from '../../constants/messages';
 
 const NotificacionPanel: React.FC = () => {
-  const { 
-    notificaciones, 
-    cargando, 
-    error, 
-    marcarComoLeida, 
-    marcarTodasComoLeidas 
-  } = useNotificaciones();
   const navigate = useNavigate();
+  const { notificaciones, cargando, error, marcarComoLeida, marcarTodasComoLeidas } = useNotificaciones();
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -144,7 +138,7 @@ const NotificacionPanel: React.FC = () => {
             size="xs" 
             onClick={marcarTodasComoLeidas}
             variant="outline"
-            isDisabled={cargando || notificaciones.every(n => n.leida)}
+            isDisabled={cargando || notificaciones.every((n: Notificacion) => n.leida)}
           >
             {messages.notificaciones.marcarComoLeidas}
           </Button>

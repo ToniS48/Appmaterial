@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { EstadoActividad } from "../types/actividad";
 
 /**
  * Tipo unión que representa los posibles formatos de fecha en la aplicación
@@ -92,11 +93,10 @@ export const compareDates = (date1: DateLike, date2: DateLike): number | null =>
  * @returns El estado correspondiente
  */
 export const determinarEstadoActividad = (
-  fechaInicio: DateLike, 
-  fechaFin: DateLike, 
-  estadoActual?: string
-): 'planificada' | 'en_curso' | 'finalizada' | 'cancelada' => {
-  // Si ya está cancelada, mantener ese estado
+  fechaInicio: DateLike,
+  fechaFin: DateLike,
+  estadoActual?: EstadoActividad
+): EstadoActividad => {
   if (estadoActual === 'cancelada') return 'cancelada';
   
   const hoy = normalizarFecha(new Date())!;
@@ -125,7 +125,7 @@ export const determinarEstadoActividad = (
  * @param options Opciones de formateo (opcional)
  * @returns Cadena de fecha formateada o cadena vacía si la fecha es inválida
  */
-export const formatDate = (date: DateLike, options?: Intl.DateTimeFormatOptions): string => {
+export const formatFecha = (date: DateLike, options?: Intl.DateTimeFormatOptions): string => {
   if (!date) return '';
   
   const dateObj = toDate(date);
@@ -146,7 +146,7 @@ export const formatDate = (date: DateLike, options?: Intl.DateTimeFormatOptions)
  * @param date2 Segunda fecha a comparar
  * @returns true si ambas fechas son del mismo día, false en caso contrario
  */
-export const isSameDay = (date1: DateLike, date2: DateLike): boolean => {
+export const esMismoDia = (date1: DateLike, date2: DateLike): boolean => {
   const d1 = normalizarFecha(date1);
   const d2 = normalizarFecha(date2);
   
@@ -157,12 +157,21 @@ export const isSameDay = (date1: DateLike, date2: DateLike): boolean => {
 
 /**
  * Convierte una fecha a string ISO de forma segura
- * @param date Fecha a convertir
- * @returns String ISO o string vacío si la fecha es inválida
+ * @param date Fecha en cualquier formato
+ * @returns String ISO o string vacío si no es válido
  */
 export const safeISOString = (date: DateLike): string => {
   const dateObj = toDate(date);
   if (!dateObj) return '';
-  
-  return dateObj.toISOString();
+  try {
+    return dateObj.toISOString();
+  } catch (e) {
+    console.error("Error al convertir fecha a ISO string:", e);
+    return '';
+  }
 };
+
+/**
+ * Alias para esMismoDia para compatibilidad
+ */
+export const isSameDay = esMismoDia;

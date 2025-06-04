@@ -3,12 +3,12 @@
  * al selector de materiales y medir su rendimiento.
  */
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Box, VStack, Heading, Text, Button, Badge, Code, useToast } from '@chakra-ui/react';
 import { useForm, Control } from 'react-hook-form';
+import { Box, VStack, Heading, Text, Button, Badge, Code, useToast } from '@chakra-ui/react';
+import { Material } from '../../types/material';
 import { performanceMonitor } from '../../utils/performanceMonitor';
 import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
 import MaterialSelector from './MaterialSelector';
-import { Material } from '../../types/material';
 
 // Definir la interfaz localmente
 interface MaterialSelectorProps {

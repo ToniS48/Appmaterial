@@ -4,10 +4,10 @@ import {
   Text, Divider, Button, FormControl, FormLabel, Input, 
   FormHelperText, Spinner, Center, Alert, AlertIcon, SimpleGrid
 } from '@chakra-ui/react';
-import { FiUser, FiEdit } from 'react-icons/fi';
+import { FiEdit } from 'react-icons/fi';
+import { Timestamp, FieldValue } from 'firebase/firestore';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
-import { Timestamp, FieldValue } from 'firebase/firestore';
 
 /**
  * Página de perfil de usuario
