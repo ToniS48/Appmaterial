@@ -152,10 +152,9 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
       };
     });
   }, [actividadId]);
-
   // Optimizar updateMaterial con useCallback
-  const updateMaterial = useCallback((material: any[]) => {
-    setFormData((prev) => ({ ...prev, material: standardizeMaterials(material) }));
+  const updateMaterial = useCallback((materiales: any[]) => {
+    setFormData((prev) => ({ ...prev, materiales: standardizeMaterials(materiales) }));
   }, []);
   // Optimizar updateEnlaces con useCallback
   const updateEnlaces = useCallback((enlacesData: any) => {

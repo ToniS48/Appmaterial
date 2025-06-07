@@ -26,7 +26,6 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
-import { FiPackage } from 'react-icons/fi';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
 import messages from '../../constants/messages';
 import MaterialCard from '../material/MaterialCard';
@@ -36,6 +35,13 @@ import { Material, MaterialItem } from '../../types/material';
 
 // Crear instancia del repositorio
 const materialRepository = new MaterialRepository();
+
+// Exponer repositorio globalmente para debugging (solo en desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  (window as any).materialRepository = materialRepository;
+  (window as any).MaterialRepository = MaterialRepository;
+  console.log('🔧 MaterialRepository expuesto globalmente para debugging');
+}
 
 // Definir tipos faltantes
 interface MaterialField {
@@ -52,6 +58,12 @@ export interface MaterialSelectorProps {
   materialesActuales?: MaterialField[];
   cardBg?: string;
   borderColor?: string;
+  responsables?: {
+    responsableActividadId?: string;
+    responsableMaterialId?: string;
+    creadorId?: string;
+  };
+  usuarios?: Array<{ uid: string; nombre: string; apellidos: string; }>;
 }
 
 /**
@@ -63,10 +75,11 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   error,
   materialesActuales = [],
   cardBg,
-  borderColor
+  borderColor,
+  responsables,
+  usuarios = []
 }) => {  // Estados locales
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<string | null>(null);
   const [materialesDisponibles, setMaterialesDisponibles] = useState<MaterialItem[]>([]);
@@ -93,21 +106,41 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       codigo: material.codigo,
       descripcion: material.descripcion
     };
-  }, []);
-
-  // Cargar materiales disponibles
+  }, []);  // Cargar materiales disponibles
   useEffect(() => {
     const cargarMateriales = async () => {
       try {
+        console.log('🔍 MaterialSelector - Iniciando carga de materiales...');
+        
         setLoadingMateriales(true);
+        setErrorState(null);
+        
         const materiales = await materialRepository.findMaterialesDisponibles();
+        
+        console.log(`📦 MaterialSelector - ${materiales?.length || 0} materiales cargados`);
+        
         const materialesItems = (materiales || []).map(convertirMaterialAItem);
+        
         setMaterialesDisponibles(materialesItems);
+        console.log('✅ MaterialSelector - Materiales cargados exitosamente');
+        
+        // Exponer datos para debugging
+        if (process.env.NODE_ENV === 'development') {
+          (window as any).lastLoadedMateriales = materiales;
+          (window as any).lastConvertedMateriales = materialesItems;
+        }
+        
       } catch (error) {
-        console.error('Error cargando materiales:', error);
-        setErrorState('Error cargando materiales');
+        console.error('❌ MaterialSelector - Error cargando materiales:', error);
+        setErrorState('Error cargando materiales: ' + (error instanceof Error ? error.message : String(error)));
+        
+        // Exponer error para debugging
+        if (process.env.NODE_ENV === 'development') {
+          (window as any).lastMaterialError = error;
+        }
       } finally {
         setLoadingMateriales(false);
+        console.log('🏁 MaterialSelector - Proceso de carga finalizado');
       }
     };
 
@@ -124,23 +157,30 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       .reduce((sum, field) => sum + (field.cantidad || 0), 0);
     
     return Math.max(0, cantidadTotal - cantidadUsada);
-  }, [typedFields]);  // Usar materiales ya filtrados del hook
-  const materialesFiltrados = materialesDisponibles || [];
+  }, [typedFields]);  // Función para filtrar materiales por búsqueda
+  const filtrarPorBusqueda = useCallback((materiales: MaterialItem[]) => {
+    if (!searchTerm.trim()) return materiales;
+    
+    const termino = searchTerm.toLowerCase();
+    return materiales.filter(material => 
+      material.nombre.toLowerCase().includes(termino) ||
+      material.codigo?.toLowerCase().includes(termino) ||
+      material.descripcion?.toLowerCase().includes(termino)
+    );
+  }, [searchTerm]);
 
-  // Usar agrupación por tipo ya calculada del hook  
+  // Usar materiales ya filtrados del hook
+  const materialesFiltrados = filtrarPorBusqueda(materialesDisponibles || []);
+
+  // Usar agrupación por tipo ya calculada del hook con filtro de búsqueda aplicado
   const materialesPorTipo = {
-    cuerda: materialesFiltrados.filter(m => m.tipo === 'cuerda'),
-    anclaje: materialesFiltrados.filter(m => m.tipo === 'anclaje'),
-    varios: materialesFiltrados.filter(m => m.tipo === 'varios')
+    cuerda: filtrarPorBusqueda(materialesDisponibles.filter(m => m.tipo === 'cuerda')),
+    anclaje: filtrarPorBusqueda(materialesDisponibles.filter(m => m.tipo === 'anclaje')),
+    varios: filtrarPorBusqueda(materialesDisponibles.filter(m => m.tipo === 'varios'))
   };
-
   // Handlers optimizados
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-  }, []);
-
-  const handleTipoFilter = useCallback((tipo: string) => {
-    setFiltroTipo(tipo);
   }, []);
 
   // Handler para añadir material
@@ -221,76 +261,98 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     remove(index);
   }, [remove]);
   const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);
+  // Función helper para obtener nombre del usuario
+  const obtenerNombreUsuario = useCallback((uid: string) => {
+    const usuario = usuarios.find(u => u.uid === uid);
+    return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
+  }, [usuarios]);
+
+  // Función helper para renderizar información de responsables
+  const renderizarResponsables = useCallback(() => {
+    if (!responsables) return null;
+
+    const responsableActividad = responsables.responsableActividadId ? 
+      obtenerNombreUsuario(responsables.responsableActividadId) : null;
+    const responsableMaterial = responsables.responsableMaterialId ? 
+      obtenerNombreUsuario(responsables.responsableMaterialId) : null;
+
+    if (!responsableActividad && !responsableMaterial) return null;
+
+    return (
+      <Text fontSize="sm" color="gray.600" mt={1}>
+        {responsableActividad && (
+          <Text as="span">
+            Responsable de actividad: <Text as="span" fontWeight="medium">{responsableActividad}</Text>
+          </Text>
+        )}
+        {responsableActividad && responsableMaterial && <Text as="span"> • </Text>}
+        {responsableMaterial && (
+          <Text as="span">
+            Responsable de material: <Text as="span" fontWeight="medium">{responsableMaterial}</Text>
+          </Text>
+        )}
+      </Text>
+    );
+  }, [responsables, obtenerNombreUsuario]);
 
   return (
     <Box>
-      <Heading size="sm" mb={4}>Material necesario</Heading>
+      <Heading size="sm" mb={2}>Material necesario</Heading>
+      {renderizarResponsables()}
+      <Box mb={4}></Box>
+        {/* El panel de debug fue removido ya que el problema está resuelto */}
+      {/* Logging disponible en consola del navegador */}
       
       {loadingMateriales ? (
         <Box textAlign="center" py={4}>
           <Spinner size="md" />
           <Text mt={2}>{messages.material.selector.cargando}</Text>
-        </Box>
-      ) : errorState ? (
+        </Box>      ) : errorState ? (
         <Box p={3} bg="red.50" color="red.700" borderRadius="md">
-          <Text>{errorState}</Text>
-          <Button size="sm" mt={2} onClick={() => window.location.reload()}>
+          <Text>{errorState}</Text>          <Button 
+            size="sm" 
+            mt={2} 
+            onClick={async () => {
+              console.log('🔄 MaterialSelector - Botón Reintentar presionado');
+              setErrorState(null);
+              setLoadingMateriales(true);
+              // Reinicializar la carga de materiales sin recargar la página
+              const cargarMateriales = async () => {
+                try {
+                  console.log('🔍 MaterialSelector - Reintentando carga de materiales...');
+                  const materiales = await materialRepository.findMaterialesDisponibles();
+                  console.log('📦 MaterialSelector - Materiales obtenidos en reintentar:', materiales);
+                  const materialesItems = (materiales || []).map(convertirMaterialAItem);
+                  console.log('🔄 MaterialSelector - Materiales convertidos en reintentar:', materialesItems);
+                  setMaterialesDisponibles(materialesItems);
+                  console.log('✅ MaterialSelector - Reintento exitoso');
+                } catch (error) {
+                  console.error('❌ MaterialSelector - Error recargando materiales:', error);
+                  setErrorState('Error al recargar materiales');
+                } finally {
+                  setLoadingMateriales(false);
+                  console.log('🏁 MaterialSelector - Reintento finalizado');
+                }
+              };
+              await cargarMateriales();
+            }}
+          >
             {messages.actions.retry || "Reintentar"}
           </Button>
         </Box>
       ) : (
-        <>
-          {/* Sección de búsqueda y filtrado */}
+        <>          {/* Sección de búsqueda */}
           <Box mb={4}>
-            <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-              <InputGroup>
-                <InputLeftElement pointerEvents="none">
-                  <SearchIcon color="gray.300" />
-                </InputLeftElement>
-                <Input 
-                  placeholder={messages.material.selector.buscarPlaceholder} 
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
-              </InputGroup>
-              
-              {/* Filtro por tipo */}
-              <Flex gap={2}>
-                <Button 
-                  size="md"
-                  variant={filtroTipo === 'todos' ? "solid" : "outline"}
-                  colorScheme={filtroTipo === 'todos' ? "brand" : "gray"}
-                  onClick={() => handleTipoFilter('todos')}
-                  leftIcon={<FiPackage />}
-                >
-                  {messages.material.selector.filtroTodos}
-                </Button>
-                <Button 
-                  size="md"
-                  variant={filtroTipo === 'cuerda' ? "solid" : "outline"}
-                  colorScheme={filtroTipo === 'cuerda' ? "blue" : "gray"}
-                  onClick={() => handleTipoFilter('cuerda')}
-                >
-                  {messages.material.selector.filtroCuerdas}
-                </Button>
-                <Button 
-                  size="md"
-                  variant={filtroTipo === 'anclaje' ? "solid" : "outline"}
-                  colorScheme={filtroTipo === 'anclaje' ? "orange" : "gray"}
-                  onClick={() => handleTipoFilter('anclaje')}
-                >
-                  {messages.material.selector.filtroAnclajes}
-                </Button>
-                <Button 
-                  size="md"
-                  variant={filtroTipo === 'varios' ? "solid" : "outline"}
-                  colorScheme={filtroTipo === 'varios' ? "purple" : "gray"}
-                  onClick={() => handleTipoFilter('varios')}
-                >
-                  {messages.material.selector.filtroVarios}
-                </Button>
-              </Flex>
-            </Flex>
+            <InputGroup mb={4}>
+              <InputLeftElement pointerEvents="none">
+                <SearchIcon color="gray.300" />
+              </InputLeftElement>
+              <Input 
+                placeholder={messages.material.selector.buscarPlaceholder} 
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </InputGroup>
             
             {/* Vista del catálogo de materiales con Tabs */}
             <Tabs variant="enclosed" colorScheme="brand" isLazy>

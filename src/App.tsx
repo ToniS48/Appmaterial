@@ -10,8 +10,7 @@ import { iniciarTareasProgramadas } from './services/programacionService';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 
-// Importar DebugHelper de forma lazy
-const DebugHelper = React.lazy(() => import('./components/debug/DebugHelper'));
+// DebugHelper removido - problema MaterialSelector resuelto
 
 // Componente de carga inicial
 const LoadingFallback = () => (
@@ -74,13 +73,8 @@ function App() {
           <Router>
             <ThemeProvider>
               <AuthProvider>
-                <NotificacionProvider>
-                  <AppRoutes />
-                  {process.env.NODE_ENV !== 'production' && (
-                    <Suspense fallback={null}>
-                      <DebugHelper />
-                    </Suspense>
-                  )}
+                <NotificacionProvider>                  <AppRoutes />
+                  {/* DebugHelper removido - problema MaterialSelector resuelto */}
                 </NotificacionProvider>
               </AuthProvider>
             </ThemeProvider>
