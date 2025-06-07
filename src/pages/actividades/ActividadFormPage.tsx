@@ -145,20 +145,24 @@ export default function ActividadFormPage() {
                 nextTab();
               } else {
                 setFirstTabErrors(data);
-              }
-            } else if (activeTabIndex === 1) {
+              }            } else if (activeTabIndex === 1) {
               // Pestaña de participantes - Llamar a la función submitForm del componente participantes
+              console.log("ActividadFormPage - Iniciando validación de participantes");
               if (participantesEditorRef.current) {
-                // Usar requestAnimationFrame para diferir la validación
-                requestAnimationFrame(() => {
-                  const result = participantesEditorRef.current!.submitForm();
-                  
-                  // Usar comparación estricta con true
-                  if (result === true) {
-                    setCompletedTabs(prev => Array.from(new Set([...prev, 1])));
-                    nextTab();
-                  }
-                });
+                console.log("ActividadFormPage - Llamando submitForm");
+                const result = participantesEditorRef.current.submitForm();
+                console.log("ActividadFormPage - Resultado de submitForm:", result);
+                
+                // Usar comparación estricta con true
+                if (result === true) {
+                  console.log("ActividadFormPage - Validación exitosa, avanzando a siguiente pestaña");
+                  setCompletedTabs(prev => Array.from(new Set([...prev, 1])));
+                  nextTab();
+                } else {
+                  console.log("ActividadFormPage - Validación falló, no se puede avanzar");
+                }
+              } else {
+                console.error("ActividadFormPage - participantesEditorRef.current es null");
               }
             } else if (activeTabIndex === 2) {              // Actualizar materiales de forma optimizada
               if (data.materiales) {
@@ -248,7 +252,6 @@ export default function ActividadFormPage() {
       { responsableId: responsableActividadId, responsableMaterialId }
     );
   };
-
   // Función para manejar cambios en la necesidad de material
   const handleNecesidadMaterialChange = (necesita: boolean) => {
     // Actualizar el estado directamente
@@ -258,6 +261,17 @@ export default function ActividadFormPage() {
     };
     // Usar la función existente para actualizaciones
     updateInfo(updatedData);
+  };
+  // Wrapper para updateParticipantes que maneja solo los IDs
+  const handleParticipantesUpdate = (participanteIds: string[]) => {
+    try {
+      console.log("ActividadFormPage handleParticipantesUpdate - Recibidos:", participanteIds);
+      updateParticipantes(participanteIds);
+      console.log("ActividadFormPage handleParticipantesUpdate - Ejecutado exitosamente");
+    } catch (error) {
+      console.error("ActividadFormPage handleParticipantesUpdate - Error:", error);
+      throw error; // Re-lanzar el error para que submitForm lo capture
+    }
   };
   // Validación de la primera pestaña optimizada
   const validateFirstTabSilent = async (data: Partial<Actividad>): Promise<boolean> => {
@@ -528,8 +542,9 @@ export default function ActividadFormPage() {
                   <ActividadInfoForm onCancel={handleCancel} />
                 </TabPanel>                <TabPanel>
                   <ParticipantesEditor 
+                    ref={participantesEditorRef}
                     data={{ ...formData, participanteIds: formData.participanteIds || [] } as Actividad}
-                    onSave={updateParticipantes}
+                    onSave={handleParticipantesUpdate}
                     onResponsablesChange={handleResponsablesChange}
                     mostrarBotones={false}
                     onCancel={handleCancel}
