@@ -22,6 +22,7 @@ interface ParticipantesEditorProps {
   onResponsablesChange: (responsableId: string, responsableMaterialId: string) => void;
   onCancel?: () => void;
   mostrarBotones?: boolean;
+  actividadId?: string; // Agregar esta prop para determinar si es nueva o existente
 }
 
 // Definir interfaces para props de componentes
@@ -93,14 +94,18 @@ const UsuarioRow = React.memo<UsuarioRowProps>(({
 
 // Componente principal con forwardRef
 const ParticipantesEditor = React.forwardRef((
-  { data, onSave, onResponsablesChange, onCancel, mostrarBotones = true }: ParticipantesEditorProps, 
+  { data, onSave, onResponsablesChange, onCancel, mostrarBotones = true, actividadId }: ParticipantesEditorProps, 
   ref: React.Ref<{ submitForm: () => boolean }>
 ) => {
   const { currentUser, userProfile } = useAuth();
-  
-  // Estados principales
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    // Estados principales
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    // Para actividades nuevas (sin actividadId), solo incluir el creador si existe
+    if (!actividadId && data.creadorId) {
+      return [data.creadorId];
+    }
+    
+    // Para actividades existentes, usar participanteIds y añadir creador si no está
     const idsUnicos = new Set(data.participanteIds || []);
     if (data.creadorId) idsUnicos.add(data.creadorId);
     return Array.from(idsUnicos);
@@ -164,24 +169,33 @@ const ParticipantesEditor = React.forwardRef((
         });
       }
     }
-  }, [currentUser?.uid]);
-  
-  // Asegurar que los IDs requeridos estén incluidos
+  }, [currentUser?.uid]);    // Asegurar que los IDs requeridos estén incluidos
   useEffect(() => {
     if (!didInitializeCreator.current) return;
     
+    // Para actividades nuevas (sin actividadId), ser más conservador
+    if (!actividadId) {
+      // Solo asegurar que el creador esté incluido si está definido
+      if (data.creadorId && !selectedIds.includes(data.creadorId)) {
+        setSelectedIds(prev => [...prev, data.creadorId!]);
+      }
+      return;
+    }
+    
+    // Para actividades existentes, incluir todos los IDs requeridos
     const idsRequeridos = [
       data.creadorId,
       responsableId,
       responsableMaterialId
     ].filter(Boolean);
-      // Verificar si hay algo que actualizar
+    
+    // Verificar si hay algo que actualizar
     const idsAActualizar = idsRequeridos.filter(id => id && !selectedIds.includes(id));
     
     if (idsAActualizar.length > 0) {
       setSelectedIds(prev => [...prev, ...idsAActualizar.filter(Boolean) as string[]]);
     }
-  }, [data.creadorId, responsableId, responsableMaterialId, selectedIds]);
+  }, [data.creadorId, responsableId, responsableMaterialId, selectedIds, actividadId]);
   
   // Manejar selección/deselección de usuarios
   const toggleUsuario = useCallback((id: string) => {

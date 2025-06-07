@@ -241,9 +241,7 @@ const ActividadPage: React.FC = () => {
       <Flex direction="column" gap={4}>
         <Flex justify="space-between" align="center">
           <Heading size="md">Participantes ({participantes.length})</Heading>
-        </Flex>
-
-        {editingParticipantes ? (
+        </Flex>        {editingParticipantes ? (
           <ParticipantesEditor
             data={actividad}
             onSave={(participanteIds) => {
@@ -257,6 +255,7 @@ const ActividadPage: React.FC = () => {
               );
             }}
             onCancel={() => setEditingParticipantes(false)}
+            actividadId={actividad.id}
           />
         ) : (
           <Card>
