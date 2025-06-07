@@ -103,14 +103,61 @@ export class MaterialRepository extends BaseRepository<Material> {
 
     return materiales;
   }
-
   /**
    * Obtener materiales disponibles para préstamo
+   * Versión simplificada que evita índices complejos
    */
   async findMaterialesDisponibles(): Promise<Material[]> {
-    return this.findMateriales({
-      disponible: true
-    });
+    try {
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Usando consulta simplificada');
+      
+      // Opción 1: Solo filtrar por cantidadDisponible > 0 (más simple)
+      const queryOptions: QueryOptions = {
+        where: [
+          {
+            field: 'cantidadDisponible',
+            operator: '>',
+            value: 0
+          }
+        ],
+        orderBy: [{ field: 'nombre', direction: 'asc' }]
+      };
+      
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Opciones de consulta:', queryOptions);
+      const materiales = await this.find(queryOptions);
+        // Filtrar manualmente por estado si es necesario
+      const materialesFiltrados = materiales.filter(material => 
+        material.estado && material.estado.toLowerCase() === 'disponible'
+      );
+      
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Materiales encontrados:', materiales.length);
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Materiales filtrados:', materialesFiltrados.length);
+      
+      return materialesFiltrados;
+      
+    } catch (error) {
+      console.error('❌ [DEBUG] findMaterialesDisponibles - Error:', error);
+      
+      // Fallback: consulta aún más simple - obtener todos y filtrar en memoria
+      console.log('🔄 [DEBUG] findMaterialesDisponibles - Intentando fallback...');
+      try {
+        const todosMateriales = await this.find({
+          orderBy: [{ field: 'nombre', direction: 'asc' }]
+        });
+          const materialesDisponibles = todosMateriales.filter(material => 
+          (material.cantidadDisponible ?? 0) > 0 && 
+          material.estado && 
+          material.estado.toLowerCase() === 'disponible'
+        );
+        
+        console.log('✅ [DEBUG] findMaterialesDisponibles - Fallback exitoso:', materialesDisponibles.length);
+        return materialesDisponibles;
+        
+      } catch (fallbackError) {
+        console.error('❌ [DEBUG] findMaterialesDisponibles - Fallback falló:', fallbackError);
+        throw fallbackError;
+      }
+    }
   }
 
   /**

@@ -21,13 +21,20 @@ import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidati
 import validationMessages from '../../constants/validationMessages';
 import { useActividadOptimizations } from '../../hooks/useActividadOptimizations';
 import { setupSchedulerOptimizer, optimizeTabChange } from '../../utils/reactSchedulerOptimizer';
+import { listarUsuarios } from '../../services/usuarioService';
+import { Usuario } from '../../types/usuario';
 
 export default function ActividadFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   
   // Agregar referencia al editor de participantes
   const participantesEditorRef = useRef<{ submitForm: () => boolean }>(null);
+  
+  // Estado para usuarios
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(true);
   
   const { 
     formData, 
@@ -49,6 +56,9 @@ export default function ActividadFormPage() {
     resetMetrics
   } = useActividadOptimizations({ enableLogging: process.env.NODE_ENV === 'development' });
   
+  // Hook para notificaciones
+  const toast = useToast();
+  
   // Optimizar el scheduler de React al cargar el componente
   useLayoutEffect(() => {
     // Configurar el optimizador y guardar la función de limpieza
@@ -58,11 +68,7 @@ export default function ActividadFormPage() {
       // Limpiar optimizaciones cuando se desmonta el componente
       if (cleanupScheduler) cleanupScheduler();
     };
-  }, []);
-
-  const { currentUser } = useAuth(); // Obtener usuario actual
-  const toast = useToast();
-  const validation = useActividadInfoValidation();
+  }, []);  const validation = useActividadInfoValidation();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
@@ -260,8 +266,49 @@ export default function ActividadFormPage() {
       necesidadMaterial: necesita
     };
     // Usar la función existente para actualizaciones
-    updateInfo(updatedData);
+    updateInfo(updatedData);  };
+  
+  // Función personalizada para manejar materiales con asignación automática de responsable
+  const handleMaterialUpdate = (materiales: any[]) => {
+    try {
+      console.log("ActividadFormPage handleMaterialUpdate - Recibidos materiales:", materiales);
+      
+      // Actualizar los materiales
+      updateMaterial(materiales);
+      
+      // Si hay materiales seleccionados y no hay responsable de material asignado, asignar automáticamente
+      if (materiales.length > 0 && !formData.responsableMaterialId) {
+        // Buscar un responsable candidato: prioritario el creador, luego el responsable de actividad, finalmente el usuario actual
+        const candidatoResponsable = formData.creadorId || 
+                                   formData.responsableActividadId || 
+                                   currentUser?.uid;
+        
+        if (candidatoResponsable) {
+          console.log("ActividadFormPage - Asignando responsable de material automáticamente:", candidatoResponsable);
+          
+          // Asignar el responsable de material automáticamente
+          handleResponsablesChange(
+            formData.responsableActividadId || candidatoResponsable,
+            candidatoResponsable
+          );
+          
+          toast({
+            title: "Responsable de material asignado",
+            description: "Se ha asignado automáticamente un responsable para el material seleccionado.",
+            status: "info",
+            duration: 4000,
+            isClosable: true,
+          });
+        }
+      }
+      
+      console.log("ActividadFormPage handleMaterialUpdate - Ejecutado exitosamente");
+    } catch (error) {
+      console.error("ActividadFormPage handleMaterialUpdate - Error:", error);
+      throw error; // Re-lanzar el error para que submitForm lo capture
+    }
   };
+  
   // Wrapper para updateParticipantes que maneja solo los IDs
   const handleParticipantesUpdate = (participanteIds: string[]) => {
     try {
@@ -462,7 +509,6 @@ export default function ActividadFormPage() {
       }
     }
   }, [id, methods]);
-
   useEffect(() => {
     // Para actividades nuevas, asignar el usuario actual como creador una sola vez
     if (!id && currentUser && !formData.creadorId) {
@@ -472,6 +518,23 @@ export default function ActividadFormPage() {
       });
     }
   }, [id, currentUser, formData.creadorId, updateInfo]);
+
+  // Cargar usuarios para MaterialEditor
+  useEffect(() => {
+    const cargarUsuarios = async () => {
+      try {
+        setLoadingUsuarios(true);
+        const usuariosData = await listarUsuarios();
+        setUsuarios(usuariosData);
+      } catch (error) {
+        console.error('Error al cargar usuarios:', error);
+      } finally {
+        setLoadingUsuarios(false);
+      }
+    };
+
+    cargarUsuarios();
+  }, []);
 
   if (loading) return <DashboardLayout><Center><Spinner /></Center></DashboardLayout>;
   if (initialError) return <DashboardLayout><Alert status="error">{initialError}</Alert></DashboardLayout>;
@@ -550,14 +613,19 @@ export default function ActividadFormPage() {
                     onCancel={handleCancel}
                     actividadId={id}
                   />
-                </TabPanel>
-                <TabPanel>
+                </TabPanel>                <TabPanel>
                   <MaterialEditor 
                     data={{ ...formData, materiales: formData.materiales || [] } as Actividad}
-                    onSave={updateMaterial}
+                    onSave={handleMaterialUpdate}
                     onNecesidadMaterialChange={handleNecesidadMaterialChange}
                     isInsideForm={true} 
                     mostrarBotones={false}
+                    responsables={{
+                      responsableActividadId: formData.responsableActividadId || '',
+                      responsableMaterialId: formData.responsableMaterialId || '',
+                      creadorId: formData.creadorId || ''
+                    }}
+                    usuarios={usuarios}
                   />
                 </TabPanel>
                 <TabPanel>

@@ -21,12 +21,19 @@ interface MaterialEditorProps {
   onNecesidadMaterialChange?: (necesidad: boolean) => void;
   mostrarBotones?: boolean;
   isInsideForm?: boolean;
+  // Nuevas props para la lógica condicional
+  responsables?: {
+    responsableActividadId?: string;
+    responsableMaterialId?: string;
+    creadorId?: string;
+  };
+  usuarios?: Array<{ uid: string; nombre: string; apellidos: string; }>;
 }
 
 const MaterialEditor = forwardRef<
   { submitForm: () => void },
   MaterialEditorProps
->(({ data, onSave, onCancel, onNecesidadMaterialChange, mostrarBotones = true, isInsideForm = false }, ref) => {
+>(({ data, onSave, onCancel, onNecesidadMaterialChange, mostrarBotones = true, isInsideForm = false, responsables, usuarios }, ref) => {
   const { control, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: {
       materiales: data.materiales || []
@@ -110,7 +117,42 @@ const MaterialEditor = forwardRef<
       onNecesidadMaterialChange(newValue);
     }
   };
+    // Función helper para obtener nombre del usuario
+  const obtenerNombreUsuario = (uid: string) => {
+    const usuario = usuarios?.find(u => u.uid === uid);
+    return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
+  };
+
+  // Verificar si hay responsable de material asignado
+  const tieneResponsableMaterial = responsables?.responsableMaterialId;
   
+  // Función para renderizar información de responsables
+  const renderizarResponsables = () => {
+    if (!responsables) return null;
+
+    const responsableActividad = responsables.responsableActividadId ? 
+      obtenerNombreUsuario(responsables.responsableActividadId) : null;
+    const responsableMaterial = responsables.responsableMaterialId ? 
+      obtenerNombreUsuario(responsables.responsableMaterialId) : null;
+
+    if (!responsableActividad && !responsableMaterial) return null;
+
+    return (
+      <Text fontSize="sm" color="gray.600" mb={4}>
+        {responsableActividad && (
+          <Text as="span">
+            Responsable de actividad: <Text as="span" fontWeight="medium">{responsableActividad}</Text>
+          </Text>
+        )}
+        {responsableActividad && responsableMaterial && <Text as="span"> • </Text>}
+        {responsableMaterial && (
+          <Text as="span">
+            Responsable de material: <Text as="span" fontWeight="medium">{responsableMaterial}</Text>
+          </Text>
+        )}
+      </Text>
+    );
+  };  
   // Preparar los materiales normalizados para el selector
   const prepararMateriales = () => {
     if (!Array.isArray(data.materiales)) return [];
@@ -122,58 +164,40 @@ const MaterialEditor = forwardRef<
       cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad || '1'), 10) || 1
     }));
   };
-  
   return (
     <WrapperComponent 
       {...(isInsideForm ? {} : { onSubmit: handleSubmit(onSubmit) })}
     >
-      <FormControl isInvalid={!!errors.materiales}>
-        <FormLabel>Selección de material</FormLabel>
-        
-        <MaterialSelector 
-          control={control} 
-          name="materiales" 
-          materialesActuales={prepararMateriales()}
-          error={errors.materiales} 
-          cardBg={cardBg}
-          borderColor={borderColor}
-        />
-        
-        {errors.materiales && (
-          <FormErrorMessage>{errors.materiales.message?.toString()}</FormErrorMessage>
-        )}
-
-        {materialesList.length > 0 && (
-          <Alert status="info" mt={4}>
-            <AlertIcon />
-            <Text fontSize="sm">
-              Recuerda que el material seleccionado será asignado automáticamente 
-              al responsable de material de la actividad.
+      {/* Si no hay responsable de material, mostrar pantalla bloqueada */}
+      {!tieneResponsableMaterial ? (
+        <Alert status="warning">
+          <AlertIcon />
+          <Box>
+            <Text fontWeight="medium">Se requiere asignar un responsable de material</Text>
+            <Text fontSize="sm" mt={2}>
+              Para poder seleccionar material para esta actividad, es necesario que primero se asigne 
+              un responsable de material en la pestaña de participantes.
             </Text>
-          </Alert>
-        )}
-      </FormControl>
-
-      <FormControl mb={4}>
-        <Checkbox 
-          isChecked={necesidadMaterial}
-          onChange={handleNecesidadMaterialChange}
-          colorScheme="brand"
-        >
-          Esta actividad requiere material
-        </Checkbox>
-      </FormControl>
-      
-      {/* Mostrar selector de material solo si necesidadMaterial es true */}
-      {necesidadMaterial && (
-        <MaterialSelector 
-          control={control} 
-          name="materiales" 
-          materialesActuales={prepararMateriales()}
-          error={errors.materiales} 
-          cardBg={cardBg}
-          borderColor={borderColor}
-        />
+          </Box>
+        </Alert>
+      ) : (
+        /* Mostrar formulario de material solo si hay responsable */
+        <FormControl isInvalid={!!errors.materiales}>
+          <MaterialSelector 
+            control={control} 
+            name="materiales" 
+            materialesActuales={prepararMateriales()}
+            error={errors.materiales} 
+            cardBg={cardBg}
+            borderColor={borderColor}
+            responsables={responsables}
+            usuarios={usuarios}
+          />
+          
+          {errors.materiales && (
+            <FormErrorMessage>{errors.materiales.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
       )}
 
       {mostrarBotones && (
