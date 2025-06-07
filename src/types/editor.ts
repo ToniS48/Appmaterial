@@ -46,7 +46,7 @@ export interface MaterialEditorProps {
 
 export interface EnlacesEditorProps {
   data: Actividad;
-  onSave: (enlaces: Partial<Actividad>) => void;
+  onSave: (enlaces: any) => void;
   mostrarBotones?: boolean;
   onCancel?: () => void;
   esNuevo?: boolean; // Añadir esta propiedad opcional

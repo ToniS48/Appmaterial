@@ -9,11 +9,11 @@ export const validateActividad = (actividad: Partial<Actividad>): string | null 
     return "El lugar de la actividad es obligatorio";
   }
   
-  if (!actividad.tipo || actividad.tipo.length === 0) {
+  if (!actividad.tipo || !Array.isArray(actividad.tipo) || actividad.tipo.length === 0) {
     return "Debe seleccionar al menos un tipo de actividad";
   }
   
-  if (!actividad.subtipo || actividad.subtipo.length === 0) {
+  if (!actividad.subtipo || !Array.isArray(actividad.subtipo) || actividad.subtipo.length === 0) {
     return "Debe seleccionar al menos un subtipo de actividad";
   }
   

@@ -89,10 +89,10 @@ export class ActividadService {
         enlacesDrive: [],
         enlacesWeb: []
       };      // Crear la actividad
-      const nuevaActividad = await actividadRepository.create(actividadData);
-
-      // Gestionar préstamos si es necesario
-      if (nuevaActividad.necesidadMaterial && nuevaActividad.materiales.length > 0) {
+      const nuevaActividad = await actividadRepository.create(actividadData);      // Gestionar préstamos si es necesario
+      if (nuevaActividad.necesidadMaterial && 
+          Array.isArray(nuevaActividad.materiales) && 
+          nuevaActividad.materiales.length > 0) {
         await crearPrestamosParaActividad(nuevaActividad);
       }
 

@@ -4,8 +4,9 @@ import {
   HStack,
   Button,
 } from '@chakra-ui/react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { FormProvider } from 'react-hook-form';
 import { ActividadInfoForm } from './ActividadInfoForm';
+import { useActividadReactForm } from '../../hooks/useActividadReactForm';
 
 interface InfoEditorProps {
   data: any;
@@ -20,31 +21,14 @@ const InfoEditor: React.FC<InfoEditorProps> = ({
   onCancel,
   mostrarBotones = true
 }) => {
-  const methods = useForm({
-    defaultValues: {
-      nombre: data?.nombre || '',
-      lugar: data?.lugar || '',
-      fechaInicio: data?.fechaInicio || null,
-      fechaFin: data?.fechaFin || null,
-      tipo: data?.tipo || [],
-      subtipo: data?.subtipo || []
-    }
-  });
-
+  const { methods, defaultValues } = useActividadReactForm({ data });
   // Efecto para resetear el formulario cuando cambian los datos
   useEffect(() => {
-    const formData = {
-      nombre: data?.nombre || '',
-      lugar: data?.lugar || '',
-      fechaInicio: data?.fechaInicio || null,
-      fechaFin: data?.fechaFin || null,
-      tipo: data?.tipo || [],
-      subtipo: data?.subtipo || []
-    };
+    const formData = defaultValues;
     
     console.log('InfoEditor - Reseteando formulario con nuevos datos:', formData);
     methods.reset(formData);
-  }, [data, methods]);
+  }, [data, methods.reset, defaultValues]);
 
   const onSubmit = (formData: any) => {
     console.log("Enviando datos desde InfoEditor:", formData);

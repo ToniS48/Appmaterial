@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { Actividad } from '../types/actividad';
 import { 
@@ -23,23 +23,62 @@ interface UseActividadFormProps {
 }
 
 export function useActividadForm({ actividadId, usuarioId }: UseActividadFormProps) {
-  const [formData, setFormData] = useState<Partial<Actividad>>({});
+  const [formData, setFormData] = useState<Partial<Actividad>>(() => {
+    // Inicializar con valores por defecto seguros para evitar errores de undefined
+    return {
+      tipo: [],
+      subtipo: [],
+      participanteIds: [],
+      materiales: [],
+      enlaces: [],
+      enlacesWikiloc: [],
+      enlacesTopografias: [],
+      enlacesDrive: [],
+      enlacesWeb: [],
+      comentarios: []
+    };
+  });
   const [loading, setLoading] = useState(!!actividadId);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
   
-  // Colocar el hook en el nivel superior
-  const { validate } = useZodValidation(actividadBaseSchema);
+  // Usar ref para evitar re-creación del hook en cada render
+  const validateRef = useRef(useZodValidation(actividadBaseSchema));
+  const { validate } = validateRef.current;
+
+  // Optimización: Usar useMemo para datos por defecto pesados
+  const defaultData = useMemo(() => {
+    if (!actividadId) {
+      return getDefaultActivityData(undefined, usuarioId);
+    }
+    return null;
+  }, [actividadId, usuarioId]);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      setError(null);      try {        const initialData = actividadId
-          ? await obtenerActividad(actividadId)
-          : getDefaultActivityData(undefined, usuarioId);
+      setError(null);
+      
+      try {
+        // Optimización: usar setTimeout para diferir la carga y evitar violaciones
+        const loadAsync = () => new Promise<void>((resolve) => {
+          setTimeout(async () => {
+            try {
+              const initialData = actividadId
+                ? await obtenerActividad(actividadId)
+                : defaultData;
 
-        setFormData(initialData);
+              setFormData(initialData || {});
+              resolve();
+            } catch (e: any) {
+              setError(e.message || 'Error al cargar la actividad');
+              resolve();
+            }
+          }, 0); // Usar 0ms para el siguiente tick
+        });
+
+        await loadAsync();
       } catch (e: any) {
         setError(e.message || 'Error al cargar la actividad');
       } finally {
@@ -48,20 +87,20 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
     };
 
     loadData();
-  }, [actividadId, usuarioId]);
+  }, [actividadId, defaultData]);
 
-  // Ahora usamos validate desde el hook ya declarado arriba, pero con modo silencioso
-  const updateInfo = (data: Partial<Actividad>) => {
+  // Optimizar updateInfo con useCallback para evitar re-renderizados
+  const updateInfo = useCallback((data: Partial<Actividad>) => {
     // Usar validate con la opción silenciosa para evitar toast
     if (validate(data, { showToast: false })) {
       setFormData((prev) => ({ ...prev, ...data }));
       return true;
     }
     return false;
-  };
+  }, [validate]);
 
-  // Centralizar validaciones y manejar correctamente los IDs
-  const updateParticipantes = (participanteIds: string[], responsableIds?: { responsableId?: string, responsableMaterialId?: string }) => {
+  // Optimizar updateParticipantes con useCallback
+  const updateParticipantes = useCallback((participanteIds: string[], responsableIds?: { responsableId?: string, responsableMaterialId?: string }) => {
     setFormData((prev) => {
       // Eliminar posibles duplicados en los participantes
       const uniqueParticipanteIds = Array.from(new Set(participanteIds));
@@ -81,27 +120,31 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
       const responsableMaterialId = responsableIds?.responsableMaterialId || prev.responsableMaterialId || '';
       if (responsableMaterialId) idsObligatorios.push(responsableMaterialId);
       
-      // Combinar todos los IDs sin duplicados
-      const todosIds = Array.from(new Set([...uniqueParticipanteIds, ...idsObligatorios]));
+      // Combinar todos los IDs, eliminar duplicados y filtrar strings vacíos
+      const todosLosIds = [...uniqueParticipanteIds, ...idsObligatorios]
+        .filter((id, index, array) => id && array.indexOf(id) === index);
       
       return {
         ...prev,
-        participanteIds: todosIds, // Ahora TypeScript sabe que es string[]
-        responsableActividadId: responsableActividadId,
-        responsableMaterialId: responsableMaterialId
+        participanteIds: todosLosIds,
+        ...(responsableIds?.responsableId && { responsableActividadId: responsableIds.responsableId }),
+        ...(responsableIds?.responsableMaterialId && { responsableMaterialId: responsableIds.responsableMaterialId }),
       };
     });
-  };
+  }, []);
 
-  const updateMaterial = (materiales: { materialId: string; nombre?: string; cantidad?: number | string }[]) => {
-    const materialesValidados = standardizeMaterials(materiales);
-    setFormData((prev) => ({ ...prev, materiales: materialesValidados }));
-  };
-
-  const updateEnlaces = (enlaces: Partial<Actividad>) => {
-    const enlacesEstandarizados = standardizeLinks(enlaces);
-    setFormData((prev) => ({ ...prev, ...enlacesEstandarizados }));
-  };
+  // Optimizar updateMaterial con useCallback
+  const updateMaterial = useCallback((material: any[]) => {
+    setFormData((prev) => ({ ...prev, material: standardizeMaterials(material) }));
+  }, []);
+  // Optimizar updateEnlaces con useCallback
+  const updateEnlaces = useCallback((enlacesData: any) => {
+    setFormData((prev) => ({ 
+      ...prev, 
+      ...enlacesData,
+      enlaces: enlacesData.enlaces || []
+    }));
+  }, []);
 
   // Modificar la función saveActividad para garantizar que todos los campos obligatorios existan:
   const saveActividad = async (overrideData?: Partial<Actividad>): Promise<Actividad | null> => {

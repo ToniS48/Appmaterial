@@ -80,14 +80,13 @@ export function useZodValidation<T>(schema: z.Schema<T>) {
       return false;
     }
   };
-
   /**
    * Valida un campo específico y devuelve el mensaje de error o undefined
    * @param field - Nombre del campo a validar
    * @param value - Valor a validar
    * @param options - Opciones de validación (showToast)
    * @returns Mensaje de error o undefined si es válido
-   */  const validateField = (
+   */  const validateField = useCallback((
     field: string,
     value: unknown,
     options: { showToast?: boolean } = {}
@@ -116,15 +115,14 @@ export function useZodValidation<T>(schema: z.Schema<T>) {
         
         // Solo mostrar error en UI, sin toast si showToast es false
         setError(field, errorMessage, showToast);
-        return errorMessage;
-      }
+        return errorMessage;      }
       return "Error durante la validación";
     }
-  };
+  }, [schema, errors, toast]);
 
   /**
    * Establece manualmente un error
-   */  const setError = (field: string, message: string, showToast = false) => {
+   */  const setError = useCallback((field: string, message: string, showToast = false) => {
     setErrors(prev => ({
       ...prev,
       [field]: message
@@ -142,11 +140,10 @@ export function useZodValidation<T>(schema: z.Schema<T>) {
           description: message,
           status: "error",
           duration: 3000,
-          isClosable: true,
-        });
+          isClosable: true,        });
       }
     }
-  };
+  }, [toast]);
 
   /**
    * Limpia todos los errores o un campo específico

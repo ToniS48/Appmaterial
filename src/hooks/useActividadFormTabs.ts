@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { Actividad } from '../types/actividad';
 import { useActividadInfoValidation } from './useActividadInfoValidation';
@@ -32,13 +32,72 @@ export const useActividadFormTabs = ({ totalTabs, onDataUpdate, onFinalSubmit }:
 
   const markTabCompleted = (tabIndex: number) => {
     setCompletedTabs(prev => Array.from(new Set([...prev, tabIndex])));
-  };
+  };  const validateInfoTab = useCallback((data: any, silencioso = false) => {
+    console.log('🔧 [DEBUG] validateInfoTab - Datos recibidos:', {
+      data,
+      tipo: data?.tipo,
+      subtipo: data?.subtipo,
+      tipoType: typeof data?.tipo,
+      subtipoType: typeof data?.subtipo,
+      tipoIsArray: Array.isArray(data?.tipo),
+      subtipoIsArray: Array.isArray(data?.subtipo),
+      tipoLength: data?.tipo?.length,
+      subtipoLength: data?.subtipo?.length
+    });
 
-  const validateInfoTab = (data: Partial<Actividad>, silent = true): boolean => {
-    const nombreValido = validation.validateNombre(data.nombre || '', silent) === undefined;
-    const lugarValido = validation.validateLugar(data.lugar || '', silent) === undefined;
-    const tipoValido = validation.validateTipo(data.tipo || [], silent) === undefined;
-    const subtipoValido = validation.validateSubtipo(data.subtipo || [], silent) === undefined;
+    if (!data) {
+      console.log('🔧 [DEBUG] validateInfoTab - No hay datos, retornando false');
+      return false;
+    }
+
+    // Validar campos requeridos básicos
+    const nombreValido = data.nombre && data.nombre.trim().length > 0;
+    const lugarValido = data.lugar && data.lugar.trim().length > 0;
+    
+    console.log('🔧 [DEBUG] validateInfoTab - Validación básica:', {
+      nombreValido,
+      lugarValido,
+      nombre: data.nombre,
+      lugar: data.lugar
+    });
+
+    // Validar arrays de tipo y subtipo
+    const tipoValido = data.tipo && Array.isArray(data.tipo) && data.tipo.length > 0;
+    const subtipoValido = data.subtipo && Array.isArray(data.subtipo) && data.subtipo.length > 0;
+
+    console.log('🔧 [DEBUG] validateInfoTab - Validación arrays:', {
+      tipoValido,
+      subtipoValido,
+      tipoData: data.tipo,
+      subtipoData: data.subtipo
+    });
+
+    const todosValidos = nombreValido && lugarValido && tipoValido && subtipoValido;
+
+    console.log('🔧 [DEBUG] validateInfoTab - Resultado final:', {
+      todosValidos,
+      breakdown: {
+        nombreValido,
+        lugarValido,
+        tipoValido,
+        subtipoValido
+      }
+    });
+
+    // Verificar que tipo y subtipo tengan al menos un elemento (son requeridos en el formulario completo)
+    if (!tipoValido && !silencioso) {
+      validation.setError('tipo', 'Debe seleccionar al menos un tipo de actividad', true);
+    }
+    if (!subtipoValido && !silencioso) {
+      validation.setError('subtipo', 'Debe seleccionar al menos un subtipo de actividad', true);
+    }
+      // Limpiar errores si los campos son válidos
+    if (tipoValido && validation.clearErrors) {
+      validation.clearErrors('tipo');
+    }
+    if (subtipoValido && validation.clearErrors) {
+      validation.clearErrors('subtipo');
+    }
     
     let fechasValidas = true;
     if (data.fechaInicio && data.fechaFin) {
@@ -50,20 +109,20 @@ export const useActividadFormTabs = ({ totalTabs, onDataUpdate, onFinalSubmit }:
         ? data.fechaFin 
         : data.fechaFin.toDate();
       
-      validation.validateFechas(fechaInicio, fechaFin, silent);
+      validation.validateFechas(fechaInicio, fechaFin, silencioso);
       fechasValidas = !validation.errors.fechaFin;
     } else {
       fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
       if (!data.fechaInicio) {
-        validation.setError('fechaInicio', 'La fecha de inicio es obligatoria', !silent);
+        validation.setError('fechaInicio', 'La fecha de inicio es obligatoria', !silencioso);
       }
       if (!data.fechaFin) {
-        validation.setError('fechaFin', 'La fecha de fin es obligatoria', !silent);
+        validation.setError('fechaFin', 'La fecha de fin es obligatoria', !silencioso);
       }
     }
     
-    return nombreValido && lugarValido && tipoValido && subtipoValido && fechasValidas;
-  };
+    return Boolean(nombreValido && lugarValido && tipoValido && subtipoValido && fechasValidas);
+  }, []);
 
   const showValidationError = () => {
     const toastId = "validation-tab-error";
@@ -80,12 +139,25 @@ export const useActividadFormTabs = ({ totalTabs, onDataUpdate, onFinalSubmit }:
       }, 50);
     }
   };
-
   const handleTabSubmit = async (data: Partial<Actividad>) => {
+    console.log('🚀 [DEBUG] handleTabSubmit - INICIO DEL SUBMIT:', {
+      activeTabIndex,
+      data,
+      dataKeys: Object.keys(data || {}),
+      tipo: data?.tipo,
+      subtipo: data?.subtipo,
+      tipoType: typeof data?.tipo,
+      subtipoType: typeof data?.subtipo,
+      tipoIsArray: Array.isArray(data?.tipo),
+      subtipoIsArray: Array.isArray(data?.subtipo),
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
     setIsSubmitting(true);
     
     try {
       if (activeTabIndex === 0) {
+        console.log('🔍 [DEBUG] Procesando tab 0 (Info) - Datos antes de validación:', data);
         // Validar información básica
         const isValid = validateInfoTab(data);
         if (isValid) {
