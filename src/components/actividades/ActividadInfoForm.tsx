@@ -6,7 +6,7 @@ import {
 import { Controller, useFormContext } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
 import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
-import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD } from '../../constants/actividadOptions';
+import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD, DIFICULTADES_ACTIVIDAD } from '../../constants/actividadOptions';
 import { TipoActividad, SubtipoActividad } from '../../types/actividad';
 
 // Definir tipos específicos para mejorar la seguridad de tipo
@@ -33,11 +33,12 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
   
   // Usar refs para evitar re-renderizados innecesarios
   const validationTimeoutRef = useRef<NodeJS.Timeout>();
-    // Observar fechas y tipos seleccionados para validación cruzada
+  // Observar fechas y tipos seleccionados para validación cruzada
   const fechaInicio = watch('fechaInicio');
   const fechaFin = watch('fechaFin');
   const tiposSeleccionados = watch('tipo') || [];
   const subtiposSeleccionados = watch('subtipo') || [];
+  const dificultadSeleccionada = watch('dificultad') || 'media';
   
   // Verificación adicional de seguridad para evitar errores de undefined
   const tiposSeguro = Array.isArray(tiposSeleccionados) ? tiposSeleccionados : [];
@@ -147,9 +148,20 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     }, 0);
   }, [subtiposSeguro, isValidSubtipo, setValue, validateSubtipo, subtiposSeleccionados]);
 
+  // Optimizar con useCallback para el manejo de dificultad
+  const handleDificultadToggle = useCallback((value: 'baja' | 'media' | 'alta'): void => {
+    console.log('🎯 [DIFICULTAD TOGGLE DEBUG]:', {
+      valorSeleccionado: value,
+      dificultadActual: dificultadSeleccionada,
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
+    setValue('dificultad', value);
+  }, [dificultadSeleccionada, setValue]);
   // Memoizar opciones de tipos para evitar re-renderizados
   const tipoOptions = useMemo(() => TIPOS_ACTIVIDAD, []);
   const subtipoOptions = useMemo(() => SUBTIPOS_ACTIVIDAD, []);
+  const dificultadOptions = useMemo(() => DIFICULTADES_ACTIVIDAD, []);
 
   return (
     <Box>      <FormControl isRequired isInvalid={!!errors.nombre} mb={4}>
@@ -283,9 +295,31 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           />
           {errors.subtipo && (
             <FormErrorMessage>{errors.subtipo}</FormErrorMessage>
+          )}        </FormControl>
+      </SimpleGrid>      <FormControl mb={4}>
+        <FormLabel>Dificultad</FormLabel>
+        <Controller
+          name="dificultad"
+          control={control}
+          render={({ field }) => (
+            <Wrap spacing={2}>
+              {dificultadOptions.map((dificultad) => (
+                <WrapItem key={dificultad.value}>
+                  <Button
+                    size="sm"
+                    variant={dificultadSeleccionada === dificultad.value ? "solid" : "outline"}
+                    colorScheme={dificultadSeleccionada === dificultad.value ? dificultad.color : "gray"}
+                    onClick={() => handleDificultadToggle(dificultad.value)}
+                    mb={1}
+                  >
+                    {dificultad.label}
+                  </Button>
+                </WrapItem>
+              ))}
+            </Wrap>
           )}
-        </FormControl>
-      </SimpleGrid>
+        />
+      </FormControl>
 
       <FormControl mb={4}>
         <FormLabel>Descripción</FormLabel>

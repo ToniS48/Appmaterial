@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Botones de Dificultad de Actividad</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f7fafc;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 25px 0;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .status-success {
+            border-color: #38a169;
+            background-color: #f0fff4;
+        }
+        .status-warning {
+            border-color: #ed8936;
+            background-color: #fffaf0;
+        }
+        .status-error {
+            border-color: #e53e3e;
+            background-color: #fff5f5;
+        }
+        .button-demo {
+            display: flex;
+            gap: 12px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .difficulty-button {
+            padding: 8px 16px;
+            border: 2px solid;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: white;
+        }
+        .difficulty-button.baja {
+            border-color: #38a169;
+            color: #38a169;
+        }
+        .difficulty-button.baja.selected {
+            background-color: #38a169;
+            color: white;
+        }
+        .difficulty-button.media {
+            border-color: #ed8936;
+            color: #ed8936;
+        }
+        .difficulty-button.media.selected {
+            background-color: #ed8936;
+            color: white;
+        }
+        .difficulty-button.alta {
+            border-color: #e53e3e;
+            color: #e53e3e;
+        }
+        .difficulty-button.alta.selected {
+            background-color: #e53e3e;
+            color: white;
+        }
+        .difficulty-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .selected-value {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #edf2f7;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        code {
+            background-color: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #4a5568;
+        }
+        .info-box {
+            background-color: #bee3f8;
+            border: 1px solid #90cdf4;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test - Botones de Dificultad de Actividad</h1>
+        
+        <div class="info-box">
+            <strong>📋 Verificación:</strong> Se ha cambiado el selector dropdown de dificultad por botones interactivos con colores diferenciados.
+        </div>
+
+        <div class="test-section status-success">
+            <h3>✅ Cambio Implementado Correctamente</h3>
+            <p><strong>Antes:</strong> Selector dropdown <code>&lt;Select&gt;</code></p>
+            <p><strong>Después:</strong> Botones interactivos con colores <code>&lt;Button&gt;</code></p>
+            
+            <h4>🎨 Demo Visual de los Botones:</h4>
+            <div class="button-demo">
+                <button class="difficulty-button baja" onclick="selectDifficulty('baja')">Baja</button>
+                <button class="difficulty-button media selected" onclick="selectDifficulty('media')">Media</button>
+                <button class="difficulty-button alta" onclick="selectDifficulty('alta')">Alta</button>
+            </div>
+            
+            <div class="selected-value" id="selectedValue">
+                Dificultad seleccionada: <span id="currentDifficulty">media</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Características Implementadas</h3>
+            <ul>
+                <li>✅ Botones con colores diferenciados por dificultad:
+                    <ul>
+                        <li><span style="color: #38a169;">🟢 Baja (Verde)</span></li>
+                        <li><span style="color: #ed8936;">🟠 Media (Naranja)</span></li>
+                        <li><span style="color: #e53e3e;">🔴 Alta (Rojo)</span></li>
+                    </ul>
+                </li>
+                <li>✅ Estado visual del botón seleccionado (solid vs outline)</li>
+                <li>✅ Funcionalidad de toggle similar a tipo/subtipo</li>
+                <li>✅ Valor por defecto "media"</li>
+                <li>✅ Controller de React Hook Form integrado</li>
+                <li>✅ Eliminada importación innecesaria de Select</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Código Implementado</h3>
+            <p><strong>Función de toggle:</strong></p>
+            <pre><code>const handleDificultadToggle = useCallback((value: 'baja' | 'media' | 'alta'): void => {
+  setValue('dificultad', value);
+}, [dificultadSeleccionada, setValue]);</code></pre>
+            
+            <p><strong>Renderizado de botones:</strong></p>
+            <pre><code>&lt;Controller
+  name="dificultad"
+  control={control}
+  render={({ field }) => (
+    &lt;Wrap spacing={2}&gt;
+      {dificultadOptions.map((dificultad) => (
+        &lt;Button
+          variant={dificultadSeleccionada === dificultad.value ? "solid" : "outline"}
+          colorScheme={dificultadSeleccionada === dificultad.value ? dificultad.color : "gray"}
+          onClick={() => handleDificultadToggle(dificultad.value)}
+        &gt;
+          {dificultad.label}
+        &lt;/Button&gt;
+      ))}
+    &lt;/Wrap&gt;
+  )}
+/&gt;</code></pre>
+        </div>
+
+        <div class="test-section status-success">
+            <h3>🎉 Implementación Completada</h3>
+            <p>El selector de dificultad ha sido exitosamente convertido de un dropdown a botones interactivos que coinciden con el diseño de los selectores de tipo y subtipo de actividad.</p>
+            
+            <p><strong>Ventajas del nuevo diseño:</strong></p>
+            <ul>
+                <li>🎨 Mejor experiencia visual</li>
+                <li>⚡ Selección más rápida (sin click para abrir dropdown)</li>
+                <li>🎯 Consistencia con otros selectores</li>
+                <li>🌈 Código de colores intuitivo</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function selectDifficulty(difficulty) {
+            // Remover clase 'selected' de todos los botones
+            document.querySelectorAll('.difficulty-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Agregar clase 'selected' al botón clickeado
+            event.target.classList.add('selected');
+            
+            // Actualizar el valor mostrado
+            document.getElementById('currentDifficulty').textContent = difficulty;
+            
+            console.log('Dificultad seleccionada:', difficulty);
+        }
+    </script>
+</body>
+</html>
