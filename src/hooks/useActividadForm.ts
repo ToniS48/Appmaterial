@@ -98,15 +98,31 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
     }
     return false;
   }, [validate]);
-
   // Optimizar updateParticipantes con useCallback
   const updateParticipantes = useCallback((participanteIds: string[], responsableIds?: { responsableId?: string, responsableMaterialId?: string }) => {
     setFormData((prev) => {
       // Eliminar posibles duplicados en los participantes
       const uniqueParticipanteIds = Array.from(new Set(participanteIds));
       
-      // Garantizar que el creador, responsable y responsable de material están en la lista
-      // Usamos una solución type-safe que garantiza que solo se incluyen strings no nulos
+      // Para actividades nuevas (sin ID), ser más conservador con la inclusión automática
+      if (!actividadId) {
+        // Solo asegurar que el creador esté incluido si está definido
+        const idsObligatorios: string[] = [];
+        if (prev.creadorId && !uniqueParticipanteIds.includes(prev.creadorId)) {
+          idsObligatorios.push(prev.creadorId);
+        }
+        
+        const todosLosIds = [...uniqueParticipanteIds, ...idsObligatorios];
+        
+        return {
+          ...prev,
+          participanteIds: todosLosIds,
+          ...(responsableIds?.responsableId && { responsableActividadId: responsableIds.responsableId }),
+          ...(responsableIds?.responsableMaterialId && { responsableMaterialId: responsableIds.responsableMaterialId }),
+        };
+      }
+      
+      // Para actividades existentes, usar la lógica original
       const idsObligatorios: string[] = [];
       
       // Solo agregar IDs que existan (no undefined/null)
@@ -131,7 +147,7 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         ...(responsableIds?.responsableMaterialId && { responsableMaterialId: responsableIds.responsableMaterialId }),
       };
     });
-  }, []);
+  }, [actividadId]);
 
   // Optimizar updateMaterial con useCallback
   const updateMaterial = useCallback((material: any[]) => {
