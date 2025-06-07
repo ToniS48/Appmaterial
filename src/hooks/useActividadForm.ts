@@ -97,12 +97,15 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
       return true;
     }
     return false;
-  }, [validate]);
-  // Optimizar updateParticipantes con useCallback
+  }, [validate]);  // Optimizar updateParticipantes con useCallback
   const updateParticipantes = useCallback((participanteIds: string[], responsableIds?: { responsableId?: string, responsableMaterialId?: string }) => {
+    console.log("useActividadForm updateParticipantes - Recibidos participanteIds:", participanteIds);
+    console.log("useActividadForm updateParticipantes - Recibidos responsableIds:", responsableIds);
+    
     setFormData((prev) => {
       // Eliminar posibles duplicados en los participantes
       const uniqueParticipanteIds = Array.from(new Set(participanteIds));
+      console.log("useActividadForm updateParticipantes - IDs únicos:", uniqueParticipanteIds);
       
       // Para actividades nuevas (sin ID), ser más conservador con la inclusión automática
       if (!actividadId) {
@@ -113,6 +116,7 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         }
         
         const todosLosIds = [...uniqueParticipanteIds, ...idsObligatorios];
+        console.log("useActividadForm updateParticipantes - Todos los IDs finales:", todosLosIds);
         
         return {
           ...prev,

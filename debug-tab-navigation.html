@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Tab Navigation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .issue {
+            color: #d73027;
+            font-weight: bold;
+        }
+        .solution {
+            color: #1a9641;
+            font-weight: bold;
+        }
+        .code {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug: Navegación entre Pestañas - Participantes</h1>
+        
+        <div class="debug-section">
+            <h2>📋 Problema Identificado</h2>
+            <p class="issue">❌ No se puede avanzar de la pestaña de participantes a la siguiente pestaña</p>
+            <p>El usuario puede completar la información básica, pero al intentar avanzar desde participantes, el formulario no progresa.</p>
+        </div>
+
+        <div class="debug-section">
+            <h2>🔍 Análisis del Código</h2>
+            <h3>1. Flujo de Validación:</h3>
+            <div class="code">
+ActividadFormPage.tsx → onSubmit() → activeTabIndex === 1 → 
+participantesEditorRef.current.submitForm() → 
+ParticipantesEditor.tsx → submitForm() → onSave(selectedIds) → 
+handleParticipantesUpdate() → updateParticipantes()
+            </div>
+
+            <h3>2. Posibles Causas:</h3>
+            <ul>
+                <li>✅ <strong>submitForm no retorna true:</strong> Verificado - función retorna true correctamente</li>
+                <li>✅ <strong>Referencia null:</strong> Verificado - participantesEditorRef está bien declarado</li>
+                <li>🔍 <strong>updateParticipantes falla:</strong> Posible - función espera parámetros específicos</li>
+                <li>🔍 <strong>Validación de participantes:</strong> Posible - no hay participantes seleccionados</li>
+            </ul>
+        </div>
+
+        <div class="debug-section">
+            <h2>🛠️ Soluciones Implementadas</h2>
+            
+            <h3>1. Logging agregado:</h3>
+            <div class="code">
+console.log("ActividadFormPage - Iniciando validación de participantes");
+console.log("ParticipantesEditor submitForm - selectedIds:", selectedIds);
+console.log("useActividadForm updateParticipantes - Recibidos:", participanteIds);
+            </div>
+
+            <h3>2. Wrapper function creado:</h3>
+            <div class="code">
+const handleParticipantesUpdate = (participanteIds: string[]) => {
+    console.log("ActividadFormPage handleParticipantesUpdate - Recibidos:", participanteIds);
+    updateParticipantes(participanteIds);
+};
+            </div>
+
+            <h3>3. Validación mejorada:</h3>
+            <div class="code">
+// Verificar que haya al menos un participante seleccionado
+if (selectedIds.length === 0) {
+    console.log("ParticipantesEditor submitForm - No hay participantes seleccionados");
+    return false;
+}
+            </div>
+
+            <h3>4. requestAnimationFrame removido:</h3>
+            <p class="solution">✅ Simplificado el flujo de ejecución para evitar problemas de timing</p>
+        </div>
+
+        <div class="debug-section">
+            <h2>🧪 Pasos para Probar</h2>
+            <ol>
+                <li>Abrir la aplicación en el navegador</li>
+                <li>Navegar a "Nueva Actividad" o editar una existente</li>
+                <li>Completar la información básica (pestaña 1)</li>
+                <li>Avanzar a la pestaña de participantes</li>
+                <li>Seleccionar al menos un participante</li>
+                <li>Hacer clic en "Siguiente" o intentar avanzar</li>
+                <li>Verificar logs en la consola del navegador (F12)</li>
+            </ol>
+        </div>
+
+        <div class="debug-section">
+            <h2>📊 Puntos de Verificación</h2>
+            <h3>En la Consola del Navegador buscar:</h3>
+            <ul>
+                <li><code>ActividadFormPage - Iniciando validación de participantes</code></li>
+                <li><code>ParticipantesEditor submitForm - selectedIds: [...]</code></li>
+                <li><code>ActividadFormPage handleParticipantesUpdate - Recibidos: [...]</code></li>
+                <li><code>useActividadForm updateParticipantes - Recibidos: [...]</code></li>
+                <li><code>ActividadFormPage - Resultado de submitForm: true/false</code></li>
+            </ul>
+        </div>
+
+        <div class="debug-section">
+            <h2>⚠️ Si el Problema Persiste</h2>
+            <p>Verificar estos escenarios adicionales:</p>
+            <ul>
+                <li>🔍 <strong>Error en updateParticipantes:</strong> La función puede estar lanzando una excepción</li>
+                <li>🔍 <strong>Estado no actualizado:</strong> formData.participanteIds no se actualiza correctamente</li>
+                <li>🔍 <strong>Problema de ref:</strong> El ref no está apuntando al componente correcto</li>
+                <li>🔍 <strong>Render condicional:</strong> El componente ParticipantesEditor puede no estar montado</li>
+            </ul>
+        </div>
+
+        <button onclick="window.open('http://localhost:3000', '_blank')">
+            🚀 Abrir Aplicación para Probar
+        </button>
+    </div>
+
+    <script>
+        console.log("🔧 Debug Tab Navigation - Página cargada");
+        console.log("📋 Para probar la funcionalidad:");
+        console.log("1. Abre la aplicación React");
+        console.log("2. Ve a Nueva Actividad");
+        console.log("3. Completa info básica y avanza");
+        console.log("4. En participantes, selecciona usuarios");
+        console.log("5. Intenta avanzar y verifica logs");
+    </script>
+</body>
+</html>
