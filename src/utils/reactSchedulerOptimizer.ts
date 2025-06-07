@@ -266,14 +266,27 @@ export function createOptimizedValidator<T>(
   validationFn: (data: T) => boolean,
 ): (data: T) => Promise<boolean> {
   return async (data: T): Promise<boolean> => {
+    console.log('🔄 [CREATE OPTIMIZED VALIDATOR] INICIO:', {
+      timestamp: new Date().toLocaleTimeString(),
+      data: data,
+      functionProvided: typeof validationFn
+    });
+    
     return new Promise((resolve) => {
       // Planificar la validación para el siguiente frame de animación
       requestAnimationFrame(() => {
         try {
+          console.log('⚡ [CREATE OPTIMIZED VALIDATOR] EJECUTANDO FUNCIÓN INTERNA');
           const isValid = validationFn(data);
+          console.log('✅ [CREATE OPTIMIZED VALIDATOR] RESULTADO DE FUNCIÓN INTERNA:', {
+            isValid,
+            typeOfResult: typeof isValid
+          });
+          
+          console.log('🎯 [CREATE OPTIMIZED VALIDATOR] RESOLVIENDO PROMISE CON:', isValid);
           resolve(isValid);
         } catch (error) {
-          console.error('Error during validation:', error);
+          console.error('❌ [CREATE OPTIMIZED VALIDATOR] ERROR during validation:', error);
           resolve(false);
         }
       });

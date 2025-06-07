@@ -3,10 +3,9 @@ import { useZodValidation } from './useZodValidation';
 import { participantesSchema } from '../schemas/actividadSchema';
 
 export function useParticipantesValidation() {
-  const validation = useZodValidation(participantesSchema);
-    // Validar participantes (básico)
+  const validation = useZodValidation(participantesSchema);    // Validar participantes (básico)
   const validateParticipantes = (participanteIds: string[], options: { showToast?: boolean } = {}) => {
-    if (!participanteIds || participanteIds.length === 0) {
+    if (!participanteIds || !Array.isArray(participanteIds) || participanteIds.length === 0) {
       validation.setError('participanteIds', 'Debe haber al menos un participante', options.showToast);
       return false;
     }

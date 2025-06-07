@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
+import { useState } from 'react';
 import { Actividad } from '../types/actividad';
 import { useActividadForm } from './useActividadForm';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,7 +36,6 @@ export const useActividadFormActions = ({ actividadId }: UseActividadFormActions
       });
     }
   };
-
   const handleDataUpdate = async (data: Partial<Actividad>) => {
     try {
       // Determinar qué tipo de actualización realizar
@@ -47,7 +46,9 @@ export const useActividadFormActions = ({ actividadId }: UseActividadFormActions
         });
       } else if (data.materiales !== undefined) {
         updateMaterial(data.materiales);
-      } else if (data.enlaces !== undefined) {
+      } else if (data.enlacesWikiloc !== undefined || data.enlacesTopografias !== undefined || 
+                 data.enlacesDrive !== undefined || data.enlacesWeb !== undefined || 
+                 data.enlaces !== undefined) {
         updateEnlaces(data);
       } else {
         updateInfo(data);

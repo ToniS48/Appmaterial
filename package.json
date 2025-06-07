@@ -37,12 +37,12 @@
     "web-vitals": "^2.1.4",
     "zod": "^3.25.7",
     "zustand": "^5.0.5"
-  },
-  "scripts": {
+  },  "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "build:ci": "CI=false react-scripts build",
     "test": "react-scripts test",
+    "test:single": "react-scripts test --watchAll=false --testTimeout=15000",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
