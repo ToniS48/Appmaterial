@@ -526,14 +526,14 @@ export default function ActividadFormPage() {
               <TabPanels>
                 <TabPanel>
                   <ActividadInfoForm onCancel={handleCancel} />
-                </TabPanel>
-                <TabPanel>
+                </TabPanel>                <TabPanel>
                   <ParticipantesEditor 
                     data={{ ...formData, participanteIds: formData.participanteIds || [] } as Actividad}
                     onSave={updateParticipantes}
                     onResponsablesChange={handleResponsablesChange}
                     mostrarBotones={false}
                     onCancel={handleCancel}
+                    actividadId={id}
                   />
                 </TabPanel>
                 <TabPanel>
