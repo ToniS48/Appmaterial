@@ -6,56 +6,85 @@ import { actividadBaseSchema } from '../schemas/actividadSchema';
 
 /**
  * Hook personalizado para validación de la información básica de actividades
+ * Optimizado para evitar violaciones de rendimiento durante el renderizado inicial
  */
 export function useActividadInfoValidation() {
   const toast = useToast();
-  const validation = useZodValidation(actividadBaseSchema);
-  const { errors, validate, validateField, setError, clearErrors } = validation;
+  
+  // Llamar el hook directamente al nivel superior (corrige violación de reglas de hooks)
+  const { errors, validate, validateField, setError, clearErrors } = useZodValidation(actividadBaseSchema);
   
   // Agregar ref para rastrear el estado de error anterior
   const prevErrorRef = useRef<boolean>(false);
+    // Ref para manejar timeouts de validación diferida
+  const validationTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Funciones específicas para validar cada campo importante
-  const validateNombre = (nombre: string, silencioso = true) => {
+  // Función helper para diferir validaciones
+  const deferValidation = useCallback((validationFn: () => void) => {
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
+    validationTimeoutRef.current = setTimeout(validationFn, 0);
+  }, []);  // Optimizar funciones de validación con useCallback
+  const validateNombre = useCallback((nombre: string, silencioso = true) => {
     if (!nombre || nombre.trim() === '') {
-      if (silencioso) {
-        return false; // No mostrar error si es silencioso
-      } else {
-        // Si no es silencioso, mostrar error y toast
-        setError('nombre', 'El nombre es obligatorio', !silencioso);
-        return 'El nombre es obligatorio';
+      if (!silencioso) {
+        setError('nombre', 'El nombre es obligatorio', true);
       }
+      return 'El nombre es obligatorio';
     }
-    return validateField('nombre', nombre, { showToast: !silencioso });
-  };
+    const error = validateField('nombre', nombre);
+    return error || undefined;
+  }, [validateField, setError]);
 
-  const validateLugar = (lugar: string, silencioso = true) => {
+  const validateLugar = useCallback((lugar: string, silencioso = true) => {
     if (!lugar || lugar.trim() === '') {
-      if (silencioso) {
-        return false; // No mostrar error si es silencioso
-      } else {
-        // Si no es silencioso, mostrar error y toast
-        setError('lugar', 'El lugar es obligatorio', !silencioso);
-        return 'El lugar es obligatorio';
+      if (!silencioso) {
+        setError('lugar', 'El lugar es obligatorio', true);
       }
+      return 'El lugar es obligatorio';
     }
-    return validateField('lugar', lugar, { showToast: !silencioso });
-  };
-  const validateTipo = (tipo: string[], silencioso = true) => {
+    const error = validateField('lugar', lugar);
+    return error || undefined;
+  }, [validateField, setError]);  const validateTipo = useCallback((tipo: string[], silencioso = true) => {
+    // 🚨 DEBUG VALIDADOR TIPO
+    console.log('🔍 [VALIDADOR TIPO] Entrada recibida:', {
+      tipo,
+      esTipo: typeof tipo,
+      esArray: Array.isArray(tipo),
+      longitud: tipo?.length,
+      contenido: JSON.stringify(tipo, null, 2)
+    });
+    
     // Tipo es opcional en el formulario básico
-    if (!tipo || tipo.length === 0) {
-      return true; // No hay error si está vacío
+    if (!tipo || !Array.isArray(tipo) || tipo.length === 0) {
+      console.log('⚠️ [VALIDADOR TIPO] Array vacío o inválido - retornando undefined');
+      return undefined; // Sin error si está vacío o no es un array válido
     }
-    return validateField('tipo', tipo, { showToast: !silencioso });
-  };
-
-  const validateSubtipo = (subtipo: string[], silencioso = true) => {
+    const error = validateField('tipo', tipo);
+    console.log('✅ [VALIDADOR TIPO] Resultado validación:', error || 'SIN ERROR');
+    return error || undefined;
+  }, [validateField]);  const validateSubtipo = useCallback((subtipo: string[], silencioso = true) => {
+    // 🚨 DEBUG VALIDADOR SUBTIPO
+    console.log('🔍 [VALIDADOR SUBTIPO] Entrada recibida:', {
+      subtipo,
+      esTipo: typeof subtipo,
+      esArray: Array.isArray(subtipo),
+      longitud: subtipo?.length,
+      contenido: JSON.stringify(subtipo, null, 2)
+    });
+    
     // Subtipo es opcional en el formulario básico
-    if (!subtipo || subtipo.length === 0) {
-      return true; // No hay error si está vacío
+    if (!subtipo || !Array.isArray(subtipo) || subtipo.length === 0) {
+      console.log('⚠️ [VALIDADOR SUBTIPO] Array vacío o inválido - retornando undefined');
+      return undefined; // Sin error si está vacío o no es un array válido
     }
-    return validateField('subtipo', subtipo, { showToast: !silencioso });
-  };const validateFechaInicio = (fecha: Date | null | undefined, silencioso = true) => {
+    const error = validateField('subtipo', subtipo);
+    console.log('✅ [VALIDADOR SUBTIPO] Resultado validación:', error || 'SIN ERROR');
+    return error || undefined;
+  }, [validateField]);
+
+  const validateFechaInicio = useCallback((fecha: Date | null | undefined, silencioso = true) => {
     if (!fecha) {
       if (silencioso) {
         return false;
@@ -65,9 +94,9 @@ export function useActividadInfoValidation() {
       }
     }
     return validateField('fechaInicio', fecha, { showToast: !silencioso });
-  };
+  }, [validateField, setError]);
   
-  const validateFechaFin = (fecha: Date | null | undefined, silencioso = true) => {
+  const validateFechaFin = useCallback((fecha: Date | null | undefined, silencioso = true) => {
     if (!fecha) {
       if (silencioso) {
         return false;
@@ -77,37 +106,53 @@ export function useActividadInfoValidation() {
       }
     }
     return validateField('fechaFin', fecha, { showToast: !silencioso });
-  };
-  // Corregir la función validateFechas para evitar bucles infinitos y manejar modo silencioso
-  const validateFechas = useCallback((fechaInicio: Date | null | undefined, fechaFin: Date | null | undefined, silencioso = true) => {
-    // No validar si alguna fecha falta
-    if (!fechaInicio || !fechaFin) {
-      return;
-    }
-    
-    // Determinar si hay error de fechas
-    const tieneError = fechaInicio > fechaFin;
-    const yaExisteError = Boolean(errors.fechaFin);
-    // Solo actualizar el estado si hay un cambio en la condición de error
-    if (tieneError !== prevErrorRef.current) {
-      prevErrorRef.current = tieneError;
-      
-      if (tieneError) {
-        setError('fechaFin', validationMessages.activity.dateRangeInvalid, !silencioso);
-      } else {
-        clearErrors(['fechaFin']);
-      }
-    }
-  }, [setError, clearErrors, errors.fechaFin]);
+  }, [validateField, setError]);
 
-  // Función para manejar cuando un campo es tocado
+  // Optimizar validateFechas para usar validación diferida
+  const validateFechas = useCallback((fechaInicio: Date, fechaFin: Date, silencioso = false) => {
+    // Diferir la validación para evitar violaciones
+    deferValidation(() => {
+      if (fechaInicio && fechaFin) {
+        const inicioTime = fechaInicio.getTime();
+        const finTime = fechaFin.getTime();
+        
+        if (inicioTime >= finTime) {
+          const errorMsg = 'La fecha de finalización debe ser posterior a la fecha de inicio';
+          if (!silencioso) {
+            setError('fechaFin', errorMsg, true);
+          }
+          return false;
+        } else {
+          // Limpiar errores de fechas si la validación es correcta
+          clearErrors(['fechaInicio', 'fechaFin']);
+          return true;
+        }
+      }
+      return true;
+    });
+  }, [deferValidation, setError, clearErrors]);
+
+  // Optimizar handleFieldTouched con useCallback
   const handleFieldTouched = useCallback((fieldName: string) => {
-    // Aquí se puede agregar lógica adicional si es necesario
-    // Por ahora solo registramos que el campo fue tocado
-  }, []);
+    // Diferir el manejo del campo tocado para evitar violaciones
+    deferValidation(() => {
+      // Lógica para manejar cuando un campo ha sido tocado
+      console.debug(`Campo ${fieldName} tocado`);
+    });
+  }, [deferValidation]);
+
+  // Cleanup effect para limpiar timeouts
+  const cleanup = useCallback(() => {
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }  }, []);
 
   return {
-    ...validation,
+    errors,
+    validate,
+    validateField,
+    setError,
+    clearErrors,
     validateNombre,
     validateLugar,
     validateTipo,
