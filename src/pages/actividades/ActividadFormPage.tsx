@@ -259,33 +259,43 @@ export default function ActividadFormPage() {
     // Usar la función existente para actualizaciones
     updateInfo(updatedData);
   };
-
   // Validación de la primera pestaña optimizada
-  const validateFirstTabSilent = createOptimizedValidator<Partial<Actividad>>((data) => {
-    const nombreValido = validation.validateNombre(data.nombre || '', true) === undefined;
-    const lugarValido = validation.validateLugar(data.lugar || '', true) === undefined;
-    const tipoValido = validation.validateTipo(data.tipo || [], true) === undefined;
-    const subtipoValido = validation.validateSubtipo(data.subtipo || [], true) === undefined;
-    
-    let fechasValidas = true;
-    if (data.fechaInicio && data.fechaFin) {
-      // Convertir de Timestamp a Date si es necesario
-      const fechaInicio = data.fechaInicio instanceof Date 
-        ? data.fechaInicio 
-        : data.fechaInicio.toDate();
-      
-      const fechaFin = data.fechaFin instanceof Date 
-        ? data.fechaFin 
-        : data.fechaFin.toDate();
-      
-      validation.validateFechas(fechaInicio, fechaFin, true);
-      fechasValidas = !validation.errors.fechaFin;
-    } else {
-      fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
-    }
-    
-    return nombreValido && lugarValido && tipoValido && subtipoValido && fechasValidas;
-  });
+  const validateFirstTabSilent = async (data: Partial<Actividad>): Promise<boolean> => {
+    return new Promise((resolve) => {
+      // Planificar la validación para el siguiente frame de animación
+      requestAnimationFrame(() => {
+        try {
+          const nombreValido = validation.validateNombre(data.nombre || '', true) === undefined;
+          const lugarValido = validation.validateLugar(data.lugar || '', true) === undefined;
+          const tipoValido = validation.validateTipo(data.tipo || [], true) === undefined;
+          const subtipoValido = validation.validateSubtipo(data.subtipo || [], true) === undefined;
+          
+          let fechasValidas = true;
+          if (data.fechaInicio && data.fechaFin) {
+            // Convertir de Timestamp a Date si es necesario
+            const fechaInicio = data.fechaInicio instanceof Date 
+              ? data.fechaInicio 
+              : data.fechaInicio.toDate();
+            
+            const fechaFin = data.fechaFin instanceof Date 
+              ? data.fechaFin 
+              : data.fechaFin.toDate();
+            
+            validation.validateFechas(fechaInicio, fechaFin, true);
+            fechasValidas = !validation.errors.fechaFin;
+          } else {
+            fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
+          }
+          
+          const isValid = nombreValido && lugarValido && tipoValido && subtipoValido && fechasValidas;
+          resolve(isValid);
+        } catch (error) {
+          console.error('Error during validation:', error);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Función para establecer errores en la primera pestaña de forma optimizada
   const setFirstTabErrors = (data: Partial<Actividad>): void => {
