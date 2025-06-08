@@ -28,6 +28,8 @@ import ReportesAdminPage from '../pages/reportes/ReportesAdminPage';
 import PrestamosAdminPage from '../pages/prestamos/PrestamosAdminPage';
 import PrestamosVocalPage from '../pages/prestamos/PrestamosVocalPage';
 import MisPrestamosPage from '../pages/prestamos/MisPrestamosPage';
+import EstadisticasAdminPage from '../pages/admin/EstadisticasAdminPage';
+import EstadisticasVocalPage from '../pages/vocal/EstadisticasVocalPage';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -64,17 +66,19 @@ const AppRoutes: React.FC = () => {
       
 
       {/* IMPORTANTE: Colocar primero las rutas específicas antes de la ruta genérica /:role */}
-      
-      {/* Rutas específicas para administrador */}
+        {/* Rutas específicas para administrador */}
       <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
       <Route path="/admin/reportes" element={<ProtectedRoute allowedRoles={['admin']}><ReportesAdminPage /></ProtectedRoute>} />
-      
-      {/* Rutas específicas para vocal */}
+      <Route path="/admin/estadisticas" element={<ProtectedRoute allowedRoles={['admin']}><EstadisticasAdminPage /></ProtectedRoute>} />
+        {/* Rutas específicas para vocal */}
       <Route path="/vocal/usuarios" element={<ProtectedRoute allowedRoles={['vocal']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/vocal/prestamos" element={<ProtectedRoute allowedRoles={['vocal']}><PrestamosVocalPage /></ProtectedRoute>} />
+      <Route path="/vocal/reportes" element={<ProtectedRoute allowedRoles={['vocal']}><ReportesAdminPage /></ProtectedRoute>} />
+      <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
+      <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
       
       {/* Dashboards - Unificado para todos los roles */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Dashboard /></ProtectedRoute>} />

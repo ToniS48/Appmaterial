@@ -55,28 +55,29 @@ const StatsCard: React.FC<StatsCardProps> = ({
             </StatLabel>
             
             {/* Estadísticas en columna con menos espaciado */}
-            <VStack spacing={1} align="flex-start">
+            <VStack spacing={3} align="center">
               {stats.map((stat, index) => (
                 <Tooltip 
                   key={index} 
-                  label={stat.label} 
+                  label={`Detalles: ${stat.label}`} 
                   hasArrow 
                   placement="top"
                 >
-                  <HStack 
-                    spacing={3}
-                    p={1}
+                  <VStack 
+                    spacing={2}
+                    p={2}
                     borderRadius="md"
                     _hover={{ bg: "gray.50" }}
                     width="100%"
+                    textAlign="center"
                   >
-                    <StatNumber fontSize="lg" fontWeight="bold" color={stat.color} minW="40px">
+                    <StatNumber fontSize="3xl" fontWeight="bold" color={stat.color}>
                       {stat.value}
                     </StatNumber>
-                    <Text fontSize="sm" color="gray.600" flex="1">
+                    <Text fontSize="sm" color="gray.600" whiteSpace="pre-line" textAlign="center">
                       {stat.label}
                     </Text>
-                  </HStack>
+                  </VStack>
                 </Tooltip>
               ))}
             </VStack>
