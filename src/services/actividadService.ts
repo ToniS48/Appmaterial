@@ -666,6 +666,7 @@ export const obtenerEstadisticasUsuarios = async () => {
 
 // Obtener estadísticas de actividades
 export const obtenerEstadisticasActividades = async (): Promise<{
+  total: number;
   planificadas: number;
   enCurso: number;
   finalizadas: number;
@@ -674,6 +675,7 @@ export const obtenerEstadisticasActividades = async (): Promise<{
   try {
     const actividades = await listarActividades();
     return {
+      total: actividades.length,
       planificadas: actividades.filter(a => a.estado === 'planificada').length,
       enCurso: actividades.filter(a => a.estado === 'en_curso').length,
       finalizadas: actividades.filter(a => a.estado === 'finalizada').length,
@@ -681,7 +683,7 @@ export const obtenerEstadisticasActividades = async (): Promise<{
     };
   } catch (error) {
     console.error('Error al obtener estadísticas de actividades:', error);
-    return { planificadas: 0, enCurso: 0, finalizadas: 0, canceladas: 0 };
+    return { total: 0, planificadas: 0, enCurso: 0, finalizadas: 0, canceladas: 0 };
   }
 };
 

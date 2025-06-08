@@ -6,12 +6,15 @@ import {
   Link, 
   Divider, 
   Icon, 
-  Tooltip 
+  Tooltip,
+  Image,
+  HStack
 } from '@chakra-ui/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { getRutaPorRol } from '../../utils/navigation';
 import { logger } from '../../utils/performanceUtils';
 import { RolUsuario } from '../../types/usuario';
+import logoEspemo from '../../assets/images/logoEspemo.png';
 
 // Importamos iconos desde Chakra UI y React-Icons
 import { 
@@ -30,7 +33,9 @@ import {
   FiSettings, 
   FiBell,
   FiAlertTriangle,
-  FiEye
+  FiEye,
+  FiGrid,
+  FiHome
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -50,17 +55,60 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
   
   // Obtener la ruta del dashboard según el rol (memoizada)
   const dashboardPath = useMemo(() => getRutaPorRol(userRole), [userRole]);
-  
-  // Configurar los elementos de navegación unificados (memoizados)
-  const navItems: NavItem[] = useMemo(() => [
-    // Dashboard - para todos los roles con acceso
+  // Configurar los elementos de navegación por secciones
+  const appsComunes: NavItem[] = useMemo(() => [
+    // Inicio - para todos los roles
     { 
-      label: 'Dashboard', 
+      label: 'Inicio', 
       to: dashboardPath,
+      icon: FiHome,
+      roles: ['admin', 'vocal', 'socio', 'invitado'] 
+    },
+    // Actividades - para todos los roles
+    { 
+      label: 'Actividades', 
+      to: '/activities', 
+      icon: FiCalendar,
+      roles: ['admin', 'vocal', 'socio', 'invitado'] 
+    },
+    // Calendario - para todos los roles
+    { 
+      label: 'Calendario', 
+      to: '/activities/calendario', 
+      icon: CalendarIcon,
+      roles: ['admin', 'vocal', 'socio', 'invitado'] 
+    },
+    // Inventario - solo para socios
+    { 
+      label: 'Inventario', 
+      to: '/material/inventario', 
+      icon: FiEye,
+      roles: ['socio'] 
+    },
+    // Mis préstamos - para todos menos invitado
+    { 
+      label: 'Mis Préstamos', 
+      to: '/mis-prestamos', 
+      icon: FiPackage,
+      roles: ['socio', 'vocal', 'admin'] 
+    },
+    // Notificaciones - para todos
+    { 
+      label: 'Notificaciones', 
+      to: '/notificaciones', 
+      icon: FiBell,
+      roles: ['admin', 'vocal', 'socio', 'invitado'] 
+    },
+    // Perfil - para todos
+    { 
+      label: 'Mi Perfil', 
+      to: '/profile', 
       icon: FiUser,
       roles: ['admin', 'vocal', 'socio', 'invitado'] 
     },
-    
+  ], [dashboardPath]);
+
+  const panelControl: NavItem[] = useMemo(() => [
     // Gestión de usuarios - específico por rol
     { 
       label: 'Usuarios', 
@@ -74,46 +122,13 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiUsers,
       roles: ['vocal'] 
     },
-    
-    // Actividades - para todos los roles
-    { 
-      label: 'Actividades', 
-      to: '/activities', 
-      icon: FiCalendar,
-      roles: ['admin', 'vocal', 'socio', 'invitado'] 
-    },
-    
-    // Calendario - para todos los roles
-    { 
-      label: 'Calendario', 
-      to: '/activities/calendario', 
-      icon: CalendarIcon,
-      roles: ['admin', 'vocal', 'socio', 'invitado'] 
-    },
-      // Material - solo para admin y vocal
+    // Material - solo para admin y vocal
     { 
       label: 'Material', 
       to: '/material', 
       icon: FiBox,
       roles: ['admin', 'vocal'] 
     },
-    
-    // Inventario - solo para socios
-    { 
-      label: 'Inventario', 
-      to: '/material/inventario', 
-      icon: FiEye,
-      roles: ['socio'] 
-    },
-    
-    // Mis préstamos - para todos menos invitado
-    { 
-      label: 'Mis Préstamos', 
-      to: '/mis-prestamos', 
-      icon: FiPackage,
-      roles: ['socio', 'vocal', 'admin'] 
-    },
-    
     // Administración de préstamos - solo para admin y vocal
     { 
       label: 'Gestión Préstamos', 
@@ -127,23 +142,6 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiPackage,
       roles: ['vocal'] 
     },
-    
-    // Notificaciones - para todos
-    { 
-      label: 'Notificaciones', 
-      to: '/notificaciones', 
-      icon: FiBell,
-      roles: ['admin', 'vocal', 'socio', 'invitado'] 
-    },
-    
-    // Perfil - para todos
-    { 
-      label: 'Mi Perfil', 
-      to: '/profile', 
-      icon: FiUser,
-      roles: ['admin', 'vocal', 'socio', 'invitado'] 
-    },
-    
     // Configuración - solo para admin
     { 
       label: 'Configuración', 
@@ -151,92 +149,163 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiSettings,
       roles: ['admin'] 
     },
-  ], [dashboardPath]);
-  
-  // Filtrar solo los elementos que corresponden al rol actual (memoizado)
-  const filteredItems = useMemo(() => 
-    navItems.filter(item => item.roles.includes(userRole)),
-    [navItems, userRole]
+  ], []);
+
+  // Filtrar elementos según el rol actual
+  const filteredAppsComunes = useMemo(() => 
+    appsComunes.filter(item => item.roles.includes(userRole)),
+    [appsComunes, userRole]
+  );
+
+  const filteredPanelControl = useMemo(() => 
+    panelControl.filter(item => item.roles.includes(userRole)),
+    [panelControl, userRole]
   );
     // Log optimizado de la ruta actual
   useEffect(() => {
     logger.debug('Ruta actual:', location.pathname);
-  }, [location.pathname]);
-
-  return (
+  }, [location.pathname]);  return (
     <VStack spacing={0} align="stretch">
       <Box p={4}>
-        <Text fontSize="lg" fontWeight="bold">ESPEMO</Text>
+        <HStack spacing={4} align="center">
+          <Image 
+            src={logoEspemo} 
+            alt="ESPEMO Logo"
+            height={{ base: "50px", md: "60px" }}
+            width={{ base: "50px", md: "60px" }}
+            objectFit="contain"
+          />
+          <Text 
+            fontSize={{ base: "xl", md: "2xl" }} 
+            fontWeight="bold"
+          >
+            S.E. ESPEMO
+          </Text>
+        </HStack>
       </Box>
-      <Divider />
-      <VStack spacing={0} align="stretch" mt={4}>
-        {filteredItems.map((item) => {
-          const isActive = location.pathname === item.to || 
-                          (item.to !== dashboardPath && location.pathname.startsWith(item.to));
-          
-          return (
-            <Link 
-              as={RouterLink} 
-              to={item.to} 
-              key={item.to}
-              onClick={onItemClick}
-              _hover={{ textDecoration: 'none' }}
-            >
-              <Tooltip label={item.label} placement="right" hasArrow>
-                <Box 
-                  py={3}
-                  px={4}
-                  bg={isActive ? 'brand.50' : 'transparent'}
-                  color={isActive ? 'brand.600' : 'inherit'}
-                  borderLeftWidth={isActive ? '4px' : '0px'}
-                  borderLeftColor="brand.500"
-                  _hover={{ 
-                    bg: isActive ? 'brand.50' : 'gray.100',
-                  }}
-                  transition="all 0.2s"
-                  display="flex"
-                  alignItems="center"
+      <Divider />      {/* Sección Apps Comunes */}
+      {filteredAppsComunes.length > 0 && (
+        <>
+          <VStack spacing={0} align="stretch">
+            {filteredAppsComunes.map((item) => {
+              const isActive = location.pathname === item.to || 
+                              (item.to !== dashboardPath && location.pathname.startsWith(item.to));
+              
+              return (
+                <Link 
+                  as={RouterLink} 
+                  to={item.to} 
+                  key={item.to}
+                  onClick={onItemClick}
+                  _hover={{ textDecoration: 'none' }}
                 >
-                  <Icon as={item.icon} boxSize={5} mr={3} />
-                  <Text fontWeight={isActive ? 'medium' : 'normal'}>
-                    {item.label}
-                  </Text>
-                </Box>
-              </Tooltip>
-            </Link>
-          );
-        })}
-        {userRole === 'admin' && (
-          <>
-            <Link 
-              as={RouterLink} 
-              to="/admin/reportes" 
-              onClick={onItemClick}
-              _hover={{ textDecoration: 'none' }}
-            >
-              <Tooltip label="Reportes de errores" placement="right" hasArrow>
-                <Box 
-                  py={3}
-                  px={4}
-                  bg="transparent"
-                  color="inherit"
-                  _hover={{ 
-                    bg: 'gray.100',
-                  }}
-                  transition="all 0.2s"
-                  display="flex"
-                  alignItems="center"
+                  <Tooltip label={item.label} placement="right" hasArrow>
+                    <Box 
+                      py={3}
+                      px={4}
+                      bg={isActive ? 'brand.50' : 'transparent'}
+                      color={isActive ? 'brand.600' : 'inherit'}
+                      borderLeftWidth={isActive ? '4px' : '0px'}
+                      borderLeftColor="brand.500"
+                      _hover={{ 
+                        bg: isActive ? 'brand.50' : 'gray.100',
+                      }}
+                      transition="all 0.2s"
+                      display="flex"
+                      alignItems="center"
+                    >
+                      <Icon as={item.icon} boxSize={5} mr={3} />
+                      <Text fontWeight={isActive ? 'medium' : 'normal'}>
+                        {item.label}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Link>
+              );
+            })}
+          </VStack>
+        </>
+      )}
+
+      {/* Divider entre secciones si ambas tienen elementos */}
+      {filteredAppsComunes.length > 0 && filteredPanelControl.length > 0 && (
+        <Divider my={4} />
+      )}      {/* Sección Panel de Control */}
+      {filteredPanelControl.length > 0 && (
+        <>
+          <VStack spacing={0} align="stretch">
+            {filteredPanelControl.map((item) => {
+              const isActive = location.pathname === item.to || 
+                              (item.to !== dashboardPath && location.pathname.startsWith(item.to));
+              
+              return (
+                <Link 
+                  as={RouterLink} 
+                  to={item.to} 
+                  key={item.to}
+                  onClick={onItemClick}
+                  _hover={{ textDecoration: 'none' }}
                 >
-                  <Icon as={FiAlertTriangle} boxSize={5} mr={3} />
-                  <Text fontWeight="normal">
-                    Reportes de errores
-                  </Text>
-                </Box>
-              </Tooltip>
-            </Link>
-          </>
-        )}
-      </VStack>
+                  <Tooltip label={item.label} placement="right" hasArrow>
+                    <Box 
+                      py={3}
+                      px={4}
+                      bg={isActive ? 'brand.50' : 'transparent'}
+                      color={isActive ? 'brand.600' : 'inherit'}
+                      borderLeftWidth={isActive ? '4px' : '0px'}
+                      borderLeftColor="brand.500"
+                      _hover={{ 
+                        bg: isActive ? 'brand.50' : 'gray.100',
+                      }}
+                      transition="all 0.2s"
+                      display="flex"
+                      alignItems="center"
+                    >
+                      <Icon as={item.icon} boxSize={5} mr={3} />
+                      <Text fontWeight={isActive ? 'medium' : 'normal'}>
+                        {item.label}
+                      </Text>
+                    </Box>
+                  </Tooltip>
+                </Link>
+              );
+            })}
+          </VStack>
+        </>
+      )}
+
+      {/* Reportes de errores solo para admin */}
+      {userRole === 'admin' && (
+        <>
+          <Divider my={4} />
+          <Link 
+            as={RouterLink} 
+            to="/admin/reportes" 
+            onClick={onItemClick}
+            _hover={{ textDecoration: 'none' }}
+          >
+            <Tooltip label="Reportes de errores" placement="right" hasArrow>
+              <Box 
+                py={3}
+                px={4}
+                bg="transparent"
+                color="inherit"
+                _hover={{ 
+                  bg: 'gray.100',
+                }}
+                transition="all 0.2s"
+                display="flex"
+                alignItems="center"
+              >
+                <Icon as={FiAlertTriangle} boxSize={5} mr={3} />
+                <Text fontWeight="normal">
+                  Reportes de errores
+                </Text>
+              </Box>
+            </Tooltip>
+          </Link>
+        </>
+      )}
     </VStack>
   );
 };

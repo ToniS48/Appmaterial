@@ -13,14 +13,13 @@ const NotificacionBadge: React.FC<NotificacionBadgeProps> = ({
   onClick, 
   count = 0,
   iconSize = { base: "20px", md: "20px" } // Valor predeterminado
-}) => {
-  const hasNotifications = count > 0;
+}) => {  const hasNotifications = count > 0;
 
   return (
     <Box position="relative" display="inline-block">
       <IconButton
         aria-label="Notificaciones"
-        icon={<BellIcon boxSize={iconSize} />} // Usar el tamaño proporcionado
+        icon={<BellIcon boxSize={iconSize} />}
         onClick={onClick}
         variant="ghost"
         size={{ base: "lg", md: "md" }}

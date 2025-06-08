@@ -24,9 +24,7 @@ import {
   DrawerContent,
   DrawerCloseButton,
   DrawerBody,
-  useDisclosure,
-  Link,
-  Tooltip,
+  useDisclosure,  Link,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -49,7 +47,7 @@ import NotificacionBadge from '../notificaciones/NotificacionBadge';
 import NotificacionPanel from '../notificaciones/NotificacionPanel';
 import logoEspemo from '../../assets/images/logoEspemo.png';
 import AppNavigationMenu from './AppNavigationMenu';
-import { FiLogOut, FiHome, FiUser, FiAlertTriangle } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiAlertTriangle } from 'react-icons/fi';
 import { getRutaPorRol } from '../../utils/navigation';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -214,18 +212,16 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
         top={0}
         zIndex={1}
         minH={{ base: "60px", md: "70px" }}
-      >
-        {/* Izquierda: Botón para sidebar móvil, logo y título */}
-        <Flex align="center">
-          {/* Botón de menú en móvil */}
+      >        {/* Izquierda: Botón para sidebar móvil, logo y título */}
+        <Flex align="center">          {/* Botón de menú - siempre visible en dimensiones reducidas */}
           <IconButton
             ref={btnRef}
-            display={{ base: "flex", lg: "none" }}
+            display={{ base: "flex", md: "flex" }}
             onClick={onOpen}
             variant="ghost"
             aria-label="Abrir menú"
             icon={<HamburgerIcon />}
-            size="md"
+            size="lg"
             mr={2}
           />
         
@@ -249,39 +245,6 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
               S.E. ESPEMO
             </Text>
           </Box>
-          
-          {/* Icono Home para dashboard - visible en pantallas grandes */}
-          <Tooltip label="Dashboard" placement="bottom">
-            <IconButton
-              as={RouterLink}
-              to={dashboardPath}
-              variant="ghost"
-              aria-label="Dashboard"
-              icon={<Icon as={FiHome} boxSize={5} />}
-              ml={4}
-              display={{ base: "none", lg: "flex" }}
-            />
-          </Tooltip>
-          
-          {/* Navegación horizontal para pantallas grandes */}
-          <HStack spacing={4} ml={6} display={{ base: "none", lg: "flex" }}>
-            <Link as={RouterLink} to="/activities" _hover={{ textDecoration: 'none' }}>
-              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Actividades</Text>
-            </Link>
-            <Link as={RouterLink} to="/activities/calendario" _hover={{ textDecoration: 'none' }}>
-              <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Calendario</Text>
-            </Link>
-            {(userProfile?.rol === 'admin' || userProfile?.rol === 'vocal') && (
-              <Link as={RouterLink} to="/material" _hover={{ textDecoration: 'none' }}>
-                <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Material</Text>
-              </Link>
-            )}
-            {userProfile?.rol !== 'invitado' && (
-              <Link as={RouterLink} to="/mis-prestamos" _hover={{ textDecoration: 'none' }}>
-                <Text fontWeight="medium" color="gray.700" _hover={{ color: 'brand.500' }}>Mis Préstamos</Text>
-              </Link>
-            )}
-          </HStack>
           
           {/* Contenido adicional (personalizado) */}
           {children}
