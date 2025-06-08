@@ -87,7 +87,18 @@ export default function ActividadFormPage() {
     reValidateMode: "onSubmit",
   });
 
-  const { handleSubmit } = methods;
+  const { handleSubmit, watch } = methods;
+
+  // 🔧 CORRECCIÓN: Sincronizar cambios de materiales desde react-hook-form hacia useActividadForm
+  const watchedMateriales = watch('materiales');
+  
+  useEffect(() => {
+    // Solo sincronizar si hay cambios reales en materiales
+    if (watchedMateriales && Array.isArray(watchedMateriales)) {
+      console.log("🔄 ActividadFormPage - Sincronizando materiales desde formulario hacia hook:", watchedMateriales);
+      updateMaterial(watchedMateriales);
+    }
+  }, [watchedMateriales, updateMaterial]);
 
   // Función para avanzar a la siguiente pestaña
   const nextTab = () => {
@@ -257,18 +268,7 @@ export default function ActividadFormPage() {
       formData.participanteIds || [],
       { responsableId: responsableActividadId, responsableMaterialId }
     );
-  };
-  // Función para manejar cambios en la necesidad de material
-  const handleNecesidadMaterialChange = (necesita: boolean) => {
-    // Actualizar el estado directamente
-    const updatedData = {
-      ...formData,
-      necesidadMaterial: necesita
-    };
-    // Usar la función existente para actualizaciones
-    updateInfo(updatedData);  };
-  
-  // Función personalizada para manejar materiales con asignación automática de responsable
+  };  // Función personalizada para manejar materiales con asignación automática de responsable
   const handleMaterialUpdate = (materiales: any[]) => {
     try {
       console.log("ActividadFormPage handleMaterialUpdate - Recibidos materiales:", materiales);
@@ -613,13 +613,13 @@ export default function ActividadFormPage() {
                     onCancel={handleCancel}
                     actividadId={id}
                   />
-                </TabPanel>                <TabPanel>
-                  <MaterialEditor 
+                </TabPanel>                <TabPanel>                  <MaterialEditor 
                     data={{ ...formData, materiales: formData.materiales || [] } as Actividad}
                     onSave={handleMaterialUpdate}
-                    onNecesidadMaterialChange={handleNecesidadMaterialChange}
                     isInsideForm={true} 
+                    control={methods.control}
                     mostrarBotones={false}
+                    actividadId={id}
                     responsables={{
                       responsableActividadId: formData.responsableActividadId || '',
                       responsableMaterialId: formData.responsableMaterialId || '',

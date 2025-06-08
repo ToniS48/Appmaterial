@@ -2,10 +2,9 @@ import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orde
 import { db } from '../config/firebase';
 import { Actividad, Comentario } from '../types/actividad';
 import { handleFirebaseError } from '../utils/errorHandling';
-// Eliminar la importación no utilizada o añadir el tipo
 import type { Usuario } from '../types/usuario';
+import { EstadoPrestamo } from '../types/prestamo';
 import { actividadCache } from './actividadCache';
-// Eliminar registrarDevolucion de la importación
 import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from './prestamoService';
 import { enviarNotificacionMasiva } from './notificacionService';
 import { listarUsuarios, obtenerUsuarioPorId } from './usuarioService';
@@ -15,9 +14,8 @@ import { determinarEstadoActividad } from '../utils/dateUtils';
 import { getUniqueParticipanteIds } from '../utils/actividadUtils';
 import { executeTransaction } from '../utils/transactionUtils';
 import { validateWithZod } from '../validation/validationMiddleware';
-// Importar el logger
 import { logger } from '../utils/loggerUtils';
-import { z } from 'zod'; // También necesitamos importar z para el casting
+import { z } from 'zod';
 import { actividadCompleteSchema } from '../schemas/actividadSchema';
 
 // Crear una nueva actividad
@@ -51,15 +49,32 @@ export async function crearActividad(actividadData: Omit<Actividad, 'id' | 'fech
       archivosAdjuntos: []
     };
 
-    const docRef = await addDoc(actividadesRef, dataToSave);
-
-    const nuevaActividad: Actividad = {
+    const docRef = await addDoc(actividadesRef, dataToSave);    const nuevaActividad: Actividad = {
       id: docRef.id,
-      ...dataToSave
+      ...dataToSave,
+      fechaFin: dataToSave.fechaFin // Asegurar que fechaFin esté disponible para préstamos
     };
+      console.log('🔧 Actividad creada, iniciando gestión de préstamos...', {
+      id: nuevaActividad.id,
+      necesidadMaterial: nuevaActividad.necesidadMaterial,
+      responsableMaterialId: nuevaActividad.responsableMaterialId,
+      materiales: nuevaActividad.materiales
+    });
 
-    // La función ya tiene validaciones internas, solo necesitamos llamarla una vez
-    await crearPrestamosParaActividad(nuevaActividad);
+    console.log('🚀 DEBUGGING: Llamando a crearPrestamosParaActividad...');
+    console.log('📋 DEBUGGING: Datos completos de la actividad:', JSON.stringify(nuevaActividad, null, 2));
+      try {
+      console.log('⏳ DEBUGGING: Esperando resultado de crearPrestamosParaActividad...');
+      await crearPrestamosParaActividad(nuevaActividad);
+      console.log('✅ DEBUGGING: crearPrestamosParaActividad completado exitosamente');
+    } catch (error: unknown) {
+      console.error('❌ DEBUGGING: Error en crearPrestamosParaActividad:', error);
+      console.error('🔍 DEBUGGING: Stack trace:', error instanceof Error ? error.stack : 'No stack available');
+      throw error; // Re-lanzar el error para no romper el flujo
+    }
+
+    // Enviar notificaciones a administradores y vocales
+    await enviarNotificacionesNuevaActividad(nuevaActividad);
 
     return nuevaActividad;
   } catch (error) {
@@ -78,15 +93,21 @@ export const actualizarActividad = async (id: string, actividadData: Partial<Act
       ...actividadData,
       fechaActualizacion: Timestamp.now()
     };
-    
-    await updateDoc(actividadRef, updateData);
+      await updateDoc(actividadRef, updateData);
     
     // Recuperar el documento actualizado
     const updatedDoc = await getDoc(actividadRef);
-    return {
+    const actividadActualizada = {
       id: updatedDoc.id,
       ...updatedDoc.data()
     } as Actividad;
+    
+    // Gestionar préstamos si la actividad tiene material o se ha actualizado la información de materiales
+    if (actividadData.materiales !== undefined || actividadData.necesidadMaterial !== undefined) {
+      await crearPrestamosParaActividad(actividadActualizada);
+    }
+    
+    return actividadActualizada;
   } catch (error) {
     handleFirebaseError(error, messages.actividades.service.errors.actualizar);
     throw error;
@@ -395,20 +416,36 @@ export const unirseActividad = async (actividadId: string, usuarioId: string): P
 
 // Cambiar de función auxiliar interna a función exportada
 export async function crearPrestamosParaActividad(actividad: Actividad): Promise<void> {
+  console.log('🔧 crearPrestamosParaActividad - Iniciando para actividad:', actividad.id);
+  console.log('🚀 DEBUGGING: FUNCIÓN INICIADA - timestamp:', new Date().toISOString());
+  console.log('📊 Datos de actividad:', {
+    id: actividad.id,
+    necesidadMaterial: actividad.necesidadMaterial,
+    responsableMaterialId: actividad.responsableMaterialId,
+    cantidadMateriales: actividad.materiales?.length || 0,
+    materiales: actividad.materiales
+  });
+
   if (!actividad.id) {
-    console.warn('No se pueden crear préstamos para una actividad sin ID');
+    console.warn('❌ No se pueden crear préstamos para una actividad sin ID');
     return;
   }
+  
+  console.log('🔍 DEBUGGING: Verificando necesidadMaterial...');
+  console.log('📋 DEBUGGING: necesidadMaterial =', actividad.necesidadMaterial, '(tipo:', typeof actividad.necesidadMaterial, ')');
   
   try {
     // Verificar primero si la actividad requiere material
     if (!actividad.necesidadMaterial) {
-      console.log(`La actividad ${actividad.id} no requiere material, cancelando préstamos existentes`);
+      console.log(`⚠️ La actividad ${actividad.id} no requiere material, cancelando préstamos existentes`);
+      console.log('🚪 DEBUGGING: Saliendo porque necesidadMaterial es falsy');
+      
       // Verificar si había préstamos previos que necesitan cancelarse
       const prestamosExistentes = await obtenerPrestamosPorActividad(actividad.id);
       
       // Si hay préstamos existentes pero la actividad no requiere material, cancelarlos
       if (prestamosExistentes.length > 0) {
+        console.log(`🗑️ Cancelando ${prestamosExistentes.length} préstamos existentes`);
         for (const prestamo of prestamosExistentes) {
           await actualizarPrestamo(prestamo.id as string, {
             estado: 'cancelado',
@@ -419,14 +456,30 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
       return;
     }
     
+    console.log('✅ DEBUGGING: necesidadMaterial es true, continuando...');
+    console.log('🔍 DEBUGGING: Verificando responsableMaterialId y materiales...');
+    console.log('👤 DEBUGGING: responsableMaterialId =', actividad.responsableMaterialId);
+    console.log('📦 DEBUGGING: materiales =', actividad.materiales);
+    console.log('📊 DEBUGGING: materiales.length =', actividad.materiales?.length);
+    
     // Solo procedemos si hay un responsable de material y materiales asignados
     if (!actividad.responsableMaterialId || !actividad.materiales || actividad.materiales.length === 0) {
-      console.warn(`La actividad ${actividad.id} requiere material pero no tiene responsable o materiales asignados`);
+      console.warn(`⚠️ La actividad ${actividad.id} requiere material pero no tiene responsable o materiales asignados`);
+      console.log('📋 Datos faltantes:', {
+        responsableMaterialId: actividad.responsableMaterialId,
+        materiales: actividad.materiales,
+        cantidadMateriales: actividad.materiales?.length || 0
+      });
+      console.log('🚪 DEBUGGING: Saliendo por falta de responsable o materiales');
       return;
     }
     
+    console.log(`✅ Condiciones cumplidas, procesando ${actividad.materiales.length} materiales...`);
+    console.log('🔄 DEBUGGING: Iniciando procesamiento de materiales...');
+    
     // Obtener préstamos existentes para la actividad
     const prestamosExistentes = await obtenerPrestamosPorActividad(actividad.id as string);
+    console.log(`📦 Préstamos existentes encontrados: ${prestamosExistentes.length}`);
     
     // Crear mapa para búsqueda eficiente
     const mapaPrestamosPorMaterial = new Map();
@@ -443,6 +496,7 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
     // Verificar préstamos a cancelar (los que ya no están en la lista de materiales)
     for (const prestamo of prestamosExistentes) {
       if (!materialesActuales.has(prestamo.materialId)) {
+        console.log(`🗑️ Cancelando préstamo obsoleto para material: ${prestamo.materialId}`);
         await actualizarPrestamo(prestamo.id as string, {
           estado: 'devuelto',
           observaciones: `Devuelto automáticamente porque el material ya no está asignado a la actividad ${actividad.id}`
@@ -451,44 +505,74 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
     }
     
     // Para cada material en la actividad
+    let prestamosCreados = 0;
+    let prestamosActualizados = 0;
+    
+    console.log('🔄 DEBUGGING: Iniciando bucle de materiales...');
+    console.log('📋 DEBUGGING: Total materiales a procesar:', actividad.materiales.length);
+    
     for (const material of actividad.materiales) {
+      console.log(`🔧 DEBUGGING: Procesando material ${prestamosCreados + prestamosActualizados + 1}/${actividad.materiales.length}`);
+      console.log(`🔧 Procesando material: ${material.materialId} (${material.nombre})`);
+      console.log('📋 DEBUGGING: Datos del material:', JSON.stringify(material, null, 2));
+      
       const prestamoExistente = mapaPrestamosPorMaterial.get(material.materialId);
+      console.log('🔍 DEBUGGING: ¿Préstamo existente?', !!prestamoExistente);
       
       if (prestamoExistente) {
+        console.log(`📝 Préstamo existente encontrado para material: ${material.materialId}`);
         // Actualizar préstamo si es necesario
         if (prestamoExistente.cantidadPrestada !== material.cantidad || 
             prestamoExistente.usuarioId !== actividad.responsableMaterialId) {
           
+          console.log(`🔄 Actualizando préstamo: cantidad ${prestamoExistente.cantidadPrestada} -> ${material.cantidad}`);
           await actualizarPrestamo(prestamoExistente.id as string, {
             cantidadPrestada: material.cantidad,
             usuarioId: actividad.responsableMaterialId
           });
+          prestamosActualizados++;
+        } else {
+          console.log(`✅ Préstamo ya está actualizado para material: ${material.materialId}`);
         }
       } else {
+        console.log(`➕ DEBUGGING: Creando nuevo préstamo para material: ${material.materialId}`);
+        
         // Intentar obtener información del usuario para el nombre
         let nombreUsuario = '';
+        console.log('👤 DEBUGGING: Obteniendo datos del usuario...');
         try {
           const usuario = await obtenerUsuario(actividad.responsableMaterialId);
           nombreUsuario = usuario ? `${usuario.nombre} ${usuario.apellidos}` : '';
+          console.log(`👤 Usuario responsable: ${nombreUsuario}`);
+          console.log('✅ DEBUGGING: Datos del usuario obtenidos correctamente');
         } catch (error) {
-          console.error('Error al obtener datos del usuario:', error);
+          console.error('❌ Error al obtener datos del usuario:', error);
+          console.error('❌ DEBUGGING: Error detallado en obtenerUsuario:', error);
         }
         
         // Obtener información del material
         let nombreMaterial = material.nombre;
+        console.log('📦 DEBUGGING: Verificando nombre del material...');
+        console.log('📦 DEBUGGING: material.nombre =', material.nombre);
         if (!nombreMaterial) {
+          console.log('📦 DEBUGGING: Nombre vacío, obteniendo de BD...');
           try {
             const materialInfo = await obtenerMaterial(material.materialId);
             if (materialInfo) {
               nombreMaterial = materialInfo.nombre;
+              console.log(`📦 Material obtenido de BD: ${nombreMaterial}`);
             }
           } catch (error) {
-            console.error('Error al obtener datos del material:', error);
+            console.error('❌ Error al obtener datos del material:', error);
+            console.error('❌ DEBUGGING: Error detallado en obtenerMaterial:', error);
           }
+        } else {
+          console.log('✅ DEBUGGING: Nombre del material ya disponible:', nombreMaterial);
         }
         
+        console.log('🏗️ DEBUGGING: Preparando datos del préstamo...');
         // Crear nuevo préstamo
-        await crearPrestamo({
+        const datosPrestamo = {
           materialId: material.materialId,
           nombreMaterial,
           cantidadPrestada: material.cantidad,
@@ -498,12 +582,37 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
           nombreActividad: actividad.nombre,
           fechaPrestamo: new Date(),
           fechaDevolucionPrevista: actividad.fechaFin,
-          estado: 'en_uso'
-        });
+          estado: 'en_uso' as EstadoPrestamo
+        };
+        
+        console.log(`💾 Creando préstamo con datos:`, datosPrestamo);
+        console.log('💾 DEBUGGING: Datos del préstamo preparados:', JSON.stringify(datosPrestamo, null, 2));
+        
+        console.log('🚀 DEBUGGING: Llamando a crearPrestamo...');
+        try {
+          console.log('⏳ DEBUGGING: Esperando resultado de crearPrestamo...');
+          const resultado = await crearPrestamo(datosPrestamo);
+          prestamosCreados++;
+          console.log(`✅ Préstamo creado exitosamente para: ${nombreMaterial}`);
+          console.log('✅ DEBUGGING: crearPrestamo completado, resultado:', resultado);
+        } catch (error: unknown) {
+          console.error(`❌ Error al crear préstamo para ${nombreMaterial}:`, error);
+          console.error('❌ DEBUGGING: Error detallado en crearPrestamo:', error);
+          console.error('❌ DEBUGGING: Tipo de error:', typeof error);
+          console.error('❌ DEBUGGING: Error serializado:', JSON.stringify(error, null, 2));
+          throw error;
+        }
       }
     }
-  } catch (error) {
-    console.error('Error al gestionar préstamos para actividad:', error);
+    
+    console.log(`🎉 Gestión de préstamos completada:`, {
+      prestamosCreados,
+      prestamosActualizados,
+      totalMateriales: actividad.materiales.length
+    });
+    } catch (error: unknown) {
+    console.error('❌ Error al gestionar préstamos para actividad:', error);
+    console.error('🔍 DEBUGGING: Stack trace:', error instanceof Error ? error.stack : 'No stack available');
     throw new Error(`No se pudieron gestionar los préstamos: ${error}`);
   }
 }
@@ -634,10 +743,9 @@ export const finalizarActividad = async (id: string): Promise<Actividad> => {
 
 // Modificar la función guardarActividad para usar transacciones
 export const guardarActividad = validateWithZod(
-  actividadCompleteSchema as unknown as z.ZodType<Actividad>,
-  async (actividadData: Actividad): Promise<Actividad> => {
+  actividadCompleteSchema as unknown as z.ZodType<Actividad>,  async (actividadData: Actividad): Promise<Actividad> => {
     try {
-      return await executeTransaction(async (transaction) => {
+      const result = await executeTransaction(async (transaction) => {
         // Convertir fechas a Timestamp para Firebase
         const fechaInicio = actividadData.fechaInicio instanceof Date 
           ? Timestamp.fromDate(actividadData.fechaInicio)
@@ -690,6 +798,15 @@ export const guardarActividad = validateWithZod(
         // Los préstamos se gestionarán después de la transacción
         return nuevaActividadConId;
       });
+        // Gestionar préstamos después de completar la transacción exitosamente
+      await crearPrestamosParaActividad(result);
+      
+      // Enviar notificaciones solo para nuevas actividades (sin ID original)
+      if (!actividadData.id) {
+        await enviarNotificacionesNuevaActividad(result);
+      }
+      
+      return result;
     } catch (error) {
       logger.error("Error al guardar actividad con transacción:", error);
       throw error;

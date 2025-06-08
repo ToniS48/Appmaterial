@@ -38,8 +38,8 @@ export interface ParticipantesEditorProps {
 export interface MaterialEditorProps {
   data: Actividad;
   onSave: (materiales: { materialId: string; nombre: string; cantidad: number }[]) => void;
-  onNecesidadMaterialChange?: (necesita: boolean) => void;
   isInsideForm?: boolean;
+  control?: any; // Control del formulario padre cuando isInsideForm=true
   mostrarBotones?: boolean;
   onCancel?: () => void;
 }
