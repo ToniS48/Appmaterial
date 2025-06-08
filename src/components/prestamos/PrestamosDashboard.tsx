@@ -190,12 +190,9 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
     const fechaObj = fecha instanceof Date ? fecha : fecha.toDate();
     return format(fechaObj, 'dd/MM/yyyy', { locale: es });
   };
-
   return (
-    <DashboardLayout>
-      <Box py={5} px={3}>
-        <Flex justify="space-between" align="center" mb={6}>
-          <Heading size="lg">{titulo || messages.prestamos.tituloPagina}</Heading>
+    <DashboardLayout title={titulo || messages.prestamos.tituloPagina}>      <Box py={5} px={3}>
+        <Flex justify="flex-end" align="center" mb={6}>
           <Button 
             leftIcon={<FiPlus />} 
             colorScheme={rol === 'admin' ? 'brand' : 'blue'}

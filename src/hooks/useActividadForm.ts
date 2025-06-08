@@ -208,7 +208,7 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         responsableActividadId: dataToSave.responsableActividadId || dataToSave.creadorId || usuarioId || '',
         responsableMaterialId: dataToSave.responsableMaterialId || '',
         participanteIds: dataToSave.participanteIds || [],
-        necesidadMaterial: dataToSave.necesidadMaterial ?? Boolean(dataToSave.materiales?.length),
+        necesidadMaterial: Boolean(dataToSave.responsableMaterialId && dataToSave.materiales?.length),
         materiales: dataToSave.materiales || [],
         estado: determinarEstadoActividad(
           dataToSave.fechaInicio,

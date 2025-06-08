@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test de Préstamos - Firebase Debug</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .test-button:hover { background: #0056b3; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        #output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .status-info { background-color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Préstamos - Debug Firebase</h1>
+        <p>Esta página te ayudará a diagnosticar si los préstamos se pueden crear correctamente en Firebase.</p>
+        
+        <div>
+            <h3>🔧 Tests Disponibles</h3>
+            <button class="test-button" onclick="testFirebaseConnection()">
+                🔗 Test Conexión Firebase
+            </button>
+            <button class="test-button" onclick="testCrearPrestamo()">
+                💾 Test Crear Préstamo
+            </button>
+            <button class="test-button" onclick="testConsultaPorActividad()">
+                🔍 Test Consulta por Actividad
+            </button>
+            <button class="test-button" onclick="testCrearActividadCompleta()">
+                🎯 Test Actividad + Préstamos
+            </button>
+            <button class="test-button" onclick="clearOutput()">
+                🗑️ Limpiar Log
+            </button>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Función para logging con colores
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const icons = {
+                info: '🔵',
+                success: '✅', 
+                error: '❌',
+                warning: '⚠️'
+            };
+            
+            const line = `[${timestamp}] ${icons[type]} ${message}\n`;
+            output.innerHTML += line;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        // Test 1: Verificar conexión a Firebase
+        async function testFirebaseConnection() {
+            log('🚀 Iniciando test de conexión Firebase...', 'info');
+            
+            try {
+                // Verificar si Firebase está disponible
+                if (typeof window.firebase === 'undefined') {
+                    log('❌ Firebase SDK no está disponible en window.firebase', 'error');
+                    return false;
+                }
+
+                // Intentar acceder a Firestore
+                const db = window.firebase.firestore();
+                if (!db) {
+                    log('❌ No se pudo acceder a Firestore', 'error');
+                    return false;
+                }
+
+                log('✅ Firebase está disponible', 'success');
+                log(`📌 Proyecto: ${window.firebase.app().options.projectId}`, 'info');
+                
+                // Test básico de lectura
+                const testCollection = db.collection('usuarios').limit(1);
+                const snapshot = await testCollection.get();
+                log(`🔍 Test lectura usuarios: ${snapshot.size} documentos`, 'success');
+                
+                return true;
+                
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+                log(`🔍 Código: ${error.code || 'N/A'}`, 'warning');
+                return false;
+            }
+        }
+
+        // Test 2: Crear préstamo de prueba
+        async function testCrearPrestamo() {
+            log('💾 Iniciando test de creación de préstamo...', 'info');
+            
+            try {
+                const db = window.firebase.firestore();
+                
+                // Datos del préstamo de prueba
+                const prestamoData = {
+                    materialId: 'TEST_' + Date.now(),
+                    nombreMaterial: 'Material Test Debug',
+                    usuarioId: 'USER_TEST_' + Date.now(),
+                    nombreUsuario: 'Usuario Test Debug',
+                    cantidadPrestada: 1,
+                    fechaPrestamo: window.firebase.firestore.Timestamp.now(),
+                    fechaDevolucionPrevista: window.firebase.firestore.Timestamp.fromDate(
+                        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    ),
+                    estado: 'en_uso',
+                    actividadId: 'ACT_TEST_' + Date.now(),
+                    nombreActividad: 'Actividad Test Debug',
+                    observaciones: 'Creado por test debug - ' + new Date().toISOString()
+                };
+
+                log('📝 Datos del préstamo:', 'info');
+                log(JSON.stringify(prestamoData, null, 2), 'info');
+
+                // Crear el préstamo
+                const docRef = await db.collection('prestamos').add(prestamoData);
+                log(`✅ ¡Préstamo creado exitosamente! ID: ${docRef.id}`, 'success');
+
+                // Verificar que se creó
+                const doc = await docRef.get();
+                if (doc.exists) {
+                    log('✅ Verificación exitosa - Préstamo encontrado en BD', 'success');
+                    return { success: true, id: docRef.id };
+                } else {
+                    log('❌ Error: Préstamo no encontrado después de crear', 'error');
+                    return { success: false };
+                }
+
+            } catch (error) {
+                log(`❌ Error al crear préstamo: ${error.message}`, 'error');
+                log(`🔍 Código: ${error.code || 'N/A'}`, 'warning');
+                
+                if (error.code === 'permission-denied') {
+                    log('💡 Solución: Verifica las reglas de Firestore y autenticación', 'warning');
+                } else if (error.code === 'failed-precondition') {
+                    log('💡 Solución: Puede faltar un índice de Firebase', 'warning');
+                }
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Test 3: Consulta por actividad (la que falla)
+        async function testConsultaPorActividad() {
+            log('🔍 Iniciando test de consulta por actividad...', 'info');
+            
+            try {
+                const db = window.firebase.firestore();
+                
+                // Crear un préstamo primero
+                const testActivityId = 'TEST_ACTIVITY_' + Date.now();
+                const prestamoData = {
+                    materialId: 'MAT_' + Date.now(),
+                    nombreMaterial: 'Material para consulta',
+                    usuarioId: 'USER_' + Date.now(), 
+                    nombreUsuario: 'Usuario consulta',
+                    cantidadPrestada: 1,
+                    fechaPrestamo: window.firebase.firestore.Timestamp.now(),
+                    fechaDevolucionPrevista: window.firebase.firestore.Timestamp.fromDate(
+                        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    ),
+                    estado: 'en_uso',
+                    actividadId: testActivityId,
+                    nombreActividad: 'Actividad para consulta'
+                };
+
+                log('📝 Creando préstamo para test de consulta...', 'info');
+                const docRef = await db.collection('prestamos').add(prestamoData);
+                log(`✅ Préstamo creado: ${docRef.id}`, 'success');
+
+                // Ahora probar la consulta que usa la app
+                log('🔍 Probando consulta por actividad...', 'info');
+                
+                const query = db.collection('prestamos')
+                    .where('actividadId', '==', testActivityId)
+                    .orderBy('fechaPrestamo', 'desc');
+
+                const snapshot = await query.get();
+                log(`📊 Resultados encontrados: ${snapshot.size}`, 'success');
+
+                if (snapshot.size > 0) {
+                    log('✅ ¡Consulta exitosa! La consulta por actividad funciona', 'success');
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        log(`  - ${doc.id}: ${data.nombreMaterial}`, 'info');
+                    });
+                    return { success: true, results: snapshot.size };
+                } else {
+                    log('⚠️ Consulta ejecutada pero no se encontraron resultados', 'warning');
+                    return { success: true, results: 0 };
+                }
+
+            } catch (error) {
+                log(`❌ Error en consulta: ${error.message}`, 'error');
+                log(`🔍 Código: ${error.code || 'N/A'}`, 'warning');
+                
+                if (error.code === 'failed-precondition') {
+                    log('💡 PROBLEMA ENCONTRADO: Falta índice en Firebase', 'warning');
+                    log('💡 Solución: Crear índice para campos: actividadId + fechaPrestamo', 'warning');
+                    
+                    // Buscar enlace de creación de índice en el mensaje de error
+                    const indexLink = error.message.match(/https:\/\/[^\s]+/);
+                    if (indexLink) {
+                        log(`🔗 Enlace para crear índice: ${indexLink[0]}`, 'info');
+                    }
+                }
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Test 4: Flujo completo como en la app
+        async function testCrearActividadCompleta() {
+            log('🎯 Iniciando test de flujo completo: Actividad + Préstamos...', 'info');
+            
+            try {
+                // Simular el flujo completo de la aplicación
+                log('1️⃣ Simulando creación de actividad...', 'info');
+                
+                const actividadData = {
+                    nombre: 'Actividad Test Completa ' + Date.now(),
+                    descripcion: 'Test del flujo completo de creación',
+                    fechaInicio: new Date(),
+                    fechaFin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                    necesidadMaterial: true,
+                    responsableMaterialId: 'USER_RESP_' + Date.now(),
+                    materiales: [
+                        {
+                            materialId: 'MAT_1_' + Date.now(),
+                            nombre: 'Material Test 1',
+                            cantidad: 2
+                        },
+                        {
+                            materialId: 'MAT_2_' + Date.now(),
+                            nombre: 'Material Test 2', 
+                            cantidad: 1
+                        }
+                    ],
+                    estado: 'planificada'
+                };
+
+                log('📝 Datos de actividad:', 'info');
+                log(JSON.stringify(actividadData, null, 2), 'info');
+
+                // Crear actividad (simulando guardarActividad())
+                const db = window.firebase.firestore();
+                const actividadRef = await db.collection('actividades').add(actividadData);
+                log(`✅ Actividad creada: ${actividadRef.id}`, 'success');
+
+                // Simular crearPrestamosParaActividad()
+                log('2️⃣ Creando préstamos para la actividad...', 'info');
+                
+                const prestamosCreados = [];
+                
+                for (const material of actividadData.materiales) {
+                    const prestamoData = {
+                        materialId: material.materialId,
+                        nombreMaterial: material.nombre,
+                        cantidadPrestada: material.cantidad,
+                        usuarioId: actividadData.responsableMaterialId,
+                        nombreUsuario: 'Usuario Responsable Test',
+                        actividadId: actividadRef.id,
+                        nombreActividad: actividadData.nombre,
+                        fechaPrestamo: window.firebase.firestore.Timestamp.now(),
+                        fechaDevolucionPrevista: window.firebase.firestore.Timestamp.fromDate(actividadData.fechaFin),
+                        estado: 'en_uso',
+                        observaciones: 'Creado automáticamente por test completo'
+                    };
+
+                    const prestamoRef = await db.collection('prestamos').add(prestamoData);
+                    prestamosCreados.push(prestamoRef.id);
+                    log(`✅ Préstamo creado: ${prestamoRef.id} (${material.nombre})`, 'success');
+                }
+
+                // Verificar que los préstamos se pueden consultar
+                log('3️⃣ Verificando consulta de préstamos por actividad...', 'info');
+                
+                try {
+                    const prestamosQuery = db.collection('prestamos')
+                        .where('actividadId', '==', actividadRef.id)
+                        .orderBy('fechaPrestamo', 'desc');
+
+                    const prestamosSnapshot = await prestamosQuery.get();
+                    log(`📊 Préstamos encontrados en consulta: ${prestamosSnapshot.size}`, 'success');
+
+                    if (prestamosSnapshot.size === prestamosCreados.length) {
+                        log('✅ ¡ÉXITO TOTAL! El flujo completo funciona correctamente', 'success');
+                        log(`✅ Actividad: ${actividadRef.id}`, 'success');
+                        log(`✅ Préstamos: ${prestamosCreados.join(', ')}`, 'success');
+                        return { 
+                            success: true, 
+                            actividadId: actividadRef.id, 
+                            prestamosIds: prestamosCreados 
+                        };
+                    } else {
+                        log(`⚠️ Discrepancia: creados ${prestamosCreados.length}, encontrados ${prestamosSnapshot.size}`, 'warning');
+                        return { success: false, error: 'Discrepancia en cantidad de préstamos' };
+                    }
+
+                } catch (queryError) {
+                    log(`❌ Error en consulta final: ${queryError.message}`, 'error');
+                    log('💡 Los préstamos se crearon pero no se pueden consultar (problema de índice)', 'warning');
+                    return { 
+                        success: false, 
+                        error: 'Préstamos creados pero consulta falla',
+                        prestamosCreados: prestamosCreados.length
+                    };
+                }
+
+            } catch (error) {
+                log(`❌ Error en flujo completo: ${error.message}`, 'error');
+                log(`🔍 Código: ${error.code || 'N/A'}`, 'warning');
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🎉 Test de Préstamos cargado correctamente', 'success');
+            log('💡 Ejecuta los tests uno por uno para diagnosticar el problema', 'info');
+            log('📋 Orden recomendado: Conexión → Crear Préstamo → Consulta → Flujo Completo', 'info');
+        });
+    </script>
+</body>
+</html>

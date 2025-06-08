@@ -102,22 +102,21 @@ export class MaterialRepository extends BaseRepository<Material> {
     }
 
     return materiales;
-  }
-  /**
+  }  /**
    * Obtener materiales disponibles para préstamo
-   * Versión simplificada que evita índices complejos
+   * Versión corregida que maneja todos los tipos de materiales
    */
   async findMaterialesDisponibles(): Promise<Material[]> {
     try {
-      console.log('🔍 [DEBUG] findMaterialesDisponibles - Usando consulta simplificada');
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Consultando materiales disponibles...');
       
-      // Opción 1: Solo filtrar por cantidadDisponible > 0 (más simple)
+      // Consulta simple: solo filtrar por estado 'disponible'
       const queryOptions: QueryOptions = {
         where: [
           {
-            field: 'cantidadDisponible',
-            operator: '>',
-            value: 0
+            field: 'estado',
+            operator: '==',
+            value: 'disponible'
           }
         ],
         orderBy: [{ field: 'nombre', direction: 'asc' }]
@@ -125,30 +124,72 @@ export class MaterialRepository extends BaseRepository<Material> {
       
       console.log('🔍 [DEBUG] findMaterialesDisponibles - Opciones de consulta:', queryOptions);
       const materiales = await this.find(queryOptions);
-        // Filtrar manualmente por estado si es necesario
-      const materialesFiltrados = materiales.filter(material => 
-        material.estado && material.estado.toLowerCase() === 'disponible'
-      );
+      
+      // Filtrar materiales que están realmente disponibles
+      const materialesDisponibles = materiales.filter(material => {
+        // Primero verificar que el estado sea disponible
+        if (material.estado !== 'disponible') {
+          return false;
+        }
+        
+        // Para cuerdas (materiales únicos): si están disponibles, están OK
+        if (material.tipo === 'cuerda') {
+          return true;
+        }
+        
+        // Para materiales con cantidadDisponible definida: verificar que sea > 0
+        if (typeof material.cantidadDisponible === 'number') {
+          return material.cantidadDisponible > 0;
+        }
+        
+        // Para materiales con cantidad total pero sin cantidadDisponible específica
+        if (typeof material.cantidad === 'number') {
+          return material.cantidad > 0;
+        }
+        
+        // Por defecto, si el estado es disponible y no hay cantidad definida, incluir
+        return true;
+      });
       
       console.log('🔍 [DEBUG] findMaterialesDisponibles - Materiales encontrados:', materiales.length);
-      console.log('🔍 [DEBUG] findMaterialesDisponibles - Materiales filtrados:', materialesFiltrados.length);
+      console.log('🔍 [DEBUG] findMaterialesDisponibles - Materiales disponibles:', materialesDisponibles.length);
       
-      return materialesFiltrados;
+      return materialesDisponibles;
       
     } catch (error) {
-      console.error('❌ [DEBUG] findMaterialesDisponibles - Error:', error);
+      console.error('❌ [DEBUG] findMaterialesDisponibles - Error en consulta principal:', error);
       
-      // Fallback: consulta aún más simple - obtener todos y filtrar en memoria
-      console.log('🔄 [DEBUG] findMaterialesDisponibles - Intentando fallback...');
+      // Fallback: obtener todos y filtrar en memoria
+      console.log('🔄 [DEBUG] findMaterialesDisponibles - Intentando fallback (obtener todos)...');
       try {
         const todosMateriales = await this.find({
           orderBy: [{ field: 'nombre', direction: 'asc' }]
         });
-          const materialesDisponibles = todosMateriales.filter(material => 
-          (material.cantidadDisponible ?? 0) > 0 && 
-          material.estado && 
-          material.estado.toLowerCase() === 'disponible'
-        );
+        
+        const materialesDisponibles = todosMateriales.filter(material => {
+          // Primero verificar que el estado sea disponible
+          if (material.estado !== 'disponible') {
+            return false;
+          }
+          
+          // Para cuerdas (materiales únicos): si están disponibles, están OK
+          if (material.tipo === 'cuerda') {
+            return true;
+          }
+          
+          // Para materiales con cantidadDisponible definida: verificar que sea > 0
+          if (typeof material.cantidadDisponible === 'number') {
+            return material.cantidadDisponible > 0;
+          }
+          
+          // Para materiales con cantidad total pero sin cantidadDisponible específica
+          if (typeof material.cantidad === 'number') {
+            return material.cantidad > 0;
+          }
+          
+          // Por defecto, si el estado es disponible y no hay cantidad definida, incluir
+          return true;
+        });
         
         console.log('✅ [DEBUG] findMaterialesDisponibles - Fallback exitoso:', materialesDisponibles.length);
         return materialesDisponibles;

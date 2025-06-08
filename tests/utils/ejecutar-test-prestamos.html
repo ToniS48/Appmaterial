@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejecutar Test de Préstamos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        .resultado {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .exito { border-color: #28a745; background-color: #d4edda; }
+        .error { border-color: #dc3545; background-color: #f8d7da; }
+        .info { border-color: #17a2b8; background-color: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Creación de Préstamos</h1>
+        <p>Este test verifica que cuando se crea una actividad con materiales, se generen automáticamente los préstamos correspondientes.</p>
+        
+        <div>
+            <button onclick="ejecutarTest()">▶️ Ejecutar Test Principal</button>
+            <button onclick="verificarServicios()">🔍 Verificar Servicios</button>
+            <button onclick="limpiarResultados()">🧹 Limpiar</button>
+        </div>
+        
+        <div id="resultados"></div>
+    </div>
+
+    <script>
+        // Variables globales
+        let contadorTest = 1;
+        
+        function log(mensaje, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.getElementById('resultados');
+            const elemento = document.createElement('div');
+            elemento.className = `resultado ${tipo}`;
+            elemento.textContent = `[${timestamp}] ${mensaje}`;
+            div.appendChild(elemento);
+            div.scrollTop = div.scrollHeight;
+            console.log(mensaje);
+        }
+
+        function limpiarResultados() {
+            document.getElementById('resultados').innerHTML = '';
+        }
+
+        async function verificarServicios() {
+            log('🔍 Verificando conexión con la aplicación...', 'info');
+            
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    log('✅ Aplicación accesible en localhost:3000', 'exito');
+                } else {
+                    log('❌ Error al conectar con la aplicación', 'error');
+                }
+            } catch (error) {
+                log(`❌ No se puede conectar con localhost:3000: ${error.message}`, 'error');
+            }
+        }
+
+        async function ejecutarTest() {
+            log('🚀 Iniciando test de creación de préstamos...', 'info');
+            
+            const timestamp = Date.now();
+            const actividadTest = {
+                nombre: `Test Actividad Préstamos ${contadorTest++} - ${timestamp}`,
+                descripcion: 'Actividad de prueba para verificar creación de préstamos',
+                tipo: ['escalada'],
+                subtipo: ['deportiva'],
+                fechaInicio: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                fechaFin: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+                lugar: 'Sector de prueba',
+                lugarEncuentro: 'Punto de encuentro test',
+                creadorId: `test-creator-${timestamp}`,
+                responsableActividadId: `test-responsable-actividad-${timestamp}`,
+                responsableMaterialId: `test-responsable-material-${timestamp}`,
+                participanteIds: [`test-creator-${timestamp}`],
+                necesidadMaterial: true, // ✅ CRÍTICO
+                materiales: [
+                    {
+                        materialId: `material-test-1-${timestamp}`,
+                        nombre: 'Cuerda de escalada test',
+                        cantidad: 2
+                    },
+                    {
+                        materialId: `material-test-2-${timestamp}`,
+                        nombre: 'Arnés test',
+                        cantidad: 1
+                    }
+                ],
+                estado: 'planificada',
+                dificultad: 'intermedio',
+                capacidadMaxima: 6,
+                observaciones: 'Test automatizado'
+            };
+
+            log(`📝 Actividad: ${actividadTest.nombre}`, 'info');
+            log(`🎯 Necesidad Material: ${actividadTest.necesidadMaterial}`, 'info');
+            log(`📦 Materiales: ${actividadTest.materiales.length} elementos`, 'info');
+
+            try {
+                // PASO 1: Crear actividad
+                log('🔧 PASO 1: Creando actividad...', 'info');
+                
+                const response = await fetch('http://localhost:3000/api/actividades', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(actividadTest)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const resultado = await response.json();
+                log(`✅ Actividad creada: ${resultado.id}`, 'exito');
+
+                // PASO 2: Esperar y verificar préstamos
+                log('🔧 PASO 2: Esperando creación de préstamos...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+
+                try {
+                    const prestamosResponse = await fetch(`http://localhost:3000/api/prestamos?actividadId=${resultado.id}`);
+                    let prestamos = [];
+                    
+                    if (prestamosResponse.ok) {
+                        prestamos = await prestamosResponse.json();
+                    }
+
+                    log(`📦 Préstamos encontrados: ${prestamos.length}`, prestamos.length > 0 ? 'exito' : 'error');
+                    log(`📦 Materiales esperados: ${actividadTest.materiales.length}`, 'info');
+
+                    if (prestamos.length > 0) {
+                        log('🎉 ¡ÉXITO! Préstamos creados correctamente:', 'exito');
+                        prestamos.forEach((prestamo, i) => {
+                            log(`  ${i+1}. ${prestamo.nombreMaterial || prestamo.materialId} (x${prestamo.cantidadPrestada})`, 'exito');
+                        });
+
+                        if (prestamos.length === actividadTest.materiales.length) {
+                            log('✅ VERIFICACIÓN COMPLETA: Número correcto de préstamos', 'exito');
+                        } else {
+                            log('⚠️ ADVERTENCIA: Número de préstamos no coincide exactamente', 'error');
+                        }
+                    } else {
+                        log('❌ FALLO: No se crearon préstamos', 'error');
+                        log('💡 Verifica los logs del servidor para más detalles', 'info');
+                    }
+
+                } catch (prestamoError) {
+                    log(`⚠️ Error al obtener préstamos: ${prestamoError.message}`, 'error');
+                }
+
+                log(`🎯 RESULTADO FINAL: ${prestamos.length > 0 ? 'TEST EXITOSO' : 'TEST FALLIDO'}`, 
+                    prestamos.length > 0 ? 'exito' : 'error');
+
+            } catch (error) {
+                log(`❌ ERROR EN EL TEST: ${error.message}`, 'error');
+                console.error('Error completo:', error);
+            }
+        }
+
+        // Verificar estado inicial
+        window.addEventListener('load', () => {
+            log('🌐 Página cargada - Lista para ejecutar tests', 'info');
+        });
+    </script>
+</body>
+</html>

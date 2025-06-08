@@ -109,8 +109,6 @@ const MisPrestamosPag: React.FC = () => {
   return (
     <DashboardLayout title="Mis Préstamos">
       <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="white">
-        <Heading size="md" mb={4}>Material que tengo en préstamo</Heading>
-        
         <Table variant="simple" size="sm">
           <Thead>
             <Tr>
