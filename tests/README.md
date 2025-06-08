@@ -15,17 +15,17 @@ Solo contiene archivos esenciales del proyecto:
 ```
 tests/
 ├── core/                                    # Tests principales y validaciones críticas
-│   ├── test-devoluciones-completo.js        # Test completo de devoluciones
-│   ├── test-prestamos-final.js              # Test final de préstamos automáticos
-│   ├── validacion-sistema-completo.js       # Validación del sistema completo
+│   ├── test-devoluciones.js                 # Test de devoluciones
+│   ├── test-prestamos.js                    # Test de préstamos automáticos
+│   ├── validacion-sistema.js                # Validación del sistema
 │   ├── validate-material-editor-implementation.js  # Validación MaterialEditor
-│   ├── verificacion-final-material-automatico.js   # Verificación lógica automática
+│   ├── verificacion-material.js             # Verificación lógica de material
 │   ├── verify-firebase-connection.js        # Verificación conexión Firebase
 │   └── verify-fix.js                        # Verificación de fixes aplicados
 ├── docs/                                    # Documentación de tests
 │   ├── CORRECCION-ACTIVIDADID-COMPLETADA.md # Doc. corrección principal
-│   ├── RESUMEN-SOLUCION-PRESTAMOS-FINAL.md  # Resumen solución final
-│   └── test-flujo-completo-prestamos.md     # Doc. flujo de tests
+│   ├── RESUMEN-SOLUCION-PRESTAMOS.md        # Resumen solución préstamos
+│   └── test-flujo-prestamos.md              # Doc. flujo de tests
 ├── unit/                                    # Tests unitarios
 │   └── notificaciones-registro.test.ts      # Test unitario notificaciones
 └── utils/                                   # Utilidades y scripts auxiliares
@@ -33,15 +33,16 @@ tests/
     ├── check-index.bat                      # Verificación índices Firebase
     ├── cleanup-eslint-safe.js               # Limpieza ESLint segura
     ├── cleanup-eslint.js                    # Limpieza ESLint
-    ├── crear-materiales-prueba-rapido.js    # Crear materiales test
+    ├── crear-materiales-prueba.js           # Crear materiales test
     ├── create-test-materials.js             # Crear materiales test
     ├── deploy-firebase-indexes.bat          # Deploy índices Firebase
-    ├── inicio-rapido-prestamos.bat          # Inicio rápido tests
+    ├── inicio-prestamos.bat                 # Inicio tests préstamos
     ├── start-app.ps1                        # Iniciar aplicación
     ├── test-materiales-disponibles.bat      # Test materiales disponibles
+    ├── test-simple.ps1                      # Test simple
     ├── validate-optimizations.ps1           # Validar optimizaciones
     ├── validate-simple.ps1                  # Validación simple
-    ├── verificacion-final.ps1               # Verificación final
+    ├── verificacion.ps1                     # Verificación
     └── [archivos HTML de test]               # Tests HTML varios
 ```
 
@@ -97,20 +98,20 @@ docs/
 
 ### 🧪 Tests Críticos
 ```bash
-# Test completo de préstamos automáticos
-node tests/core/test-prestamos-final.js
+# Test de préstamos automáticos
+node tests/core/test-prestamos.js
 
-# Test completo de devoluciones
-node tests/core/test-devoluciones-completo.js
+# Test de devoluciones
+node tests/core/test-devoluciones.js
 
-# Validación sistema completo
-node tests/core/validacion-sistema-completo.js
+# Validación sistema
+node tests/core/validacion-sistema.js
 ```
 
 ### 🔧 Utilidades
 ```bash
-# Inicio rápido de tests
-./tests/utils/inicio-rapido-prestamos.bat
+# Inicio tests préstamos
+./tests/utils/inicio-prestamos.bat
 
 # Deploy índices Firebase
 ./tests/utils/deploy-firebase-indexes.bat

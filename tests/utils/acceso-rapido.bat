@@ -9,10 +9,10 @@ echo.
 echo 📁 ESTRUCTURA REORGANIZADA:
 echo.
 echo 🔧 TESTS PRINCIPALES:
-echo [1] Inicio Rapido Prestamos
+echo [1] Inicio Prestamos
 echo [2] Test Prestamos (Navegador)
 echo [3] Deploy Firebase Indexes
-echo [4] Verificacion Final
+echo [4] Verificacion
 echo.
 echo 📖 DOCUMENTACION:
 echo [5] Ver README de Tests
@@ -29,8 +29,8 @@ set /p choice="Selecciona una opcion [0-9]: "
 
 if "%choice%"=="1" (
     echo.
-    echo 🚀 Ejecutando Inicio Rapido Prestamos...
-    tests\utils\inicio-rapido-prestamos.bat
+    echo 🚀 Ejecutando Inicio Prestamos...
+    tests\utils\inicio-prestamos.bat
 ) else if "%choice%"=="2" (
     echo.
     echo 🌐 Abriendo Test de Prestamos en Navegador...
@@ -41,8 +41,8 @@ if "%choice%"=="1" (
     tests\utils\deploy-firebase-indexes.bat
 ) else if "%choice%"=="4" (
     echo.
-    echo ✅ Ejecutando Verificacion Final...
-    powershell -ExecutionPolicy Bypass -File tests\utils\verificacion-final.ps1
+    echo ✅ Ejecutando Verificacion...
+    powershell -ExecutionPolicy Bypass -File tests\utils\verificacion.ps1
 ) else if "%choice%"=="5" (
     echo.
     echo 📖 Mostrando README de Tests...
