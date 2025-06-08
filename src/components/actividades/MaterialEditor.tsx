@@ -18,9 +18,10 @@ interface MaterialEditorProps {
   data: any;
   onSave: (data: any) => void;
   onCancel?: () => void;
-  onNecesidadMaterialChange?: (necesidad: boolean) => void;
   mostrarBotones?: boolean;
   isInsideForm?: boolean;
+  control?: any; // Control del formulario padre cuando isInsideForm=true
+  actividadId?: string; // Agregar prop para contexto de la actividad
   // Nuevas props para la lógica condicional
   responsables?: {
     responsableActividadId?: string;
@@ -33,41 +34,63 @@ interface MaterialEditorProps {
 const MaterialEditor = forwardRef<
   { submitForm: () => void },
   MaterialEditorProps
->(({ data, onSave, onCancel, onNecesidadMaterialChange, mostrarBotones = true, isInsideForm = false, responsables, usuarios }, ref) => {
-  const { control, handleSubmit, formState: { errors }, watch } = useForm({
+>(({ data, onSave, onCancel, mostrarBotones = true, isInsideForm = false, control: parentControl, actividadId, responsables, usuarios }, ref) => {
+  // Usar control del padre si isInsideForm=true, sino crear propio useForm
+  const ownForm = useForm({
     defaultValues: {
       materiales: data.materiales || []
-    }  });
-
-  const [necesidadMaterial, setNecesidadMaterial] = useState<boolean>(data.necesidadMaterial || false);
+    }
+  });
+  
+  const control = isInsideForm && parentControl ? parentControl : ownForm.control;
+  const formState = isInsideForm && parentControl ? { errors: {} } : ownForm.formState;
+  const watch = isInsideForm && parentControl ? parentControl.watch : ownForm.watch;
+  const errors = formState.errors || {};
   
   const cardBg = useColorModeValue("white", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
-  
-  // Lista memoizada de materiales para evitar re-renders
-  const materialesList = watch('materiales') || [];
 
-  // Asegurar que los materiales siempre tengan el formato correcto
+  // Función para validar y formatear materiales
+  const validarMateriales = (materiales: any[]) => {
+    if (!Array.isArray(materiales)) return [];
+    
+    return materiales
+      .filter((m: MaterialItem) => m && m.materialId)
+      .map((m: MaterialItem) => ({
+        materialId: m.materialId,
+        nombre: m.nombre || '',
+        cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
+      }));
+  };
+
+  // Función de envío del formulario
+  const onSubmit = (formData: any) => {
+    console.log('Materiales seleccionados:', formData.materiales);
+    const materialesValidados = validarMateriales(formData.materiales || []);
+    onSave(materialesValidados);
+  };
+
+  // useImperativeHandle para manejar submitForm
   useImperativeHandle(ref, () => ({
     submitForm: () => {
-      console.log('MaterialEditor - submitForm llamado');
+      console.log('MaterialEditor - submitForm llamado, isInsideForm:', isInsideForm);
       
-      // Ejecutar handleSubmit con onSubmit como callback
+      if (isInsideForm && parentControl) {
+        // Cuando está dentro de un formulario padre, obtener datos directamente del control padre
+        const currentMateriales = watch('materiales') || [];
+        console.log('MaterialEditor - Materiales del control padre:', currentMateriales);
+        
+        const materialesValidados = validarMateriales(currentMateriales);
+        console.log('MaterialEditor - Materiales validados desde padre:', materialesValidados);
+        onSave(materialesValidados);
+        return;
+      }
+      
+      // Ejecutar handleSubmit con onSubmit como callback (formulario independiente)
       try {
-        handleSubmit((formData) => {
+        ownForm.handleSubmit((formData) => {
           console.log('Material form data:', formData);
-          if (!formData.materiales) formData.materiales = [];
-          
-          // Validar y limpiar los materiales - formato estandarizado para ambos modos
-          const materialesValidados = Array.isArray(formData.materiales) ? 
-            formData.materiales
-              .filter((m: MaterialItem) => m && m.materialId)
-              .map((m: MaterialItem) => ({
-                materialId: m.materialId,
-                nombre: m.nombre || '',
-                cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
-              })) : [];
-          
+          const materialesValidados = validarMateriales(formData.materiales || []);
           console.log('Materiales validados:', materialesValidados);
           onSave(materialesValidados);
         })();
@@ -75,52 +98,21 @@ const MaterialEditor = forwardRef<
         console.error('Error en submitForm de MaterialEditor:', error);
         // Fallback: enviar la lista actual en caso de error
         const materialesActuales = watch('materiales') || [];
-        const materialesValidados = materialesActuales
-          .filter((m: MaterialItem) => m && m.materialId)
-          .map((m: MaterialItem) => ({
-            materialId: m.materialId,
-            nombre: m.nombre || '',
-            cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
-          }));
+        const materialesValidados = validarMateriales(materialesActuales);
         onSave(materialesValidados);
       }
     }
   }));
-
-  // Función de envío del formulario
-  const onSubmit = (formData: any) => {
-    console.log('Materiales seleccionados:', formData.materiales);
+  // Preparar los materiales normalizados para el selector
+  const prepararMateriales = () => {
+    if (!Array.isArray(data.materiales)) return [];
     
-    // Validar y enviar los datos
-    const materialesValidados = Array.isArray(formData.materiales) ? 
-      formData.materiales
-        .filter((m: MaterialItem) => m && m.materialId)
-        .map((m: MaterialItem) => ({
-          materialId: m.materialId,
-          nombre: m.nombre || '',
-          cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
-        })) : [];
-    
-    onSave(materialesValidados);
-  };
-
-  // Usar un Box normal o un form según el contexto
-  const WrapperComponent = isInsideForm ? Box : 'form';
-  
-  // Añadir manejo del cambio de necesidad de material
-  const handleNecesidadMaterialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.checked;
-    setNecesidadMaterial(newValue);
-    
-    // Notificar al componente padre a través del callback
-    if (onNecesidadMaterialChange) {
-      onNecesidadMaterialChange(newValue);
-    }
-  };
-    // Función helper para obtener nombre del usuario
-  const obtenerNombreUsuario = (uid: string) => {
-    const usuario = usuarios?.find(u => u.uid === uid);
-    return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
+    return data.materiales.map((material: MaterialAsignado) => ({
+      id: material.materialId ? `temp-${material.materialId}` : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      materialId: material.materialId || '',
+      nombre: material.nombre || '',
+      cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad || '1'), 10) || 1
+    }));
   };
 
   // Verificar si hay responsable de material asignado
@@ -152,22 +144,19 @@ const MaterialEditor = forwardRef<
         )}
       </Text>
     );
-  };  
-  // Preparar los materiales normalizados para el selector
-  const prepararMateriales = () => {
-    if (!Array.isArray(data.materiales)) return [];
-    
-    return data.materiales.map((material: MaterialAsignado) => ({
-      id: material.materialId ? `temp-${material.materialId}` : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      materialId: material.materialId || '',
-      nombre: material.nombre || '',
-      cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad || '1'), 10) || 1
-    }));
   };
-  return (
-    <WrapperComponent 
-      {...(isInsideForm ? {} : { onSubmit: handleSubmit(onSubmit) })}
-    >
+
+  // Función helper para obtener nombre del usuario
+  const obtenerNombreUsuario = (uid: string) => {
+    const usuario = usuarios?.find(u => u.uid === uid);
+    return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
+  };
+
+  // Renderizar contenido del formulario
+  const renderFormContent = () => (
+    <>
+      {renderizarResponsables()}
+      
       {/* Si no hay responsable de material, mostrar pantalla bloqueada */}
       {!tieneResponsableMaterial ? (
         <Alert status="warning">
@@ -182,20 +171,21 @@ const MaterialEditor = forwardRef<
         </Alert>
       ) : (
         /* Mostrar formulario de material solo si hay responsable */
-        <FormControl isInvalid={!!errors.materiales}>
+        <FormControl isInvalid={!!(errors as any)?.materiales}>
           <MaterialSelector 
             control={control} 
             name="materiales" 
             materialesActuales={prepararMateriales()}
-            error={errors.materiales} 
+            error={(errors as any)?.materiales} 
             cardBg={cardBg}
             borderColor={borderColor}
+            actividadId={actividadId}
             responsables={responsables}
             usuarios={usuarios}
           />
           
-          {errors.materiales && (
-            <FormErrorMessage>{errors.materiales.message?.toString()}</FormErrorMessage>
+          {(errors as any)?.materiales && (
+            <FormErrorMessage>{(errors as any)?.materiales?.message?.toString()}</FormErrorMessage>
           )}
         </FormControl>
       )}
@@ -210,7 +200,18 @@ const MaterialEditor = forwardRef<
           </Button>
         </Stack>
       )}
-    </WrapperComponent>
+    </>
+  );
+
+  // Renderizar según si está dentro de un formulario o no
+  return isInsideForm ? (
+    <Box>
+      {renderFormContent()}
+    </Box>
+  ) : (
+    <form onSubmit={ownForm.handleSubmit(onSubmit)}>
+      {renderFormContent()}
+    </form>
   );
 });
 

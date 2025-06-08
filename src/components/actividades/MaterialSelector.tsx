@@ -58,6 +58,7 @@ export interface MaterialSelectorProps {
   materialesActuales?: MaterialField[];
   cardBg?: string;
   borderColor?: string;
+  actividadId?: string; // Agregar prop para contexto de la actividad
   responsables?: {
     responsableActividadId?: string;
     responsableMaterialId?: string;
@@ -76,20 +77,33 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   materialesActuales = [],
   cardBg,
   borderColor,
+  actividadId,
   responsables,
   usuarios = []
-}) => {  // Estados locales
+}) => {
+  // Debug inicial
+  console.log("📦 MaterialSelector - Props recibidas:");
+  console.log("📦 MaterialSelector - actividadId:", actividadId);
+  console.log("📦 MaterialSelector - responsables:", responsables);
+  console.log("📦 MaterialSelector - materialesActuales:", materialesActuales);
+
+  // Estados locales
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorState, setErrorState] = useState<string | null>(null);
   const [materialesDisponibles, setMaterialesDisponibles] = useState<MaterialItem[]>([]);
   const [loadingMateriales, setLoadingMateriales] = useState<boolean>(true);
-
   // Hook para manejar el array de materiales
   const { fields, append, remove, update } = useFieldArray({
     control,
     name: name as "materiales"
   });
+
+  // Debug logging para useFieldArray
+  console.log('📋 MaterialSelector - useFieldArray inicializado');
+  console.log('📋 Fields actuales:', fields);
+  console.log('📏 Cantidad de fields:', fields.length);
+  console.log('🎯 Control name:', name);
 
   // Toast para notificaciones
   const toast = useToast();
@@ -105,8 +119,25 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       cantidadDisponible: material.cantidadDisponible,
       codigo: material.codigo,
       descripcion: material.descripcion
-    };
-  }, []);  // Cargar materiales disponibles
+    };  }, []);
+
+  // useEffect para monitorear cambios en fields
+  useEffect(() => {
+    console.log('🔄 CAMBIO EN FIELDS - MaterialSelector');
+    console.log('📋 Fields actualizados:', fields);
+    console.log('📏 Nueva cantidad:', fields.length);
+    console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
+  }, [fields]);
+
+  // Agregar useEffect para monitorear cambios en fields
+  useEffect(() => {
+    console.log('🔄 FIELDS CAMBIARON - MaterialSelector');
+    console.log('📋 Nuevo estado de fields:', typedFields);
+    console.log('📏 Cantidad de materiales:', typedFields.length);
+    console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
+  }, [typedFields]);
+
+  // Cargar materiales disponibles
   useEffect(() => {
     const cargarMateriales = async () => {
       try {
@@ -228,14 +259,30 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
       });
       return;
     }
-    
-    try {
-      append({
+      try {
+      const materialToAdd = {
         id: `material-${material.id}-${Date.now()}`,
         materialId: material.id,
         nombre: material.nombre,
         cantidad: qty
-      });
+      };
+      
+      console.log('🎯 ANTES DE APPEND - MaterialSelector');
+      console.log('📦 Material a añadir:', materialToAdd);
+      console.log('📋 Fields actuales antes:', typedFields);
+      console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
+      
+      append(materialToAdd);
+      
+      console.log('✅ APPEND EJECUTADO - MaterialSelector');
+      console.log('📦 Material añadido:', materialToAdd);
+      
+      // Verificar el estado después de append
+      setTimeout(() => {
+        console.log('🔄 DESPUÉS DE APPEND - MaterialSelector');
+        console.log('📋 Fields después del append:', typedFields);
+        console.log('📏 Cantidad de fields:', typedFields.length);
+      }, 10);
       
       toast({
         title: messages.material.selector.materialAnadido,
@@ -244,7 +291,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
         duration: 2000,
       });
     } catch (error) {
-      console.error('Error al añadir material:', error);
+      console.error('❌ ERROR AL AÑADIR MATERIAL - MaterialSelector:', error);
       toast({
         title: messages.errors.general,
         description: messages.material.selector.errorAnadir,
