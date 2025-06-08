@@ -111,10 +111,9 @@ const AppRoutes: React.FC = () => {
         path="/activities/:id/material" 
         element={
           <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-            <ActividadMaterialPage />
-          </ProtectedRoute>        }
+            <ActividadMaterialPage />          </ProtectedRoute>        }
       />
-      <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['socio']}><MaterialInventoryPage /></ProtectedRoute>} />
+      <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}><MaterialInventoryPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><ProfilePage /></ProtectedRoute>} />
       <Route 
         path="/notificaciones" 
