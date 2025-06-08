@@ -179,6 +179,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('offline', handleConnectionChange);
     };
   }, [currentUser]);
+  // Exponer variables para debugging en desarrollo
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).authDebug = {
+        currentUser,
+        userProfile,
+        loading,
+        authContext: {
+          currentUser,
+          userProfile,
+          loading,
+          login,
+          logout,
+          resetPassword,
+          refreshUserProfile
+        }
+      };
+      
+      // También exponer variables individuales para compatibilidad
+      (window as any).currentUser = currentUser;
+      (window as any).userProfile = userProfile;
+      
+      console.log('Debug: Variables de auth expuestas globalmente:', {
+        currentUser: currentUser?.email || 'No usuario',
+        userProfile: userProfile?.rol || 'No perfil',
+        loading
+      });
+    }
+  }, [currentUser, userProfile, loading]);
 
   const value = {
     currentUser,

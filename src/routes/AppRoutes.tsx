@@ -13,7 +13,6 @@ import CalendarioPage from '../pages/actividades/CalendarioPage';
 import ActividadPage from '../pages/actividades/ActividadPage';
 import ActividadFormPage from '../pages/actividades/ActividadFormPage';
 import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
-import MaterialPage from '../pages/material/GestionMaterialPage';
 import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';
 import GestionMaterialPage from '../pages/material/GestionMaterialPage';
 import ProfilePage from '../pages/usuario/ProfilePage';
@@ -113,9 +112,8 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
             <ActividadMaterialPage />
-          </ProtectedRoute>
-        }
-      />      <Route path="/material" element={<ProtectedRoute allowedRoles={['admin', 'vocal']}><MaterialPage /></ProtectedRoute>} />
+          </ProtectedRoute>        }
+      />
       <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['socio']}><MaterialInventoryPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><ProfilePage /></ProtectedRoute>} />
       <Route 

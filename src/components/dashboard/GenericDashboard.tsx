@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { SimpleGrid, Heading, VStack, Spinner, Alert, AlertIcon, Divider, Box, Text, useColorModeValue } from '@chakra-ui/react';
 import { IconType } from 'react-icons';
 import { FiUsers, FiSettings } from 'react-icons/fi';
@@ -10,6 +10,7 @@ import { obtenerEstadisticasActividades } from '../../services/actividadService'
 import { UsuarioRepository } from '../../repositories/UsuarioRepository';
 import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
+import { queryCache, CACHE_KEYS } from '../../utils/queryCache';
 
 // Tipo para definir una tarjeta del dashboard
 export interface DashboardCard {
@@ -31,7 +32,9 @@ interface GenericDashboardProps {
 }
 
 const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, socioCards }) => {
-  const { userProfile } = useAuth();  // Color mode values para tema claro/oscuro
+  const { userProfile } = useAuth();
+  
+  // Color mode values para tema claro/oscuro
   const dividerColor = useColorModeValue('gray.300', 'gray.600');
   
   // Estados para las estadísticas
@@ -44,68 +47,79 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
     actividades: { total: 0, planificadas: 0, enCurso: 0, finalizadas: 0 }
   });
 
-  // Instancias de repositorios
-  const usuarioRepository = new UsuarioRepository();
-  const prestamoRepository = new PrestamoRepository();
-  const materialRepository = new MaterialRepository();
+  // Instancias de repositorios memoizadas
+  const usuarioRepository = useMemo(() => new UsuarioRepository(), []);
+  const prestamoRepository = useMemo(() => new PrestamoRepository(), []);
+  const materialRepository = useMemo(() => new MaterialRepository(), []);  // Función para cargar estadísticas optimizada con cache
+  const cargarEstadisticas = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Cargar estadísticas usando cache para evitar consultas duplicadas
+      const [
+        estadUsuarios,
+        estadPrestamos,
+        estadMateriales,
+        estadActividades
+      ] = await Promise.all([
+        queryCache.query(
+          CACHE_KEYS.ESTADISTICAS_USUARIOS,
+          () => usuarioRepository.getEstadisticas(),
+          60000 // Cache por 1 minuto
+        ),
+        queryCache.query(
+          CACHE_KEYS.ESTADISTICAS_PRESTAMOS,
+          () => prestamoRepository.getEstadisticas(),
+          60000
+        ),
+        queryCache.query(
+          CACHE_KEYS.ESTADISTICAS_MATERIALES,
+          () => materialRepository.getEstadisticas(),
+          60000
+        ),
+        queryCache.query(
+          CACHE_KEYS.ESTADISTICAS_ACTIVIDADES,
+          () => obtenerEstadisticasActividades(),
+          60000
+        )
+      ]);
+
+      setEstadisticas({
+        usuarios: {
+          total: estadUsuarios.total,
+          activos: estadUsuarios.activos,
+          inactivos: estadUsuarios.inactivos
+        },
+        prestamos: {
+          total: estadPrestamos.total,
+          activos: estadPrestamos.activos,
+          vencidos: estadPrestamos.vencidos
+        },
+        materiales: {
+          total: estadMateriales.total,
+          disponible: estadMateriales.porEstado?.disponible || 0
+        },
+        actividades: {
+          total: estadActividades.planificadas + estadActividades.enCurso + estadActividades.finalizadas + (estadActividades.canceladas || 0),
+          planificadas: estadActividades.planificadas,
+          enCurso: estadActividades.enCurso,
+          finalizadas: estadActividades.finalizadas
+        }
+      });
+
+      console.log('✅ Estadísticas cargadas con cache:', queryCache.getStats());
+    } catch (err) {
+      console.error('❌ Error cargando estadísticas:', err);
+      setError('Error al cargar las estadísticas del sistema');} finally {
+      setLoading(false);
+    }
+  }, [usuarioRepository, prestamoRepository, materialRepository]);
 
   // Cargar estadísticas al montar el componente
   useEffect(() => {
-    const cargarEstadisticas = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Cargar estadísticas en paralelo
-        const [
-          estadUsuarios,
-          estadPrestamos,
-          estadMateriales,
-          estadActividades
-        ] = await Promise.all([
-          usuarioRepository.getEstadisticas(),
-          prestamoRepository.getEstadisticas(),
-          materialRepository.getEstadisticas(),
-          obtenerEstadisticasActividades()
-        ]);        setEstadisticas({
-          usuarios: {
-            total: estadUsuarios.total,
-            activos: estadUsuarios.activos,
-            inactivos: estadUsuarios.inactivos
-          },
-          prestamos: {
-            total: estadPrestamos.total,
-            activos: estadPrestamos.activos,
-            vencidos: estadPrestamos.vencidos
-          },
-          materiales: {
-            total: estadMateriales.total,
-            disponible: estadMateriales.porEstado?.disponible || 0
-          },
-          actividades: {
-            total: estadActividades.planificadas + estadActividades.enCurso + estadActividades.finalizadas + (estadActividades.canceladas || 0),
-            planificadas: estadActividades.planificadas,
-            enCurso: estadActividades.enCurso,
-            finalizadas: estadActividades.finalizadas
-          }
-        });
-
-        console.log('Estadísticas cargadas:', {
-          usuarios: estadUsuarios,
-          prestamos: estadPrestamos,
-          materiales: estadMateriales,
-          actividades: estadActividades
-        });
-      } catch (err) {
-        console.error('Error cargando estadísticas:', err);
-        setError('Error al cargar las estadísticas del sistema');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     cargarEstadisticas();
-  }, []);  // Función para procesar estadísticas dinámicamente
+  }, [cargarEstadisticas]);// Función para procesar estadísticas dinámicamente
   const processStatValue = (card: DashboardCard): { value?: string | number; label?: string } => {
     // Si no tiene statValue o statLabel configurados, no mostrar estadísticas
     if (!card.statValue && card.statValue !== 0) return {};
