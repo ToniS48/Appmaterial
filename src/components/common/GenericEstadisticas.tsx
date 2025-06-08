@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, 
   Heading, 
@@ -37,6 +37,7 @@ import { UsuarioRepository } from '../../repositories/UsuarioRepository';
 import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
 import { obtenerEstadisticasActividades } from '../../services/actividadService';
+import { queryCache, CACHE_KEYS } from '../../utils/queryCache';
 
 interface EstadisticasData {
   usuarios: {
@@ -85,35 +86,53 @@ const GenericEstadisticas: React.FC<GenericEstadisticasProps> = ({ userRole, pag
     materiales: { total: 0, disponible: 0, prestado: 0, mantenimiento: 0 },
     actividades: { total: 0, planificadas: 0, enCurso: 0, finalizadas: 0 }
   });
-
-  // Instancias de repositorios
-  const usuarioRepo = new UsuarioRepository();
-  const prestamoRepo = new PrestamoRepository();
-  const materialRepo = new MaterialRepository();
-
+  // Repositorios memoizados para evitar crear nuevas instancias en each render
+  const usuarioRepo = useMemo(() => new UsuarioRepository(), []);
+  const prestamoRepo = useMemo(() => new PrestamoRepository(), []);
+  const materialRepo = useMemo(() => new MaterialRepository(), []);
   const obtenerEstadisticas = async () => {
     try {
-      setLoading(true);      // Estadísticas de usuarios
-      const usuarios = await usuarioRepo.find();
+      setLoading(true);
+      
+      // Consultas con cache (TTL: 60 segundos para estadísticas)
+      const usuarios = await queryCache.query(
+        CACHE_KEYS.ESTADISTICAS_USUARIOS, 
+        () => usuarioRepo.find(), 
+        60000
+      );
       const usuariosActivos = usuarios.filter(u => u.activo).length;
-      const usuariosSocios = usuarios.filter(u => u.rol === 'socio').length;      // Estadísticas de préstamos
-      const prestamos = await prestamoRepo.find();
-      const prestamosActivos = prestamos.filter(p => p.estado === 'en_uso').length;      const prestamosVencidos = prestamos.filter(p => {
+      const usuariosSocios = usuarios.filter(u => u.rol === 'socio').length;
+
+      // Estadísticas de préstamos
+      const prestamos = await queryCache.query(
+        CACHE_KEYS.ESTADISTICAS_PRESTAMOS, 
+        () => prestamoRepo.find(), 
+        60000
+      );
+      const prestamosActivos = prestamos.filter(p => p.estado === 'en_uso').length;const prestamosVencidos = prestamos.filter(p => {
         if (p.estado !== 'en_uso') return false;
         const hoy = new Date();
         const fechaDevolucion = p.fechaDevolucionPrevista instanceof Date ? 
           p.fechaDevolucionPrevista : p.fechaDevolucionPrevista.toDate();
         return fechaDevolucion < hoy;
-      }).length;
-      const prestamosCompletados = prestamos.filter(p => p.estado === 'devuelto').length;
-        // Estadísticas de materiales
-      const materiales = await materialRepo.find();
+      }).length;      const prestamosCompletados = prestamos.filter(p => p.estado === 'devuelto').length;
+      
+      // Estadísticas de materiales
+      const materiales = await queryCache.query(
+        CACHE_KEYS.ESTADISTICAS_MATERIALES, 
+        () => materialRepo.find(), 
+        60000
+      );
       const materialesDisponibles = materiales.filter(m => m.estado === 'disponible').length;
       const materialesPrestados = materiales.filter(m => m.estado === 'prestado').length;
       const materialesMantenimiento = materiales.filter(m => m.estado === 'mantenimiento').length;
       
-      // Estadísticas de actividades
-      const actividadesStats = await obtenerEstadisticasActividades();
+      // Estadísticas de actividades (con cache)
+      const actividadesStats = await queryCache.query(
+        CACHE_KEYS.ESTADISTICAS_ACTIVIDADES, 
+        () => obtenerEstadisticasActividades(), 
+        60000
+      );
 
       let usuariosStats;
       if (userRole === 'admin') {

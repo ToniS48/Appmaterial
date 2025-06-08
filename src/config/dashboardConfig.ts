@@ -16,12 +16,12 @@ export const adminDashboardCards: DashboardCard[] = [
   },  {
     title: "Gestión Material",
     icon: FaBox,
-    route: "/admin/material",
+    route: "/material",
     description: "Gestión del inventario de material",
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
-  },  {
+  },{
     title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/admin/reportes",
@@ -71,12 +71,12 @@ export const vocalDashboardCards: DashboardCard[] = [
   },  {
     title: "Gestión Material",
     icon: FaBox,
-    route: "/vocal/material",
+    route: "/material",
     description: "Supervisión del inventario de material",
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
-  },  {
+  },{
     title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/vocal/reportes",

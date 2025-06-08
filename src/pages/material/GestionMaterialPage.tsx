@@ -5,8 +5,7 @@ import {
   Heading,
   Text,
   Flex,
-  useDisclosure,
-  Modal,
+  useDisclosure,  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -44,11 +43,14 @@ import {
   WarningIcon, 
   SearchIcon 
 } from '@chakra-ui/icons';
-import { FiBox, FiPrinter } from 'react-icons/fi';
+import { FiBox, FiPrinter, FiDownload, FiUpload } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales, eliminarMaterial } from '../../services/materialService';
+import { materialService } from '../../services/MaterialServiceRefactored';
 import MaterialForm from '../../components/material/MaterialForm';
+import MaterialExportManager from '../../components/admin/MaterialExportManager';
+import MaterialImportManager from '../../components/admin/MaterialImportManager';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
 import { useOptimizedClickHandler, useOptimizedInputHandler } from '../../utils/eventOptimizer';
@@ -65,6 +67,8 @@ const ESTADOS_MATERIAL = [
 ];
 
 const GestionMaterialPage: React.FC = () => {
+  console.log('🔧 GestionMaterialPage - Component rendering iniciado');
+  
   // Estados
   const [materiales, setMateriales] = useState<any[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
@@ -77,35 +81,44 @@ const GestionMaterialPage: React.FC = () => {
   const { currentUser, userProfile } = useAuth();
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { isOpen: isExportOpen, onOpen: onExportOpen, onClose: onExportClose } = useDisclosure();
+  const { isOpen: isImportOpen, onOpen: onImportOpen, onClose: onImportClose } = useDisclosure();
   
   // Setup scheduler optimizer
   useEffect(() => {
     const cleanup = setupSchedulerOptimizer();
     return cleanup;
   }, []);
-  
-  // Función optimizada para cargar la lista de materiales
+    // Función optimizada para cargar la lista de materiales
   const cargarMateriales = useCallback(async () => {
+    console.log('🔧 GestionMaterialPage - Iniciando carga de materiales');
     return deferCallback(async () => {
       try {
         setIsLoading(true);
+        console.log('🔧 GestionMaterialPage - Estado de carga: true');
+        
         const filters: { tipo?: string; estado?: string } = {};
         
         if (filtroTipo) filters.tipo = filtroTipo;
         if (filtroEstado) filters.estado = filtroEstado;
         
+        console.log('🔧 GestionMaterialPage - Aplicando filtros:', filters);
+        
         const materialesData = await listarMateriales(filters);
+        console.log('🔧 GestionMaterialPage - Materiales cargados:', materialesData.length);
+        
         setMateriales(materialesData);
       } catch (error) {
-        console.error('Error al cargar materiales:', error);
+        console.error('❌ GestionMaterialPage - Error al cargar materiales:', error);
       } finally {
         setIsLoading(false);
+        console.log('🔧 GestionMaterialPage - Estado de carga: false');
       }
     });
   }, [filtroTipo, filtroEstado]);
-  
-  // Cargar materiales al montar el componente o cambiar filtros
+    // Cargar materiales al montar el componente o cambiar filtros
   useEffect(() => {
+    console.log('🔧 GestionMaterialPage - useEffect ejecutado, cargando materiales...');
     cargarMateriales();
   }, [cargarMateriales]);
   
@@ -131,8 +144,7 @@ const GestionMaterialPage: React.FC = () => {
   const handleBusquedaChange = useOptimizedInputHandler((value: string) => {
     setBusqueda(value);
   }, { debounceDelay: 300 });
-  
-  // Función para confirmar eliminación optimizada
+    // Función para confirmar eliminación optimizada
   const confirmarEliminacion = useOptimizedClickHandler(async () => {
     if (!selectedMaterial) return;
     
@@ -146,9 +158,35 @@ const GestionMaterialPage: React.FC = () => {
       }
     });
   });
-  
-  // Comprobar si el usuario es admin (para mostrar opción de eliminar)
+  // Función para manejar importación exitosa
+  const handleImportSuccess = useCallback(async (materialsToImport: Omit<any, 'id'>[]) => {
+    try {
+      // Importar materiales usando el servicio refactorizado
+      const importPromises = materialsToImport.map(material => 
+        materialService.crearMaterial(material)
+      );
+      
+      await Promise.all(importPromises);
+      
+      // Recargar la lista de materiales
+      await cargarMateriales();
+      
+      // Cerrar modal de importación
+      onImportClose();
+    } catch (error) {
+      console.error('Error al importar materiales:', error);
+      throw error; // Re-lanzar para que el componente de importación pueda manejarlo
+    }
+  }, [cargarMateriales, onImportClose]);
+    // Comprobar si el usuario es admin (para mostrar opción de eliminar)
   const isAdmin = useMemo(() => userProfile?.rol === 'admin', [userProfile?.rol]);
+
+  console.log('🔧 GestionMaterialPage - Renderizando componente:', {
+    materialesCount: materiales.length,
+    isLoading,
+    isAdmin,
+    userProfile: userProfile?.rol
+  });
 
   return (
     <DashboardLayout title="Gestión de Material">
@@ -171,12 +209,43 @@ const GestionMaterialPage: React.FC = () => {
           <HStack> {/* Envolver Heading en HStack para añadir icono */}
             <FiBox size="24px" /> {/* Añadir icono */}
             <Heading size="md">Inventario de Material</Heading>
-          </HStack>
-          <HStack 
+          </HStack>          <HStack 
             spacing={3}
             width={{ base: "100%", md: "auto" }}
             flexDirection={{ base: "column", sm: "row" }}
-          >            <Button
+          >
+            {/* Botones de administrador */}
+            {isAdmin && (
+              <>
+                <Menu>
+                  <MenuButton 
+                    as={Button} 
+                    rightIcon={<ChevronDownIcon />}
+                    colorScheme="blue"
+                    variant="outline"
+                    width={{ base: "100%", sm: "auto" }}
+                  >
+                    Importar/Exportar
+                  </MenuButton>
+                  <MenuList>
+                    <MenuItem 
+                      icon={<FiUpload />} 
+                      onClick={onImportOpen}
+                    >
+                      Importar materiales
+                    </MenuItem>
+                    <MenuItem 
+                      icon={<FiDownload />} 
+                      onClick={onExportOpen}
+                    >
+                      Exportar materiales
+                    </MenuItem>
+                  </MenuList>
+                </Menu>
+              </>
+            )}
+            
+            <Button
               as={RouterLink}
               to="/material/print-qr"
               leftIcon={<FiPrinter />}
@@ -463,9 +532,26 @@ const GestionMaterialPage: React.FC = () => {
             <Button colorScheme="red" onClick={confirmarEliminacion}>
               Eliminar
             </Button>
-          </ModalFooter>
-        </ModalContent>
+          </ModalFooter>        </ModalContent>
       </Modal>
+
+      {/* Componentes de importación/exportación para administradores */}
+      {isAdmin && (
+        <>
+          <MaterialExportManager 
+            materials={materiales}
+            isOpen={isExportOpen}
+            onClose={onExportClose}
+          />
+          
+          <MaterialImportManager 
+            materials={materiales}
+            isOpen={isImportOpen}
+            onClose={onImportClose}
+            onImportSuccess={handleImportSuccess}
+          />
+        </>
+      )}
     </DashboardLayout>
   );
 };

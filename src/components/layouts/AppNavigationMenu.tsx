@@ -157,17 +157,29 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       roles: ['admin'] 
     },
   ], []);
-
   // Filtrar elementos según el rol actual
-  const filteredAppsComunes = useMemo(() => 
-    appsComunes.filter(item => item.roles.includes(userRole)),
-    [appsComunes, userRole]
-  );
+  const filteredAppsComunes = useMemo(() => {
+    const filtered = appsComunes.filter(item => item.roles.includes(userRole));
+    console.log('AppNavigationMenu - Filtrado apps comunes:', {
+      userRole,
+      totalItems: appsComunes.length,
+      filteredItems: filtered.length,
+      filtered: filtered.map(item => ({ label: item.label, to: item.to }))
+    });
+    return filtered;
+  }, [appsComunes, userRole]);
 
-  const filteredPanelControl = useMemo(() => 
-    panelControl.filter(item => item.roles.includes(userRole)),
-    [panelControl, userRole]
-  );
+  const filteredPanelControl = useMemo(() => {
+    const filtered = panelControl.filter(item => item.roles.includes(userRole));
+    console.log('AppNavigationMenu - Filtrado panel control:', {
+      userRole,
+      totalItems: panelControl.length,
+      filteredItems: filtered.length,
+      filtered: filtered.map(item => ({ label: item.label, to: item.to })),
+      materialItem: panelControl.find(item => item.label === 'Material')
+    });
+    return filtered;
+  }, [panelControl, userRole]);
     // Log optimizado de la ruta actual
   useEffect(() => {
     logger.debug('Ruta actual:', location.pathname);

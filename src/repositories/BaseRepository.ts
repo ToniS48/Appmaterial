@@ -244,42 +244,30 @@ export abstract class BaseRepository<T extends BaseEntity> {
       handleFirebaseError(error, `Error al eliminar entidad de ${this.collectionName}`);
       throw error;
     }
-  }
-  /**
+  }  /**
    * Método de debugging para verificar conexión y datos
    */
   async debugConnection(): Promise<void> {
     try {
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Verificando conexión...`);
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Base de datos:`, db);
+      console.log(`🔧 ${this.collectionName} - Testing connection...`);
       
       const collectionRef = this.getCollectionRef();
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Referencia de colección:`, collectionRef);
-      
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Obteniendo documentos...`);
       const querySnapshot = await getDocs(collectionRef);
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Snapshot obtenido:`, querySnapshot);
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Número de documentos: ${querySnapshot.size}`);
-      console.log(`🔧 [DEBUG] ${this.collectionName} - Está vacío: ${querySnapshot.empty}`);
       
-      if (!querySnapshot.empty) {
-        console.log(`🔧 [DEBUG] ${this.collectionName} - Primeros documentos:`);
-        let count = 0;
+      console.log(`✅ ${this.collectionName} - Connected. Documents: ${querySnapshot.size}`);
+        if (!querySnapshot.empty && querySnapshot.size <= 3) {
+        // Solo mostrar documentos si hay pocos
+        let index = 0;
         querySnapshot.forEach((doc) => {
-          if (count < 3) {
-            console.log(`🔧 [DEBUG] ${this.collectionName} - Doc ${count + 1}:`, {
-              id: doc.id,
-              data: doc.data(),
-              exists: doc.exists()
-            });
-            count++;
-          }
+          console.log(`📄 ${this.collectionName}[${index}]:`, {
+            id: doc.id,
+            exists: doc.exists()
+          });
+          index++;
         });
       }
-      
-      console.log(`✅ [DEBUG] ${this.collectionName} - Verificación completada`);
     } catch (error) {
-      console.error(`❌ [DEBUG] ${this.collectionName} - Error en verificación:`, error);
+      console.error(`❌ ${this.collectionName} - Connection failed:`, error);
       throw error;
     }
   }
@@ -288,23 +276,24 @@ export abstract class BaseRepository<T extends BaseEntity> {
    * Buscar entidades con opciones de consulta
    */  async find(options: QueryOptions = {}): Promise<T[]> {
     try {
-      console.log(`🔍 [DEBUG] ${this.collectionName} - Iniciando find con opciones:`, options);
+      // Solo log importante: inicio de consulta
+      console.log(`🔍 ${this.collectionName} - Find:`, { 
+        where: options.where?.length || 0, 
+        orderBy: options.orderBy?.length || 0, 
+        limit: options.limit 
+      });
       
       let q: Query = this.getCollectionRef();
-      console.log(`🔍 [DEBUG] ${this.collectionName} - Query base creada:`, q);
 
       // Aplicar filtros WHERE
       if (options.where) {
-        console.log(`🔍 [DEBUG] ${this.collectionName} - Aplicando filtros WHERE:`, options.where);
         options.where.forEach(filter => {
-          console.log(`🔍 [DEBUG] ${this.collectionName} - Aplicando filtro:`, filter);
           q = query(q, where(filter.field, filter.operator, filter.value));
         });
       }
 
       // Aplicar ordenamiento
       if (options.orderBy) {
-        console.log(`🔍 [DEBUG] ${this.collectionName} - Aplicando ordenamiento:`, options.orderBy);
         options.orderBy.forEach(order => {
           q = query(q, orderBy(order.field, order.direction));
         });
@@ -312,34 +301,20 @@ export abstract class BaseRepository<T extends BaseEntity> {
 
       // Aplicar límite
       if (options.limit) {
-        console.log(`🔍 [DEBUG] ${this.collectionName} - Aplicando límite:`, options.limit);
         q = query(q, firestoreLimit(options.limit));
       }
 
-      console.log(`🔍 [DEBUG] ${this.collectionName} - Query final preparada, ejecutando getDocs...`);
       const querySnapshot = await getDocs(q);
-      console.log(`🔍 [DEBUG] ${this.collectionName} - QuerySnapshot obtenido:`, {
-        size: querySnapshot.size,
-        empty: querySnapshot.empty,
-        docs: querySnapshot.docs.length
-      });
       
       const results = querySnapshot.docs
         .map(doc => {
           const transformed = this.transformFromFirestore(doc);
-          console.log(`🔍 [DEBUG] ${this.collectionName} - Documento transformado:`, {
-            docId: doc.id,
-            docData: doc.data(),
-            transformed: transformed
-          });
           return transformed;
         })
         .filter((entity): entity is T => entity !== null);
       
-      console.log(`🔍 [DEBUG] ${this.collectionName} - Resultados finales:`, {
-        total: results.length,
-        results: results
-      });
+      // Solo log del resultado final
+      console.log(`✅ ${this.collectionName} - Found ${results.length} items`);
       
       return results;
     } catch (error) {
