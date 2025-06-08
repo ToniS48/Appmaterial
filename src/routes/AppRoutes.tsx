@@ -201,6 +201,10 @@ const AppRoutes: React.FC = () => {
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <MaterialDetallePage />
         </ProtectedRoute>
+      } />      <Route path="/material/print-qr" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal']}>
+          <QRPrintPage />
+        </ProtectedRoute>
       } />
       <Route path="/material/qr/:id" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal']}>
