@@ -30,6 +30,8 @@ import PrestamosVocalPage from '../pages/prestamos/PrestamosVocalPage';
 import MisPrestamosPage from '../pages/prestamos/MisPrestamosPage';
 import EstadisticasAdminPage from '../pages/admin/EstadisticasAdminPage';
 import EstadisticasVocalPage from '../pages/vocal/EstadisticasVocalPage';
+import MensajeriaPage from '../pages/MensajeriaPage';
+import MensajeriaTesting from '../components/testing/MensajeriaTesting';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -252,20 +254,30 @@ const AppRoutes: React.FC = () => {
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <MisActividadesPage />
         </ProtectedRoute>
-      } />
-      <Route path="/notificaciones" element={
+      } />      <Route path="/notificaciones" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <NotificacionesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/mensajeria" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
+          <MensajeriaPage />
         </ProtectedRoute>
       } />
       <Route path="/admin/settings" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <ConfiguracionPage />
-        </ProtectedRoute>
-      } />
+        </ProtectedRoute>      } />
       <Route path="/admin/reportes" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <ReportesAdminPage />
+        </ProtectedRoute>
+      } />
+
+      {/* RUTA DE PRUEBAS - SOLO PARA DESARROLLO */}
+      <Route path="/testing/mensajeria" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
+          <MensajeriaTesting />
         </ProtectedRoute>
       } />
 

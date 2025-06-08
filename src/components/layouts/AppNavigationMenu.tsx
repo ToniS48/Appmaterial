@@ -35,7 +35,8 @@ import {
   FiAlertTriangle,
   FiEye,
   FiGrid,
-  FiHome
+  FiHome,
+  FiMessageCircle
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -91,12 +92,18 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       to: '/mis-prestamos', 
       icon: FiPackage,
       roles: ['socio', 'vocal', 'admin'] 
-    },
-    // Notificaciones - para todos
+    },    // Notificaciones - para todos
     { 
       label: 'Notificaciones', 
       to: '/notificaciones', 
       icon: FiBell,
+      roles: ['admin', 'vocal', 'socio', 'invitado'] 
+    },
+    // Mensajería - para todos
+    { 
+      label: 'Mensajería', 
+      to: '/mensajeria', 
+      icon: FiMessageCircle,
       roles: ['admin', 'vocal', 'socio', 'invitado'] 
     },
     // Perfil - para todos
