@@ -8,7 +8,9 @@ export type TipoNotificacion =
   | 'devolucion' 
   | 'incidencia' 
   | 'sistema'
-  | 'recordatorio';
+  | 'recordatorio'
+  | 'mensaje'
+  | 'mencion';
 
 export interface Notificacion {
   id: string;

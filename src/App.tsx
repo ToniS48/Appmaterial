@@ -4,6 +4,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import theme from './styles/theme';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificacionProvider } from './contexts/NotificacionContext';
+import { MensajeriaProvider } from './contexts/MensajeriaContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppRoutes from './routes';
 import { iniciarTareasProgramadas } from './services/programacionService';
@@ -70,11 +71,13 @@ function App() {
       <ChakraProvider theme={theme}>
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
         <Suspense fallback={<LoadingFallback />}>
-          <Router>
-            <ThemeProvider>
+          <Router>            <ThemeProvider>
               <AuthProvider>
-                <NotificacionProvider>                  <AppRoutes />
-                  {/* DebugHelper removido - problema MaterialSelector resuelto */}
+                <NotificacionProvider>
+                  <MensajeriaProvider>
+                    <AppRoutes />
+                    {/* DebugHelper removido - problema MaterialSelector resuelto */}
+                  </MensajeriaProvider>
                 </NotificacionProvider>
               </AuthProvider>
             </ThemeProvider>

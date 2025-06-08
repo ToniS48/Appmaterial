@@ -618,8 +618,118 @@ export const messages = {
       notifications: {
         devolucionMaterial: 'La actividad "{nombre}" ha finalizado. Por favor, recuerda devolver todo el material utilizado.',
         nuevaActividad: 'Nueva actividad registrada: {nombre} ({tipos})',
-        materialNoAsignado: 'El material "{nombre}" ya no está asignado a la actividad "{actividad}". Por favor, regístralo como devuelto.'
-      }
+        materialNoAsignado: 'El material "{nombre}" ya no está asignado a la actividad "{actividad}". Por favor, regístralo como devuelto.'      }
+    }
+  },
+
+  // Mensajes de mensajería
+  mensajeria: {
+    titulo: 'Mensajería',
+    conversaciones: {
+      nueva: 'Nueva Conversación',
+      crear: 'Crear Conversación',
+      seleccionar: 'Selecciona una conversación para comenzar',
+      buscar: 'Buscar conversaciones...',
+      noConversaciones: 'No tienes conversaciones aún',
+      noEncontradas: 'No se encontraron conversaciones',
+      salir: 'Salir de conversación',
+      info: 'Información de la conversación',
+      participantes: 'Participantes',
+      configuracion: 'Configuración',
+      privada: 'Privada',
+      grupo: 'Grupo',
+      actividad: 'Actividad',
+      general: 'General',
+      publica: 'Pública'
+    },
+    mensajes: {
+      escribir: 'Escribe un mensaje...',
+      enviar: 'Enviar mensaje',
+      noMensajes: 'No hay mensajes aún',
+      primerMensaje: 'Sé el primero en enviar un mensaje en esta conversación',
+      buscar: 'Buscar mensajes...',
+      buscarEnMensajes: 'Buscar en mensajes...',
+      noResultados: 'No se encontraron mensajes',
+      editado: 'editado',
+      eliminado: 'Mensaje eliminado',
+      responder: 'Responder',
+      editar: 'Editar',
+      eliminar: 'Eliminar',
+      copiar: 'Copiar texto',
+      archivo: 'Archivo',
+      imagen: 'Imagen',
+      enlace: 'Enlace',
+      adjuntarArchivo: 'Adjuntar archivo',
+      adjuntarImagen: 'Adjuntar imagen',
+      agregarEnlace: 'Agregar enlace'
+    },
+    formularios: {
+      titulo: 'Título',
+      descripcion: 'Descripción (opcional)',
+      tipo: 'Tipo',
+      participantes: 'Participantes',
+      seleccionarParticipantes: 'Selecciona participantes',
+      seleccionarUno: 'selecciona 1',
+      seleccionarDosOMas: 'selecciona 2 o más',
+      tituloObligatorio: 'El título es obligatorio',
+      participantesPrivada: 'Selecciona exactamente un participante para conversación privada',
+      participantesGrupo: 'Selecciona al menos 2 participantes para grupo',
+      cancelar: 'Cancelar',
+      crear: 'Crear Conversación',
+      creando: 'Creando...',
+      buscar: 'Buscar',
+      limpiar: 'Limpiar',
+      cerrar: 'Cerrar'
+    },
+    estados: {
+      creada: 'Conversación creada',
+      creacionExitosa: 'La conversación se ha creado exitosamente',
+      errorCrear: 'No se pudo crear la conversación',
+      mensajeEnviado: 'Mensaje enviado',
+      mensajeEditado: 'Mensaje editado',
+      mensajeEliminado: 'Mensaje eliminado',
+      cargandoConversaciones: 'Cargando conversaciones...',
+      cargandoMensajes: 'Cargando mensajes...',
+      buscando: 'Buscando...',
+      unidoConversacion: 'Te has unido a la conversación',
+      salidoConversacion: 'Has salido de la conversación',
+      errorUnirse: 'Error al unirse a la conversación',
+      errorSalir: 'Error al salir de la conversación',
+      errorCargar: 'Error al cargar la lista de usuarios',
+      errorMensajes: 'Error al cargar mensajes',
+      errorEditar: 'Error al editar mensaje',
+      errorEliminar: 'Error al eliminar mensaje',
+      errorEnviar: 'Error al enviar mensaje',
+      errorBuscar: 'Error al buscar mensajes',
+      soloLectura: 'No tienes permisos para escribir en esta conversación'
+    },
+    permisos: {
+      acceso: 'Acceso Requerido',
+      necesitaLogin: 'Necesitas iniciar sesión para acceder a la mensajería'
+    },
+    roles: {
+      admin: 'ADMIN',
+      vocal: 'VOCAL',
+      socio: 'SOCIO',
+      invitado: 'INVITADO'
+    },
+    fechas: {
+      hoy: 'Hoy',
+      ayer: 'Ayer',
+      hace: 'hace',
+      unidoEl: 'Unido:'
+    },
+    informacion: {
+      basica: 'Información básica',
+      nombre: 'Nombre:',
+      descripcion: 'Descripción:',
+      tipo: 'Tipo:',
+      creado: 'Creado:',
+      participantes: 'Participantes:',
+      rolesPermitidos: 'Roles permitidos:',
+      administrador: 'Admin',
+      miembro: 'Miembro',
+      soloLectura: 'Solo lectura'
     }
   }
 };

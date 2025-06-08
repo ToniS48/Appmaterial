@@ -13,9 +13,8 @@ export const adminDashboardCards: DashboardCard[] = [
     colorScheme: "teal",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "préstamos activos"
-  },
-  {
-    title: "Material",
+  },  {
+    title: "Gestión Material",
     icon: FaBox,
     route: "/admin/material",
     description: "Gestión del inventario de material",
@@ -23,7 +22,7 @@ export const adminDashboardCards: DashboardCard[] = [
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
   },  {
-    title: "Notificaciones",
+    title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/admin/reportes",
     description: "Gestión de reportes de errores y sugerencias",
@@ -41,14 +40,14 @@ export const adminDashboardCards: DashboardCard[] = [
     statLabel: "reportes generados"
   },
   {
-    title: "Usuarios",
+    title: "Gestión Usuarios",
     icon: FaUsers,
     route: "/admin/usuarios",
     description: "Gestión completa de usuarios",
     colorScheme: "linkedin",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "usuarios en sistema"
-  },  {
+  },{
     title: "Configuración",
     icon: FaCog,
     route: "/admin/settings",
@@ -69,9 +68,8 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "teal",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "préstamos activos"
-  },
-  {
-    title: "Material",
+  },  {
+    title: "Gestión Material",
     icon: FaBox,
     route: "/vocal/material",
     description: "Supervisión del inventario de material",
@@ -79,7 +77,7 @@ export const vocalDashboardCards: DashboardCard[] = [
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
   },  {
-    title: "Notificaciones",
+    title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/vocal/reportes",
     description: "Revisión de reportes de errores y sugerencias",
@@ -97,7 +95,7 @@ export const vocalDashboardCards: DashboardCard[] = [
     statLabel: "reportes generados"
   },
   {
-    title: "Usuarios",
+    title: "Gestión Usuarios",
     icon: FaUsers,
     route: "/vocal/usuarios",
     description: "Supervisión de usuarios activos",
@@ -142,7 +140,13 @@ export const socioAccessCards: DashboardCard[] = [
     icon: FiPackage,
     route: "/mis-prestamos",
     description: "Controla tus préstamos de material activos",
-    colorScheme: "green"
+    colorScheme: "green"  },
+  {
+    title: "Mensajería",
+    icon: FaCommentDots,
+    route: "/mensajeria",
+    description: "Sistema de mensajería interna del club",
+    colorScheme: "messenger"
   },
   {
     title: "Notificaciones",

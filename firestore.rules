@@ -75,6 +75,58 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isVocal();
     }
     
+    // Reglas para conversaciones de mensajería
+    match /conversaciones/{conversacionId} {
+      // Los usuarios pueden leer conversaciones donde participan
+      allow read: if isAuthenticated() && 
+                    request.auth.uid in resource.data.participantes;
+      
+      // Los usuarios pueden crear conversaciones (se valida participación en el código)
+      allow create: if isAuthenticated() && 
+                      request.auth.uid in request.resource.data.participantes;
+      
+      // Solo participantes y admins pueden modificar conversaciones
+      allow update: if isAuthenticated() && 
+                      (request.auth.uid in resource.data.participantes || isAdmin());
+      
+      // Solo admins pueden eliminar conversaciones
+      allow delete: if isAdmin();
+    }
+    
+    // Reglas para mensajes
+    match /mensajes/{mensajeId} {
+      // Los usuarios pueden leer mensajes de conversaciones donde participan
+      allow read: if isAuthenticated() && 
+                    request.auth.uid in get(/databases/$(database)/documents/conversaciones/$(resource.data.conversacionId)).data.participantes;
+      
+      // Los usuarios pueden crear mensajes en conversaciones donde participan
+      allow create: if isAuthenticated() && 
+                      request.auth.uid == request.resource.data.remitenteId &&
+                      request.auth.uid in get(/databases/$(database)/documents/conversaciones/$(request.resource.data.conversacionId)).data.participantes;
+      
+      // Solo el remitente puede editar/eliminar sus propios mensajes (o admins)
+      allow update, delete: if isAuthenticated() && 
+                              (request.auth.uid == resource.data.remitenteId || isAdmin());
+    }
+    
+    // Reglas para participantes de conversaciones
+    match /participantesConversacion/{participanteId} {
+      // Los usuarios pueden leer su propia participación
+      allow read: if isAuthenticated() && 
+                    request.auth.uid == resource.data.usuarioId;
+      
+      // Solo se permite crear participaciones para el usuario actual
+      allow create: if isAuthenticated() && 
+                      request.auth.uid == request.resource.data.usuarioId;
+      
+      // Los usuarios pueden actualizar su propia configuración de participación
+      allow update: if isAuthenticated() && 
+                      request.auth.uid == resource.data.usuarioId;
+      
+      // Solo admins pueden eliminar participaciones
+      allow delete: if isAdmin();
+    }
+    
     // Regla por defecto - restringir acceso
     match /{document=**} {
       // Para producción: denegar acceso por defecto
