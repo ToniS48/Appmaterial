@@ -114,17 +114,7 @@ export const useActividadFormActions = ({ actividadId }: UseActividadFormActions
       formData.participanteIds || [],
       { responsableId: responsableActividadId, responsableMaterialId }
     );
-  };
-
-    const handleNecesidadMaterialChange = (necesita: boolean) => {
-    const updatedData = {
-      ...formData,
-      necesidadMaterial: necesita
-    };
-    updateInfo(updatedData);
-  };
-
-  return {
+  };  return {
     formData,
     loading,
     error: error || formError,
@@ -133,7 +123,6 @@ export const useActividadFormActions = ({ actividadId }: UseActividadFormActions
     handleFinalSubmit,
     handleCancel,
     handleResponsablesChange,
-    handleNecesidadMaterialChange,
     initializeNewActivity,
     setError,
     setSuccessMessage

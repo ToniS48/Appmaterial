@@ -104,7 +104,6 @@ const DevolucionMaterialPage: React.FC = () => {
             aria-label={messages.actions.back}
             onClick={() => navigate(-1)}
           />
-          <Heading size="lg">{messages.material.devoluciones.titulo}</Heading>
         </HStack>
         
         <Divider mb={6} />
