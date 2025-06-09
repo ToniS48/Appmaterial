@@ -168,8 +168,7 @@ export const obtenerConversacionesUsuario = async (
         where('activa', '==', filtros.activa),
         orderBy('fechaUltimoMensaje', 'desc'),
         limit(limite)
-      );
-    }
+      );    }
 
     const snapshot = await getDocs(conversacionesQuery);
     return snapshot.docs.map(doc => {
@@ -177,8 +176,9 @@ export const obtenerConversacionesUsuario = async (
       return {
         id: doc.id,
         ...data,
-        fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion.toDate() : data.fechaCreacion,
-        fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje.toDate() : data.fechaUltimoMensaje
+        // NUEVA ESTRATEGIA: Mantener Timestamps internamente
+        fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion : (data.fechaCreacion ? Timestamp.fromDate(new Date(data.fechaCreacion)) : Timestamp.now()),
+        fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje : (data.fechaUltimoMensaje ? Timestamp.fromDate(new Date(data.fechaUltimoMensaje)) : Timestamp.now())
       } as Conversacion;
     });
   } catch (error) {
@@ -197,12 +197,12 @@ export const obtenerConversacion = async (conversacionId: string): Promise<Conve
       return null;
     }
 
-    const data = snapshot.data();
-    return {
+    const data = snapshot.data();    return {
       id: snapshot.id,
       ...data,
-      fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion.toDate() : data.fechaCreacion,
-      fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje.toDate() : data.fechaUltimoMensaje
+      // NUEVA ESTRATEGIA: Mantener Timestamps internamente
+      fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion : (data.fechaCreacion ? Timestamp.fromDate(new Date(data.fechaCreacion)) : Timestamp.now()),
+      fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje : (data.fechaUltimoMensaje ? Timestamp.fromDate(new Date(data.fechaUltimoMensaje)) : Timestamp.now())
     } as Conversacion;
   } catch (error) {
     console.error('Error al obtener conversación:', error);
@@ -316,16 +316,15 @@ export const obtenerMensajes = async (
         startAfter(ultimoMensaje),
         limit(limite)
       );
-    }
-
-    const snapshot = await getDocs(mensajesQuery);
+    }    const snapshot = await getDocs(mensajesQuery);
     const mensajes = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
         ...data,
-        fechaEnvio: data.fechaEnvio instanceof Timestamp ? data.fechaEnvio.toDate() : data.fechaEnvio,
-        fechaEdicion: data.fechaEdicion instanceof Timestamp ? data.fechaEdicion.toDate() : data.fechaEdicion
+        // NUEVA ESTRATEGIA: Mantener Timestamps internamente
+        fechaEnvio: data.fechaEnvio instanceof Timestamp ? data.fechaEnvio : (data.fechaEnvio ? Timestamp.fromDate(new Date(data.fechaEnvio)) : Timestamp.now()),
+        fechaEdicion: data.fechaEdicion instanceof Timestamp ? data.fechaEdicion : (data.fechaEdicion ? Timestamp.fromDate(new Date(data.fechaEdicion)) : null)
       } as Mensaje;
     }).reverse(); // Invertir para mostrar del más antiguo al más reciente
 
@@ -354,14 +353,14 @@ export const escucharMensajes = (
 
   return onSnapshot(
     mensajesQuery,
-    (snapshot) => {
-      const mensajes = snapshot.docs.map(doc => {
+    (snapshot) => {      const mensajes = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
           ...data,
-          fechaEnvio: data.fechaEnvio instanceof Timestamp ? data.fechaEnvio.toDate() : data.fechaEnvio,
-          fechaEdicion: data.fechaEdicion instanceof Timestamp ? data.fechaEdicion.toDate() : data.fechaEdicion
+          // NUEVA ESTRATEGIA: Mantener Timestamps internamente
+          fechaEnvio: data.fechaEnvio instanceof Timestamp ? data.fechaEnvio : (data.fechaEnvio ? Timestamp.fromDate(new Date(data.fechaEnvio)) : Timestamp.now()),
+          fechaEdicion: data.fechaEdicion instanceof Timestamp ? data.fechaEdicion : (data.fechaEdicion ? Timestamp.fromDate(new Date(data.fechaEdicion)) : null)
         } as Mensaje;
       }).reverse();
 

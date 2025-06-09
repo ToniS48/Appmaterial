@@ -1,6 +1,7 @@
 import { Material } from '../../types/material';
 import { materialRepository } from '../../repositories';
 import { Timestamp } from 'firebase/firestore';
+import { toTimestamp, timestampToDate } from '../../utils/dateUtils';
 
 export interface MaterialSearchParams {
   nombre?: string;
@@ -143,8 +144,7 @@ export class MaterialService {
   }
   /**
    * Obtener materiales que requieren revisión
-   */
-  async obtenerMaterialesParaRevision(): Promise<Material[]> {
+   */  async obtenerMaterialesParaRevision(): Promise<Material[]> {
     const fechaLimite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Próximos 30 días
 
     return await materialRepository.findMateriales({
@@ -153,9 +153,9 @@ export class MaterialService {
       materiales.filter(m => {
         if (!m.proximaRevision) return false;
         
-        const fechaProximaRevision = m.proximaRevision instanceof Timestamp 
-          ? m.proximaRevision.toDate() 
-          : new Date(m.proximaRevision);
+        // NUEVA ESTRATEGIA: Usar timestampToDate para conversión segura
+        const fechaProximaRevision = timestampToDate(toTimestamp(m.proximaRevision));
+        if (!fechaProximaRevision) return false;
           
         return fechaProximaRevision <= fechaLimite;
       })
@@ -191,15 +191,12 @@ export class MaterialService {
 
     if (material.cantidad !== undefined && material.cantidad < 0) {
       throw new Error('La cantidad no puede ser negativa');
-    }
-
-    // Validar fechas (usar Timestamp si está disponible)
+    }    // Validar fechas (usar Timestamp si está disponible)
     if (material.proximaRevision) {
-      const fechaProximaRevision = material.proximaRevision instanceof Timestamp 
-        ? material.proximaRevision.toDate() 
-        : new Date(material.proximaRevision);
+      // NUEVA ESTRATEGIA: Usar timestampToDate para conversión segura
+      const fechaProximaRevision = timestampToDate(toTimestamp(material.proximaRevision));
       
-      if (fechaProximaRevision < new Date()) {
+      if (fechaProximaRevision && fechaProximaRevision < new Date()) {
         throw new Error('La próxima revisión no puede ser en el pasado');
       }
     }

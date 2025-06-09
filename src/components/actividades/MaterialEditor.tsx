@@ -222,49 +222,17 @@ const MaterialEditor = forwardRef<
       cantidad: typeof material.cantidad === 'number' ? material.cantidad : parseInt(String(material.cantidad || '1'), 10) || 1
     }));
   };
-
   // Verificar si hay responsable de material asignado
   const tieneResponsableMaterial = responsables?.responsableMaterialId;
   
-  // Función para renderizar información de responsables
-  const renderizarResponsables = () => {
-    if (!responsables) return null;
-
-    const responsableActividad = responsables.responsableActividadId ? 
-      obtenerNombreUsuario(responsables.responsableActividadId) : null;
-    const responsableMaterial = responsables.responsableMaterialId ? 
-      obtenerNombreUsuario(responsables.responsableMaterialId) : null;
-
-    if (!responsableActividad && !responsableMaterial) return null;
-
-    return (
-      <Text fontSize="sm" color="gray.600" mb={4}>
-        {responsableActividad && (
-          <Text as="span">
-            Responsable de actividad: <Text as="span" fontWeight="medium">{responsableActividad}</Text>
-          </Text>
-        )}
-        {responsableActividad && responsableMaterial && <Text as="span"> • </Text>}
-        {responsableMaterial && (
-          <Text as="span">
-            Responsable de material: <Text as="span" fontWeight="medium">{responsableMaterial}</Text>
-          </Text>
-        )}
-      </Text>
-    );
-  };
-
   // Función helper para obtener nombre del usuario
   const obtenerNombreUsuario = (uid: string) => {
     const usuario = usuarios?.find(u => u.uid === uid);
     return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
   };
-
   // Renderizar contenido del formulario
   const renderFormContent = () => (
     <>
-      {renderizarResponsables()}
-      
       {/* Si no hay responsable de material, mostrar pantalla bloqueada */}
       {!tieneResponsableMaterial ? (
         <Alert status="warning">

@@ -47,7 +47,6 @@ export function useActividadInfoValidation() {
     const error = validateField('lugar', lugar);
     return error || undefined;
   }, [validateField, setError]);  const validateTipo = useCallback((tipo: string[], silencioso = true) => {
-    // 🚨 DEBUG VALIDADOR TIPO
     console.log('🔍 [VALIDADOR TIPO] Entrada recibida:', {
       tipo,
       esTipo: typeof tipo,
@@ -56,33 +55,38 @@ export function useActividadInfoValidation() {
       contenido: JSON.stringify(tipo, null, 2)
     });
     
-    // Tipo es opcional en el formulario básico
+    // CORRECCIÓN: Tipo es OBLIGATORIO para crear actividades
     if (!tipo || !Array.isArray(tipo) || tipo.length === 0) {
-      console.log('⚠️ [VALIDADOR TIPO] Array vacío o inválido - retornando undefined');
-      return undefined; // Sin error si está vacío o no es un array válido
+      const errorMsg = 'Debe seleccionar al menos un tipo de actividad';
+      console.log('❌ [VALIDADOR TIPO] Array vacío o inválido - ERROR:', errorMsg);
+      if (!silencioso) {
+        setError('tipo', errorMsg, false); // Cambiar a false para no mostrar toast individual
+      }
+      return errorMsg; // Retornar error cuando está vacío
     }
     const error = validateField('tipo', tipo);
     console.log('✅ [VALIDADOR TIPO] Resultado validación:', error || 'SIN ERROR');
     return error || undefined;
-  }, [validateField]);  const validateSubtipo = useCallback((subtipo: string[], silencioso = true) => {
-    // 🚨 DEBUG VALIDADOR SUBTIPO
+  }, [validateField, setError]);const validateSubtipo = useCallback((subtipo: string[], silencioso = true) => {
     console.log('🔍 [VALIDADOR SUBTIPO] Entrada recibida:', {
       subtipo,
       esTipo: typeof subtipo,
       esArray: Array.isArray(subtipo),
       longitud: subtipo?.length,
       contenido: JSON.stringify(subtipo, null, 2)
-    });
-    
-    // Subtipo es opcional en el formulario básico
+    });      // CORRECCIÓN: Subtipo es OBLIGATORIO para crear actividades
     if (!subtipo || !Array.isArray(subtipo) || subtipo.length === 0) {
-      console.log('⚠️ [VALIDADOR SUBTIPO] Array vacío o inválido - retornando undefined');
-      return undefined; // Sin error si está vacío o no es un array válido
+      const errorMsg = 'Debe seleccionar al menos un subtipo de actividad';
+      console.log('❌ [VALIDADOR SUBTIPO] Array vacío o inválido - ERROR:', errorMsg);
+      if (!silencioso) {
+        setError('subtipo', errorMsg, false); // Cambiar a false para no mostrar toast individual
+      }
+      return errorMsg; // Retornar error cuando está vacío
     }
     const error = validateField('subtipo', subtipo);
     console.log('✅ [VALIDADOR SUBTIPO] Resultado validación:', error || 'SIN ERROR');
     return error || undefined;
-  }, [validateField]);
+  }, [validateField, setError]);
 
   const validateFechaInicio = useCallback((fecha: Date | null | undefined, silencioso = true) => {
     if (!fecha) {
@@ -107,30 +111,27 @@ export function useActividadInfoValidation() {
     }
     return validateField('fechaFin', fecha, { showToast: !silencioso });
   }, [validateField, setError]);
-
   // Optimizar validateFechas para usar validación diferida
   const validateFechas = useCallback((fechaInicio: Date, fechaFin: Date, silencioso = false) => {
-    // Diferir la validación para evitar violaciones
-    deferValidation(() => {
-      if (fechaInicio && fechaFin) {
-        const inicioTime = fechaInicio.getTime();
-        const finTime = fechaFin.getTime();
-        
-        if (inicioTime >= finTime) {
-          const errorMsg = 'La fecha de finalización debe ser posterior a la fecha de inicio';
-          if (!silencioso) {
-            setError('fechaFin', errorMsg, true);
-          }
-          return false;
-        } else {
-          // Limpiar errores de fechas si la validación es correcta
-          clearErrors(['fechaInicio', 'fechaFin']);
-          return true;
-        }
+    if (!fechaInicio || !fechaFin) {
+      return true; // Si no hay fechas, no hay error
+    }
+    
+    const inicioTime = fechaInicio.getTime();
+    const finTime = fechaFin.getTime();
+    
+    if (inicioTime >= finTime) {
+      const errorMsg = 'La fecha de finalización debe ser posterior a la fecha de inicio';
+      if (!silencioso) {
+        setError('fechaFin', errorMsg, true);
       }
+      return false;
+    } else {
+      // Limpiar errores de fechas si la validación es correcta
+      clearErrors(['fechaInicio', 'fechaFin']);
       return true;
-    });
-  }, [deferValidation, setError, clearErrors]);
+    }
+  }, [setError, clearErrors]);
 
   // Optimizar handleFieldTouched con useCallback
   const handleFieldTouched = useCallback((fieldName: string) => {
@@ -146,7 +147,6 @@ export function useActividadInfoValidation() {
     if (validationTimeoutRef.current) {
       clearTimeout(validationTimeoutRef.current);
     }  }, []);
-
   return {
     errors,
     validate,
@@ -160,6 +160,40 @@ export function useActividadInfoValidation() {
     validateFechaInicio,
     validateFechaFin,
     validateFechas,
-    handleFieldTouched,
+    handleFieldTouched,    // Agregar función para re-validar todos los campos del formulario
+    revalidateAllFields: useCallback((formData: any, silencioso = true) => {
+      console.log('🔄 Re-validando todos los campos:', formData);
+      
+      const results = {
+        nombre: validateNombre(formData.nombre || '', silencioso),
+        lugar: validateLugar(formData.lugar || '', silencioso),
+        tipo: validateTipo(formData.tipo || [], silencioso),
+        subtipo: validateSubtipo(formData.subtipo || [], silencioso),
+        fechaInicio: null as string | false | undefined | null,
+        fechaFin: null as string | false | undefined | null,
+        fechas: null as boolean | undefined | null
+      };
+      
+      if (formData.fechaInicio) {
+        results.fechaInicio = validateFechaInicio(formData.fechaInicio, silencioso);
+      }
+      
+      if (formData.fechaFin) {
+        results.fechaFin = validateFechaFin(formData.fechaFin, silencioso);
+      }
+      
+      if (formData.fechaInicio && formData.fechaFin) {
+        const fechaInicio = formData.fechaInicio instanceof Date 
+          ? formData.fechaInicio 
+          : new Date(formData.fechaInicio);
+        const fechaFin = formData.fechaFin instanceof Date 
+          ? formData.fechaFin 
+          : new Date(formData.fechaFin);
+        results.fechas = validateFechas(fechaInicio, fechaFin, silencioso);
+      }
+      
+      console.log('✅ Re-validación completada:', results);
+      return results;
+    }, [validateNombre, validateLugar, validateTipo, validateSubtipo, validateFechaInicio, validateFechaFin, validateFechas])
   };
 }

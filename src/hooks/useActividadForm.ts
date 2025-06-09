@@ -7,7 +7,7 @@ import {
   actualizarActividad 
 } from '../services/actividadService';
 import { Timestamp } from 'firebase/firestore';
-import { determinarEstadoActividad } from '../utils/dateUtils';
+import { determinarEstadoActividad, toTimestamp } from '../utils/dateUtils';
 import { 
   validateActividad,
   standardizeLinks,
@@ -209,10 +209,9 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         responsableMaterialId: dataToSave.responsableMaterialId || '',
         participanteIds: dataToSave.participanteIds || [],
         necesidadMaterial: Boolean(dataToSave.responsableMaterialId && dataToSave.materiales?.length),
-        materiales: dataToSave.materiales || [],
-        estado: determinarEstadoActividad(
-          dataToSave.fechaInicio,
-          dataToSave.fechaFin,
+        materiales: dataToSave.materiales || [],        estado: determinarEstadoActividad(
+          toTimestamp(dataToSave.fechaInicio),
+          toTimestamp(dataToSave.fechaFin),
           dataToSave.estado
         ),
         comentarios: dataToSave.comentarios || [],

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { Actividad } from '../types/actividad';
 import { useActividadInfoValidation } from './useActividadInfoValidation';
+import { toTimestamp, timestampToDate } from '../utils/dateUtils';
 
 interface UseActividadFormTabsProps {
   totalTabs: number;
@@ -97,20 +98,28 @@ export const useActividadFormTabs = ({ totalTabs, onDataUpdate, onFinalSubmit }:
     }
     if (subtipoValido && validation.clearErrors) {
       validation.clearErrors('subtipo');
-    }
-    
-    let fechasValidas = true;
+    }      let fechasValidas = true;
     if (data.fechaInicio && data.fechaFin) {
-      const fechaInicio = data.fechaInicio instanceof Date 
-        ? data.fechaInicio 
-        : data.fechaInicio.toDate();
+      // NUEVA ESTRATEGIA: Convertir a Timestamp primero, luego a Date solo para validación
+      const timestampInicio = toTimestamp(data.fechaInicio);
+      const timestampFin = toTimestamp(data.fechaFin);
       
-      const fechaFin = data.fechaFin instanceof Date 
-        ? data.fechaFin 
-        : data.fechaFin.toDate();
-      
-      validation.validateFechas(fechaInicio, fechaFin, silencioso);
-      fechasValidas = !validation.errors.fechaFin;
+      if (timestampInicio && timestampFin) {
+        const fechaInicio = timestampToDate(timestampInicio);
+        const fechaFin = timestampToDate(timestampFin);
+        if (fechaInicio && fechaFin) {
+          validation.validateFechas(fechaInicio, fechaFin, silencioso);
+          fechasValidas = !validation.errors.fechaFin;
+        }
+      } else {
+        fechasValidas = false;
+        if (!timestampInicio) {
+          validation.setError('fechaInicio', 'Fecha de inicio inválida', !silencioso);
+        }
+        if (!timestampFin) {
+          validation.setError('fechaFin', 'Fecha de fin inválida', !silencioso);
+        }
+      }
     } else {
       fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
       if (!data.fechaInicio) {

@@ -3,11 +3,22 @@ import {
   FormControl, FormLabel, FormErrorMessage, Input,
   SimpleGrid, Textarea, Box, Button, Wrap, WrapItem
 } from '@chakra-ui/react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller, useFormContext, FieldError } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
 import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
 import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD, DIFICULTADES_ACTIVIDAD } from '../../constants/actividadOptions';
 import { TipoActividad, SubtipoActividad } from '../../types/actividad';
+
+// Función helper para extraer el mensaje de error
+const getErrorMessage = (error: any): string => {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') return error.message;
+    if ('type' in error && error.type === 'manual') return error.message || '';
+  }
+  return '';
+};
 
 // Definir tipos específicos para mejorar la seguridad de tipo
 type FilterCallback<T> = (value: T) => boolean;
@@ -18,9 +29,9 @@ interface ActividadInfoFormProps {
 }
 
 export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }) => {
-      const { register, control, watch, setValue } = useFormContext();
+  const { register, control, watch, setValue, formState: { errors: formErrors }, setError: setFormError, clearErrors: clearFormErrors } = useFormContext();
   const { 
-    errors, 
+    errors: validationErrors, 
     validateFechas, 
     validateTipo, 
     validateSubtipo, 
@@ -30,6 +41,12 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     validateFechaFin,
     handleFieldTouched 
   } = useActividadInfoValidation();
+  
+  // Combinar errores del formulario y del hook de validación
+  const errors = {
+    ...formErrors,
+    ...validationErrors
+  };
   
   // Usar refs para evitar re-renderizados innecesarios
   const validationTimeoutRef = useRef<NodeJS.Timeout>();
@@ -102,13 +119,16 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     console.log('🔘 Valor toggleado:', value);
     console.log('📦 Valores antiguos:', tiposSeguro);
     console.log('🆕 Valores nuevos:', newValues);
-    console.log('✅ Es array newValues:', Array.isArray(newValues));    console.log('📏 Longitud newValues:', newValues.length);
-    
-    setValue('tipo', newValues);
+    console.log('✅ Es array newValues:', Array.isArray(newValues));    console.log('📏 Longitud newValues:', newValues.length);    setValue('tipo', newValues);
     // Diferir la validación para evitar violaciones
     setTimeout(() => {
-      validateTipo(newValues);
-    }, 0);  }, [tiposSeguro, isValidTipo, setValue, validateTipo, tiposSeleccionados]);
+      const errorMsg = validateTipo(newValues);
+      if (errorMsg) {
+        setFormError('tipo', { type: 'manual', message: errorMsg });
+      } else {
+        clearFormErrors('tipo');
+      }
+    }, 0);}, [tiposSeguro, isValidTipo, setValue, validateTipo, tiposSeleccionados]);
   
   // Optimizar con useCallback para evitar re-creaciones
   const handleSubtipoToggle = useCallback((value: SubtipoActividad): void => {
@@ -140,11 +160,13 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     console.log('📦 Valores antiguos:', subtiposSeguro);
     console.log('🆕 Valores nuevos:', newValues);
     console.log('✅ Es array newValues:', Array.isArray(newValues));    console.log('📏 Longitud newValues:', newValues.length);
-    
-    setValue('subtipo', newValues);
+      setValue('subtipo', newValues);
     // Diferir la validación para evitar violaciones
     setTimeout(() => {
-      validateSubtipo(newValues);
+      const errorMsg = validateSubtipo(newValues);
+      if (errorMsg) {
+        setFormError('subtipo', { type: 'manual', message: errorMsg });
+      }
     }, 0);
   }, [subtiposSeguro, isValidSubtipo, setValue, validateSubtipo, subtiposSeleccionados]);
 
@@ -175,9 +197,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
             }
           })}
           placeholder="Ejemplo: Exploración Cueva del Agua"
-        />
-        {errors.nombre && (
-          <FormErrorMessage>{errors.nombre}</FormErrorMessage>
+        />        {errors.nombre && (
+          <FormErrorMessage>{getErrorMessage(errors.nombre)}</FormErrorMessage>
         )}
       </FormControl>
 
@@ -191,9 +212,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
             }
           })}
           placeholder="Ejemplo: Montanejos, Castellón"
-        />
-        {errors.lugar && (
-          <FormErrorMessage>{errors.lugar}</FormErrorMessage>
+        />        {errors.lugar && (
+          <FormErrorMessage>{getErrorMessage(errors.lugar)}</FormErrorMessage>
         )}
       </FormControl>
 
@@ -215,9 +235,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                 }}
               />
             )}
-          />
-          {errors.fechaInicio && (
-            <FormErrorMessage>{errors.fechaInicio}</FormErrorMessage>
+          />          {errors.fechaInicio && (
+            <FormErrorMessage>{getErrorMessage(errors.fechaInicio)}</FormErrorMessage>
           )}
         </FormControl>
 
@@ -238,9 +257,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                 }}
               />
             )}
-          />
-          {errors.fechaFin && (
-            <FormErrorMessage>{errors.fechaFin}</FormErrorMessage>
+          />          {errors.fechaFin && (
+            <FormErrorMessage>{getErrorMessage(errors.fechaFin)}</FormErrorMessage>
           )}
         </FormControl>
       </SimpleGrid>
@@ -267,9 +285,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                 ))}
               </Wrap>
             )}
-          />
-          {errors.tipo && (
-            <FormErrorMessage>{errors.tipo}</FormErrorMessage>
+          />          {errors.tipo && (
+            <FormErrorMessage>{getErrorMessage(errors.tipo)}</FormErrorMessage>
           )}
         </FormControl>        {/* Selección de subtipo por botones */}
         <FormControl isRequired isInvalid={!!errors.subtipo}>
@@ -292,10 +309,9 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                   </WrapItem>
                 ))}              </Wrap>
             )}
-          />
-          {errors.subtipo && (
-            <FormErrorMessage>{errors.subtipo}</FormErrorMessage>
-          )}        </FormControl>
+          />          {errors.subtipo && (
+            <FormErrorMessage>{getErrorMessage(errors.subtipo)}</FormErrorMessage>
+          )}</FormControl>
       </SimpleGrid>      <FormControl mb={4}>
         <FormLabel>Dificultad</FormLabel>
         <Controller

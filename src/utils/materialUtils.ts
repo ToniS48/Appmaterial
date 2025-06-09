@@ -5,6 +5,7 @@ import { Material } from '../types/material';
 // Interfaz mínima para calcular stock
 interface MaterialStockInfo {
   estado?: string;
+  tipo?: 'cuerda' | 'anclaje' | 'varios';
   cantidadDisponible?: number;
   cantidad?: number;
 }
@@ -29,6 +30,11 @@ export const getMaterialStock = (material: MaterialStockInfo): number => {
     return 0;
   }
   
+  // Para cuerdas (materiales únicos): solo considerarlos disponibles si el estado es 'disponible'
+  if (material.tipo === 'cuerda') {
+    return material.estado === 'disponible' ? 1 : 0;
+  }
+  
   // Para materiales con cantidadDisponible definida, usarla directamente
   if (typeof material.cantidadDisponible === 'number') {
     return material.cantidadDisponible;
@@ -39,7 +45,7 @@ export const getMaterialStock = (material: MaterialStockInfo): number => {
     return material.cantidad;
   }
   
-  // Para materiales únicos (como cuerdas) que no tienen cantidad numérica:
+  // Para materiales únicos (no cuerdas) que no tienen cantidad numérica:
   // Solo considerarlos disponibles si el estado es 'disponible'
   if (material.estado === 'disponible') {
     return 1;

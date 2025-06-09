@@ -42,7 +42,10 @@ const materialRepository = new MaterialRepository();
 if (process.env.NODE_ENV === 'development') {
   (window as any).materialRepository = materialRepository;
   (window as any).MaterialRepository = MaterialRepository;
-  console.log('🔧 MaterialRepository expuesto globalmente para debugging');
+  // Exponer utilidades también
+  const { getMaterialStock } = require('../../utils/materialUtils');
+  (window as any).getMaterialStock = getMaterialStock;
+  console.log('🔧 MaterialRepository y utilidades expuestos globalmente para debugging');
 }
 
 // Definir tipos faltantes
@@ -113,15 +116,20 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   // Toast para notificaciones
   const toast = useToast();
   // Convertir campos tipados - usar tipo correcto
-  const typedFields = fields as (MaterialField & { id: string })[];
-  // Función para convertir Material a MaterialItem
+  const typedFields = fields as (MaterialField & { id: string })[];  // Función para convertir Material a MaterialItem
   const convertirMaterialAItem = useCallback((material: Material): MaterialItem => {
+    // Para cuerdas (materiales únicos), establecer cantidadDisponible = 1 si están disponibles
+    let cantidadDisponible = material.cantidadDisponible;
+    if (material.tipo === 'cuerda' && material.estado === 'disponible' && cantidadDisponible === undefined) {
+      cantidadDisponible = 1;
+    }
+    
     return {
       id: material.id,
       nombre: material.nombre,
       tipo: material.tipo,
       estado: material.estado,
-      cantidadDisponible: material.cantidadDisponible,
+      cantidadDisponible: cantidadDisponible,
       codigo: material.codigo,
       descripcion: material.descripcion
     };  }, []);
@@ -182,18 +190,27 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
 
     cargarMateriales();
   }, [convertirMaterialAItem]);
-
   // Calcular disponibilidad real de un material
   const calcularDisponibilidad = useCallback((material: MaterialItem): number => {
     if (!material) return 0;
     
+    // Para cuerdas (materiales únicos), usar la lógica especial
+    if (material.tipo === 'cuerda') {
+      if (material.estado !== 'disponible') return 0;
+      
+      // Verificar si ya está seleccionada
+      const yaSeleccionada = typedFields.some(field => field.materialId === material.id);
+      return yaSeleccionada ? 0 : 1;
+    }
+    
+    // Para materiales con cantidad
     const cantidadTotal = material.cantidadDisponible || 0;
     const cantidadUsada = typedFields
       .filter(field => field.materialId === material.id)
       .reduce((sum, field) => sum + (field.cantidad || 0), 0);
     
     return Math.max(0, cantidadTotal - cantidadUsada);
-  }, [typedFields]);  // Función para filtrar materiales por búsqueda
+  }, [typedFields]);// Función para filtrar materiales por búsqueda
   const filtrarPorBusqueda = useCallback((materiales: MaterialItem[]) => {
     if (!searchTerm.trim()) return materiales;
     
@@ -312,8 +329,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   const handleRemoveMaterialBase = useCallback((index: number) => {
     remove(index);
   }, [remove]);
-  const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);
-  // Función helper para obtener nombre del usuario
+  const handleRemoveMaterial = useOptimizedClickHandler(handleRemoveMaterialBase);  // Función helper para obtener nombre del usuario
   const obtenerNombreUsuario = useCallback((uid: string) => {
     const usuario = usuarios.find(u => u.uid === uid);
     return usuario ? `${usuario.nombre} ${usuario.apellidos}`.trim() : uid;
@@ -331,7 +347,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
     if (!responsableActividad && !responsableMaterial) return null;
 
     return (
-      <Text fontSize="sm" color="gray.600" mt={1}>
+      <Text fontSize="sm" color="gray.600" mb={3}>
         {responsableActividad && (
           <Text as="span">
             Responsable de actividad: <Text as="span" fontWeight="medium">{responsableActividad}</Text>
@@ -345,9 +361,7 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
         )}
       </Text>
     );
-  }, [responsables, obtenerNombreUsuario]);
-
-  return (
+  }, [responsables, obtenerNombreUsuario]);  return (
     <Box>
       <Heading size="sm" mb={2}>Material necesario</Heading>
       {renderizarResponsables()}

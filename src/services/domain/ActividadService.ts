@@ -7,7 +7,7 @@ import { Actividad, EstadoActividad, TipoActividad, SubtipoActividad, MaterialAs
 import { Prestamo } from '../../types/prestamo';
 import { actividadRepository, prestamoRepository } from '../../repositories';
 import { validateActividad, getUniqueParticipanteIds } from '../../utils/actividadUtils';
-import { determinarEstadoActividad } from '../../utils/dateUtils';
+import { determinarEstadoActividad, toTimestamp } from '../../utils/dateUtils';
 import * as prestamoService from '../prestamoService';
 import { crearPrestamosParaActividad } from '../actividadService';
 import { logger } from '../../utils/loggerUtils';
@@ -69,15 +69,16 @@ export class ActividadService {
         request.creadorId,
         request.responsableActividadId,
         request.responsableMaterialId
-      );
-
-      // Convertir fechas a Timestamp
+      );      // Convertir fechas a Timestamp
+      const fechaInicioTimestamp = Timestamp.fromDate(request.fechaInicio);
+      const fechaFinTimestamp = Timestamp.fromDate(request.fechaFin);
+      
       const actividadData: Omit<Actividad, 'id'> = {
         ...request,
         participanteIds,
-        fechaInicio: Timestamp.fromDate(request.fechaInicio),
-        fechaFin: Timestamp.fromDate(request.fechaFin),
-        estado: determinarEstadoActividad(request.fechaInicio, request.fechaFin),
+        fechaInicio: fechaInicioTimestamp,
+        fechaFin: fechaFinTimestamp,
+        estado: determinarEstadoActividad(fechaInicioTimestamp, fechaFinTimestamp),
         nombreNormalizado: request.nombre.trim().toLowerCase(),
         responsableActividadId: request.responsableActividadId || request.creadorId,
         comentarios: [],
@@ -149,22 +150,16 @@ export class ActividadService {
           (data.fechaFin instanceof Timestamp ? data.fechaFin.toDate() : new Date(data.fechaFin));
         updateData.fechaFin = Timestamp.fromDate(fechaFin);
       }      // Determinar estado automáticamente si cambiaron las fechas
-      if (data.fechaInicio || data.fechaFin) {
-        const fechaInicio = data.fechaInicio ? 
-          (data.fechaInicio instanceof Date ? data.fechaInicio : 
-           data.fechaInicio instanceof Timestamp ? data.fechaInicio.toDate() : new Date(data.fechaInicio)) :
-          (actividadActual.fechaInicio instanceof Timestamp ? 
-           actividadActual.fechaInicio.toDate() : 
-           new Date(actividadActual.fechaInicio));
-           
-        const fechaFin = data.fechaFin ? 
-          (data.fechaFin instanceof Date ? data.fechaFin : 
-           data.fechaFin instanceof Timestamp ? data.fechaFin.toDate() : new Date(data.fechaFin)) :
-          (actividadActual.fechaFin instanceof Timestamp ? 
-           actividadActual.fechaFin.toDate() : 
-           new Date(actividadActual.fechaFin));
+      if (data.fechaInicio || data.fechaFin) {        // Determinar estado basado en fechas (usando Timestamps)
+        const fechaInicioTs = data.fechaInicio ? 
+          toTimestamp(data.fechaInicio) :
+          toTimestamp(actividadActual.fechaInicio);
+          
+        const fechaFinTs = data.fechaFin ? 
+          toTimestamp(data.fechaFin) :
+          toTimestamp(actividadActual.fechaFin);
         
-        updateData.estado = determinarEstadoActividad(fechaInicio, fechaFin, data.estado);
+        updateData.estado = determinarEstadoActividad(fechaInicioTs, fechaFinTs, data.estado);
       }
 
       // Actualizar nombre normalizado si cambió el nombre
