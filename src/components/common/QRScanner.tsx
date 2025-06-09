@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react';
+import './QRScanner.css';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -33,87 +34,50 @@ const QRScanner: React.FC<QRScannerProps> = ({
   onScan,
   title = "Escanear Código QR",
   description = "Apunta la cámara hacia el código QR del material"
-}) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
+}) => {  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const toast = useToast();
-  // Función para inicializar la cámara y el escáner
-  const startCamera = async () => {
+  // Verificar permisos de cámara
+  const checkCameraPermission = async (): Promise<boolean> => {
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // Crear instancia del escáner ZXing
-      if (!scannerRef.current) {
-        scannerRef.current = new BrowserMultiFormatReader();
-      }
-
-      // Obtener dispositivos de video disponibles
-      const videoInputDevices = await scannerRef.current.listVideoInputDevices();
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      stream.getTracks().forEach(track => track.stop()); // Liberar inmediatamente
+      return true;
+    } catch (err: any) {
+      console.error('Permisos de cámara denegados:', err);
       
-      if (videoInputDevices.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles');
+      if (err.name === 'NotAllowedError') {
+        setError('Se necesitan permisos de cámara para escanear códigos QR. Por favor, permite el acceso a la cámara en tu navegador.');
+      } else if (err.name === 'NotFoundError') {
+        setError('No se encontró ninguna cámara en este dispositivo.');
+      } else {
+        setError('Error al acceder a la cámara. Verifica que no esté siendo usada por otra aplicación.');
       }
-
-      // Preferir cámara trasera si está disponible
-      const backCamera = videoInputDevices.find(device => 
-        device.label.toLowerCase().includes('back') || 
-        device.label.toLowerCase().includes('rear') ||
-        device.label.toLowerCase().includes('environment')
-      );
-      
-      const selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-
-      // Iniciar el escaneo
-      await scannerRef.current.decodeFromVideoDevice(
-        selectedDeviceId,
-        videoRef.current!,
-        (result, error) => {
-          if (result) {
-            handleScanSuccess(result.getText());
-          }
-          if (error && !(error instanceof NotFoundException)) {
-            console.warn('Error de escaneo (no crítico):', error);
-          }
-        }
-      );
-
-      setHasPermission(true);
-    } catch (err) {
-      console.error('Error al acceder a la cámara:', err);
-      setError('No se pudo acceder a la cámara. Asegúrate de dar permisos y que no esté siendo usada por otra aplicación.');
-      setHasPermission(false);
-    } finally {
-      setIsLoading(false);
+      return false;
     }
   };
-  // Función para detener la cámara
-  const stopCamera = () => {
-    if (scannerRef.current) {
-      scannerRef.current.reset();
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-  // Manejar escaneo exitoso
-  const handleScanSuccess = (data: string) => {
-    console.log('Código QR detectado:', data);
+
+  // Función para manejar escaneo exitoso
+  const handleScanSuccess = (decodedText: string, decodedResult?: any) => {
+    console.log('Código QR detectado:', decodedText);
+    
+    // Detener el escáner inmediatamente
+    stopScanner();
     
     // Verificar si es un código QR válido de material
-    if (data.includes('/material/detalle/') || 
-        data.match(/^[A-Z]{3}-[a-zA-Z0-9]{6}$/) ||
-        data.match(/^[a-zA-Z0-9]{6,}$/)) {
+    if (decodedText.includes('/material/detalle/') || 
+        decodedText.match(/^[A-Z]{3}-[a-zA-Z0-9]{6}$/) ||
+        decodedText.match(/^[a-zA-Z0-9]{6,}$/)) {
       
-      stopCamera();
-      onScan(data);
+      onScan(decodedText);
       onClose();
       
       toast({
@@ -131,28 +95,139 @@ const QRScanner: React.FC<QRScannerProps> = ({
         duration: 3000,
         isClosable: true,
       });
+      
+      // Reiniciar escáner para seguir intentando
+      setTimeout(() => {
+        initializeScanner();
+      }, 1000);
+    }
+  };
+  // Función para manejar errores de escaneo
+  const handleScanError = (errorMessage: string) => {
+    // Solo logear errores críticos, ignorar errores normales de escaneo
+    if (errorMessage.includes('NotAllowedError') || 
+        errorMessage.includes('Permission denied') ||
+        errorMessage.includes('NotFoundError')) {
+      console.error('Error crítico del escáner:', errorMessage);
+      setError('Error al acceder a la cámara. Verifica los permisos.');
+      setIsScanning(false);
+    }
+  };
+
+  // Inicializar escáner usando Html5QrcodeScanner (método principal y más confiable)
+  const startScanner = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Limpiar cualquier escáner previo
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.clear();
+        } catch (e) {
+          console.log('Scanner ya estaba limpio');
+        }
+      }
+
+      // Configuración optimizada para localhost y navegadores de escritorio
+      const config = {
+        fps: 10,
+        qrbox: { width: 300, height: 300 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        // Configuraciones adicionales para mejor compatibilidad
+        supportedScanTypes: [], // Permitir todos los tipos
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: false
+        }
+      };
+
+      // Crear y renderizar el escáner
+      scannerRef.current = new Html5QrcodeScanner(
+        "qr-scanner-container",
+        config,
+        false // verbose = false para menos logs
+      );
+
+      scannerRef.current.render(handleScanSuccess, handleScanError);
+      setIsScanning(true);
+      
+      console.log('Escáner QR inicializado correctamente');
+      
+    } catch (err: any) {
+      console.error('Error al inicializar el escáner:', err);
+      setError(`No se pudo inicializar el escáner: ${err.message || 'Error desconocido'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Detener escáner
+  const stopScanner = () => {
+    try {
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.clear();
+          scannerRef.current = null;
+        } catch (err) {
+          console.error('Error al limpiar escáner:', err);
+        }
+      }
+      
+      setIsScanning(false);
+      console.log('Escáner detenido');
+    } catch (err) {
+      console.error('Error al detener el escáner:', err);
+    }
+  };
+
+  // Inicializar escáner principal
+  const initializeScanner = async () => {
+    try {
+      // Primero verificar permisos
+      const hasPermission = await checkCameraPermission();
+      
+      if (hasPermission) {
+        await startScanner();
+      }
+    } catch (err: any) {
+      console.error('Error al inicializar:', err);
+      setError(`Error de inicialización: ${err.message || 'Error desconocido'}`);
+      setIsLoading(false);
+    }
+  };
+  // Función para reintentar
+  const handleRetry = async () => {
+    setError(null);
+    await initializeScanner();
+  };
+
+  // Función para escaneo manual (fallback)
+  const handleManualScan = () => {
+    const mockData = prompt("Ingresa el código QR manualmente (ejemplo: ABC-123456):");
+    if (mockData && mockData.trim()) {
+      handleScanSuccess(mockData.trim());
     }
   };
   // Efectos
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    } else {
-      stopCamera();
+    if (isOpen && !isScanning) {
+      // Delay para permitir que el modal se renderice
+      const timer = setTimeout(() => {
+        initializeScanner();
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (!isOpen && isScanning) {
+      stopScanner();
     }
+  }, [isOpen]); // Solo depende de isOpen
 
+  // Cleanup al desmontar
+  useEffect(() => {
     return () => {
-      stopCamera();
+      stopScanner();
     };
-  }, [isOpen]);
-
-  // Función para escaneo manual (fallback)
-  const handleManualScan = () => {
-    const mockData = prompt("Ingresa el código QR manualmente (para pruebas):");
-    if (mockData) {
-      handleScanSuccess(mockData);
-    }
-  };
+  }, []);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
@@ -184,87 +259,58 @@ const QRScanner: React.FC<QRScannerProps> = ({
               </Alert>
             )}
 
-            {hasPermission && !isLoading && (
-              <Box>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{
-                    width: '100%',
-                    maxWidth: '400px',
-                    height: 'auto',
-                    borderRadius: '8px',
-                    border: '2px solid #e2e8f0'
-                  }}
-                />
-                
-                {/* Overlay de escaneo */}
-                <Box
-                  position="relative"
-                  mt={-4}
-                  mx="auto"
-                  width="200px"
-                  height="200px"
-                  border="2px solid"
-                  borderColor="brand.500"
-                  borderRadius="md"
-                  bg="transparent"
-                  _before={{
-                    content: '""',
-                    position: 'absolute',
-                    top: '-2px',
-                    left: '-2px',
-                    right: '-2px',
-                    bottom: '-2px',
-                    border: '20px solid',
-                    borderColor: 'transparent',
-                    borderTopColor: 'brand.500',
-                    borderLeftColor: 'brand.500',
-                    borderRadius: 'md',
-                  }}
-                  _after={{
-                    content: '""',
-                    position: 'absolute',
-                    top: '-2px',
-                    left: '-2px',
-                    right: '-2px',
-                    bottom: '-2px',
-                    border: '20px solid',
-                    borderColor: 'transparent',
-                    borderBottomColor: 'brand.500',
-                    borderRightColor: 'brand.500',
-                    borderRadius: 'md',
-                  }}
-                />
+            {/* Contenedor del escáner */}
+            <Box
+              id="qr-scanner-container"
+              width="100%"
+              maxWidth="400px"
+              mx="auto"
+              borderRadius="md"
+              overflow="hidden"
+              minHeight={isScanning ? "300px" : "auto"}
+            />
 
-                <Text textAlign="center" mt={4} fontSize="sm" color="gray.600">
-                  Mantén el código QR dentro del marco
-                </Text>
-              </Box>
+            {/* Instrucciones de uso */}
+            {isScanning && !error && (
+              <Text textAlign="center" fontSize="sm" color="gray.600">
+                Mantén el código QR dentro del marco de la cámara
+              </Text>
             )}
 
-            {hasPermission === false && !isLoading && (
-              <VStack spacing={4}>
-                <Alert status="warning">
-                  <AlertIcon />
-                  Se necesita acceso a la cámara para escanear códigos QR
-                </Alert>
-                <Button colorScheme="brand" onClick={startCamera}>
-                  Intentar de nuevo
+            {/* Botones de ayuda */}
+            {error && (
+              <VStack spacing={3}>
+                <Button colorScheme="brand" onClick={handleRetry} size="md">
+                  Reintentar
+                </Button>
+                <Button variant="outline" onClick={handleManualScan} size="sm">
+                  Ingresar código manualmente
                 </Button>
               </VStack>
+            )}
+
+            {/* Consejos de troubleshooting */}
+            {error && (
+              <Box p={3} bg="gray.50" borderRadius="md" fontSize="sm">
+                <Text fontWeight="semibold" mb={2}>Consejos para solucionar problemas:</Text>
+                <VStack align="start" spacing={1} fontSize="xs">
+                  <Text>• Verifica que el navegador tenga permisos de cámara</Text>
+                  <Text>• Cierra otras aplicaciones que puedan estar usando la cámara</Text>
+                  <Text>• Intenta refrescar la página (F5)</Text>
+                  <Text>• Usa el modo manual si persisten los problemas</Text>
+                </VStack>
+              </Box>
             )}
           </VStack>
         </ModalBody>
 
-        <ModalFooter>          <Button variant="outline" mr={3} onClick={onClose}>
+        <ModalFooter>
+          <Button variant="outline" mr={3} onClick={onClose}>
             Cancelar
           </Button>
-          {hasPermission && (
-            <Button colorScheme="brand" onClick={handleManualScan} size="sm">
-              Ingreso Manual
+          {process.env.NODE_ENV === 'development' && (
+            <Button colorScheme="gray" onClick={handleManualScan} size="sm">
+              Modo Manual (Debug)
             </Button>
           )}
         </ModalFooter>
