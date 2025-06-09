@@ -18,7 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { listarUsuariosPorIds } from '../../services/usuarioService';
 import { 
   FiPackage, FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
-  FiAlertCircle, FiXCircle 
+  FiAlertCircle, FiXCircle, FiCheck
 } from 'react-icons/fi';
 import IconBadge from '../common/IconBadge';
 import { Actividad } from '../../types/actividad';
@@ -138,12 +138,11 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
             color="purple" 
           />
         ))}
-        
-        <IconBadge 
+          <IconBadge 
           icon={
             actividad.estado === 'planificada' ? FiClock :
             actividad.estado === 'en_curso' ? FiCheckCircle :
-            actividad.estado === 'finalizada' ? FiCheckCircle :
+            actividad.estado === 'finalizada' ? FiCheck :
             FiXCircle
           } 
           label={actividad.estado} 
@@ -154,19 +153,14 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
             'red'
           } 
         />
-        
-        {actividad.dificultad && (
+          {actividad.dificultad && (
           <IconBadge 
-            icon={
-              actividad.dificultad === 'baja' ? FiCheckCircle :
-              actividad.dificultad === 'media' ? FiClock :
-              FiAlertCircle
-            } 
+            icon={FiAlertCircle} 
             label={`Dificultad: ${actividad.dificultad}`} 
             color={
               actividad.dificultad === 'baja' ? 'green' :
-              actividad.dificultad === 'media' ? 'blue' :
-              'orange'
+              actividad.dificultad === 'media' ? 'orange' :
+              'red'
             } 
           />
         )}
