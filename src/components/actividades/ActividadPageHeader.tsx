@@ -61,13 +61,12 @@ export const ActividadPageHeader: React.FC<ActividadPageHeaderProps> = ({
                   {subtipo}
                 </Badge>
               ))}
-              
-              {actividad.dificultad && (
+                {actividad.dificultad && (
                 <Badge 
                   colorScheme={
                     actividad.dificultad === 'baja' ? 'green' :
-                    actividad.dificultad === 'media' ? 'blue' :
-                    'orange'
+                    actividad.dificultad === 'media' ? 'orange' :
+                    'red'
                   } 
                   fontSize="0.8em" 
                   borderRadius="full" 

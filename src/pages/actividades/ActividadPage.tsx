@@ -8,7 +8,7 @@ import {
   AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, useToast,
   Tabs, TabList, Tab, TabPanels, TabPanel
 } from '@chakra-ui/react';
-import { FiEdit, FiPackage, FiGlobe, FiArrowLeft, FiSave } from 'react-icons/fi';
+import { FiEdit, FiPackage, FiGlobe, FiArrowLeft, FiSave, FiFileText, FiUsers, FiLink, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import InfoEditor from '../../components/actividades/InfoEditor';
@@ -147,11 +147,10 @@ const ActividadPage: React.FC = () => {
           <Card>
             <CardBody>
               <Flex justify="space-between" align="center" mb={4}>
-                <Heading size="md">Información básica</Heading>
-                {puedeEditar && (
+                <Heading size="md">Información básica</Heading>                {puedeEditar && (
                   <IconButton
                     aria-label="Editar información"
-                    icon={<FiEdit />}
+                    icon={<FiInfo />}
                     size="sm"
                     onClick={() => setEditingInfo(true)}
                   />
@@ -261,10 +260,9 @@ const ActividadPage: React.FC = () => {
           <Card>
             <CardBody>
               <Flex justify="space-between" align="center" mb={4}>
-                <Heading size="md">Listado de participantes</Heading>
-                {puedeEditar && (
+                <Heading size="md">Listado de participantes</Heading>                {puedeEditar && (
                   <Button
-                    leftIcon={<FiEdit />}
+                    leftIcon={<FiUsers />}
                     size="sm"
                     onClick={() => setEditingParticipantes(true)}
                   >
@@ -343,11 +341,10 @@ const ActividadPage: React.FC = () => {
           ) : (
             <>
               <Flex justify="space-between" align="center" mb={4}>
-                <Text>Material necesario para esta actividad:</Text>
-                {puedeEditar && (
+                <Text>Material necesario para esta actividad:</Text>                {puedeEditar && (
                   <Button 
                     size="sm" 
-                    leftIcon={<FiEdit />}
+                    leftIcon={<FiPackage />}
                     onClick={() => setEditingMaterial(true)}
                   >
                     Editar material
@@ -394,11 +391,10 @@ const ActividadPage: React.FC = () => {
           <Card>
             <CardBody>
               <Flex justify="space-between" align="center" mb={4}>
-                <Text>Enlaces relacionados con esta actividad:</Text>
-                {puedeEditar && (
+                <Text>Enlaces relacionados con esta actividad:</Text>                {puedeEditar && (
                   <Button 
                     size="sm" 
-                    leftIcon={<FiEdit />}
+                    leftIcon={<FiLink />}
                     onClick={() => setEditingEnlaces(true)}
                   >
                     Editar enlaces
@@ -533,14 +529,39 @@ const ActividadPage: React.FC = () => {
             esResponsable={esResponsable}
             onCancelarActividad={() => setIsConfirmOpen(true)}
           />
-          
-          {/* Pestañas con información detallada */}
-          <Tabs index={activeTabIndex} onChange={handleTabChange} variant="soft-rounded" colorScheme="brand">
-            <TabList mb={4}>
-              <Tab>Información</Tab>
-              <Tab>Participantes ({participantes.length})</Tab>
-              <Tab>Material ({actividad.materiales?.length || 0})</Tab>
-              <Tab>Enlaces ({totalEnlaces})</Tab>
+            {/* Pestañas con información detallada */}          <Tabs index={activeTabIndex} onChange={handleTabChange} variant="enclosed" colorScheme="brand">
+            <TabList 
+              mb={4}
+              overflowX="auto" 
+              sx={{
+                // Estilos para scroll horizontal en caso necesario
+                '::-webkit-scrollbar': {
+                  height: '4px',
+                },
+                '::-webkit-scrollbar-track': {
+                  bg: 'gray.100',
+                },
+                '::-webkit-scrollbar-thumb': {
+                  bg: 'gray.300',
+                  borderRadius: '4px',
+                },
+              }}            >
+              <Tab>
+                <FiFileText style={{ marginRight: '5px' }} />
+                Información
+              </Tab>
+              <Tab>
+                <FiUsers style={{ marginRight: '5px' }} />
+                Participantes ({participantes.length})
+              </Tab>
+              <Tab>
+                <FiPackage style={{ marginRight: '5px' }} />
+                Material ({actividad.materiales?.length || 0})
+              </Tab>
+              <Tab>
+                <FiLink style={{ marginRight: '5px' }} />
+                Enlaces ({totalEnlaces})
+              </Tab>
             </TabList>
 
             <TabPanels>

@@ -157,11 +157,10 @@ export const listarActividades = async (filters?: any, ignoreCache: boolean = fa
       return cachedActividades;
     }
   }
-  
-  try {
+    try {
     let actividadQuery = query(
       collection(db, 'actividades'),
-      orderBy('fechaInicio', 'desc')
+      orderBy('fechaInicio', 'asc')
     );
     
     if (filters) {
@@ -266,18 +265,22 @@ export const obtenerActividadesProximas = async (limit: number = 10, options?: {
   try {
     const now = Timestamp.now();
     
+    // Simplificar la consulta para evitar errores de índice compuesto
     const actividadQuery = query(
       collection(db, 'actividades'),
       where('fechaInicio', '>=', now),
-      orderBy('fechaInicio', 'asc'),
-      where('estado', '!=', 'cancelada')
+      orderBy('fechaInicio', 'asc')
     );
     
     const actividadesSnapshot = await getDocs(actividadQuery);
-    const actividades = actividadesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Actividad)).slice(0, limit);
+    const actividades = actividadesSnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Actividad))
+      // Filtrar actividades canceladas en el cliente
+      .filter(actividad => actividad.estado !== 'cancelada')
+      .slice(0, limit);
     
     // Guardar en caché
     const cacheKey = `proximas_${limit}`;
@@ -347,34 +350,60 @@ export const obtenerActividadesClasificadas = async (usuarioId: string): Promise
   actividadesParticipante: Actividad[];
 }> => {
   try {
-    // Obtener todas las actividades en las que participa el usuario
-    const actividadQuery = query(
-      collection(db, 'actividades'),
-      where('participanteIds', 'array-contains', usuarioId),
-      orderBy('fechaInicio', 'desc')
+    console.log('🔍 obtenerActividadesClasificadas - Iniciando para usuario:', usuarioId);
+    
+    // Obtener todas las actividades del sistema (necesario para buscar por responsabilidad)
+    const todasActividades = await listarActividades();
+    console.log('🔍 obtenerActividadesClasificadas - Total actividades en sistema:', todasActividades.length);
+    
+    // Filtrar solo las actividades donde el usuario tiene algún rol
+    const actividadesUsuario = todasActividades.filter(act => 
+      act.creadorId === usuarioId || 
+      act.responsableActividadId === usuarioId || 
+      act.responsableMaterialId === usuarioId ||
+      (act.participanteIds && act.participanteIds.includes(usuarioId))
     );
     
-    const actividadesSnapshot = await getDocs(actividadQuery);
-    const todasActividades = actividadesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Actividad));
+    console.log('🔍 obtenerActividadesClasificadas - Actividades del usuario:', actividadesUsuario.length);
     
     // Clasificar las actividades
-    const actividadesResponsable = todasActividades.filter(
+    const actividadesResponsable = actividadesUsuario.filter(
       act => act.creadorId === usuarioId || 
              act.responsableActividadId === usuarioId || 
              act.responsableMaterialId === usuarioId
     );
     
-    const actividadesParticipante = todasActividades.filter(
+    const actividadesParticipante = actividadesUsuario.filter(
       act => act.creadorId !== usuarioId && 
              act.responsableActividadId !== usuarioId && 
-             (act.responsableMaterialId === undefined || act.responsableMaterialId !== usuarioId)
+             (act.responsableMaterialId === undefined || act.responsableMaterialId !== usuarioId) &&
+             (act.participanteIds && act.participanteIds.includes(usuarioId))
     );
+    
+    console.log('🔍 obtenerActividadesClasificadas - Como responsable:', actividadesResponsable.length);
+    console.log('🔍 obtenerActividadesClasificadas - Como participante:', actividadesParticipante.length);
+    
+    // Log detallado de actividades como responsable
+    actividadesResponsable.forEach(act => {
+      console.log(`  📋 Responsable de "${act.nombre}": creador=${act.creadorId === usuarioId}, respActividad=${act.responsableActividadId === usuarioId}, respMaterial=${act.responsableMaterialId === usuarioId}`);
+    });
+    
+    // Ordenar por fecha de inicio descendente
+    actividadesResponsable.sort((a, b) => {
+      const fechaA = a.fechaInicio instanceof Date ? a.fechaInicio : a.fechaInicio.toDate();
+      const fechaB = b.fechaInicio instanceof Date ? b.fechaInicio : b.fechaInicio.toDate();
+      return fechaB.getTime() - fechaA.getTime();
+    });
+    
+    actividadesParticipante.sort((a, b) => {
+      const fechaA = a.fechaInicio instanceof Date ? a.fechaInicio : a.fechaInicio.toDate();
+      const fechaB = b.fechaInicio instanceof Date ? b.fechaInicio : b.fechaInicio.toDate();
+      return fechaB.getTime() - fechaA.getTime();
+    });
     
     return { actividadesResponsable, actividadesParticipante };
   } catch (error) {
+    console.error('❌ Error en obtenerActividadesClasificadas:', error);
     handleFirebaseError(error, 'Error al obtener actividades clasificadas');
     throw error;
   }

@@ -11,12 +11,13 @@ import {
 } from '@chakra-ui/react';
 import { 
   FiCalendar, FiEdit, FiTrash, FiPackage, FiEye, 
-  FiStar, FiUser, FiCheckCircle, FiClock, 
-  FiAlertCircle, FiXCircle, FiUserPlus 
+  FiStar, FiUser, FiUsers, FiCheckCircle, FiClock, 
+  FiAlertCircle, FiXCircle, FiUserPlus, FiCheck 
 } from 'react-icons/fi';
 import IconBadge from '../common/IconBadge';
 import { useAuth } from '../../contexts/AuthContext';
 import { Actividad } from '../../types/actividad';
+import { ActividadConRetrasoIndicador } from './ActividadConRetrasoIndicador';
 
 // OPTIMIZACIÓN DE RENDIMIENTO
 const deferCallback = (callback: () => void) => {
@@ -207,8 +208,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   color="blue" 
                   size={variant === 'simple' ? 3.5 : 4} 
                 />
-              )}
-              {esResponsableMaterial && !esCreador && !esResponsableActividad && (
+              )}              {esResponsableMaterial && !esCreador && !esResponsableActividad && (
                 <IconBadge 
                   icon={FiPackage} 
                   label="R. Material" 
@@ -216,32 +216,41 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   size={variant === 'simple' ? 3.5 : 4} 
                 />
               )}
-              
-              {/* Estado de la actividad como IconBadge */}
-              <IconBadge 
+              {/* Icono de participante: solo mostrar si es participante pero NO responsable */}
+              {esParticipante && !esResponsable && (
+                <IconBadge 
+                  icon={FiUsers} 
+                  label="Participante" 
+                  color="gray" 
+                  size={variant === 'simple' ? 3.5 : 4} 
+                />
+              )}
+                {/* Estado de la actividad como IconBadge */}<IconBadge 
                 icon={
                   actividad.estado === 'planificada' ? FiClock :
                   actividad.estado === 'en_curso' ? FiCheckCircle :
-                  actividad.estado === 'finalizada' ? FiCheckCircle :
+                  actividad.estado === 'finalizada' ? FiCheck :
                   FiXCircle
-                }                label={estadoDisplay.label} 
+                }
+                label={estadoDisplay.label} 
                 color={estadoDisplay.color as any}
                 size={variant === 'simple' ? 3.5 : 4}
               />
               
-              {/* Dificultad si existe */}
+              {/* Indicador de retraso - nuevo */}
+              <ActividadConRetrasoIndicador 
+                actividad={actividad} 
+                showDetails={false}
+              />
+                {/* Dificultad si existe */}
               {actividad.dificultad && (
                 <IconBadge 
-                  icon={
-                    actividad.dificultad === 'baja' ? FiCheckCircle :
-                    actividad.dificultad === 'media' ? FiClock :
-                    FiAlertCircle
-                  } 
+                  icon={FiAlertCircle} 
                   label={`Dificultad: ${actividad.dificultad}`} 
                   color={
                     actividad.dificultad === 'baja' ? 'green' :
-                    actividad.dificultad === 'media' ? 'blue' :
-                    'orange'
+                    actividad.dificultad === 'media' ? 'orange' :
+                    'red'
                   } 
                   size={variant === 'simple' ? 3.5 : 4} 
                 />
