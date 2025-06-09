@@ -1,54 +1,68 @@
-# 🗂️ ESTRUCTURA ORGANIZADA DE ARCHIVOS - AppMaterial
+# 🧪 Tests - AppMaterial
 
-## 📁 ESTRUCTURA FINAL DESPUÉS DE LA LIMPIEZA
+Esta carpeta contiene todos los tests, scripts de debugging y herramientas de validación del proyecto AppMaterial.
 
-### 🎯 DIRECTORIO RAÍZ (LIMPIO)
-Solo contiene archivos esenciales del proyecto:
-- ✅ Archivos de configuración (`package.json`, `tsconfig.json`, `firebase.json`)
-- ✅ Archivos del proyecto (`src/`, `public/`, `build/`)
-- ✅ Archivos Git (`.git/`, `.gitignore`)
-- ✅ Archivos de documentación principal (`README.md`)
+## 📚 Documentación Completa
 
-### 📊 DIRECTORIOS ORGANIZADOS
+Para información detallada sobre testing y debugging, consulte:
 
-#### 📂 `tests/` - Tests y Validaciones
+**[📋 Documentación de Testing](../docs/README/testing/README-TESTING.md)**
+- Estructura completa de testing
+- Herramientas por categoría  
+- Guías de uso y configuración
+
+**[🔍 Documentación de Debugging](../docs/README/debugging/README-DEBUGGING.md)**
+- Scripts de debugging por componente
+- Metodologías de troubleshooting
+- Solución de problemas comunes
+
+## 📁 Estructura Organizada
+
 ```
 tests/
-├── core/                                    # Tests principales y validaciones críticas
-│   ├── test-devoluciones.js                 # Test de devoluciones
-│   ├── test-prestamos.js                    # Test de préstamos automáticos
-│   ├── validacion-sistema.js                # Validación del sistema
-│   ├── validate-material-editor-implementation.js  # Validación MaterialEditor
-│   ├── verificacion-material.js             # Verificación lógica de material
-│   ├── verify-firebase-connection.js        # Verificación conexión Firebase
-│   └── verify-fix.js                        # Verificación de fixes aplicados
-├── docs/                                    # Documentación de tests
-│   ├── CORRECCION-ACTIVIDADID-COMPLETADA.md # Doc. corrección principal
-│   ├── RESUMEN-SOLUCION-PRESTAMOS.md        # Resumen solución préstamos
-│   └── test-flujo-prestamos.md              # Doc. flujo de tests
-├── unit/                                    # Tests unitarios
-│   └── notificaciones-registro.test.ts      # Test unitario notificaciones
-└── utils/                                   # Utilidades y scripts auxiliares
-    ├── browser-debug-script.js              # Script debug navegador
-    ├── check-index.bat                      # Verificación índices Firebase
-    ├── cleanup-eslint-safe.js               # Limpieza ESLint segura
-    ├── cleanup-eslint.js                    # Limpieza ESLint
-    ├── crear-materiales-prueba.js           # Crear materiales test
-    ├── create-test-materials.js             # Crear materiales test
-    ├── deploy-firebase-indexes.bat          # Deploy índices Firebase
-    ├── inicio-prestamos.bat                 # Inicio tests préstamos
-    ├── start-app.ps1                        # Iniciar aplicación
-    ├── test-materiales-disponibles.bat      # Test materiales disponibles
-    ├── test-simple.ps1                      # Test simple
-    ├── validate-optimizations.ps1           # Validar optimizaciones
-    ├── validate-simple.ps1                  # Validación simple
-    ├── verificacion.ps1                     # Verificación
-    └── [archivos HTML de test]               # Tests HTML varios
+├── core/                    # Tests principales de lógica de negocio
+│   └── prestamos/          # Tests específicos de préstamos
+├── debug/                  # Scripts de debugging consolidados
+├── browser-tests/          # Tests HTML que requieren navegador
+├── scripts/               # Scripts de automatización (.bat, .ps1)
+├── utils/                 # Utilidades y helpers de testing
+└── unit/                  # Tests unitarios
 ```
 
-#### 📂 `docs/` - Documentación del Proyecto
+## 🚀 Uso Rápido
+
+### Tests Principales
+```bash
+npm test                   # Ejecutar todos los tests
 ```
-docs/
+
+### Scripts de Debug (en consola del navegador)
+```javascript
+// Debug rápido de MaterialSelector
+window.debugMaterialSelector();
+
+// Diagnóstico completo del sistema  
+window.diagnosticoCompleto();
+```
+
+### Validación del Sistema
+```bash
+# Windows
+.\tests\scripts\validate-simple.ps1
+
+# Verificar materiales
+.\tests\scripts\test-materiales-disponibles.bat
+```
+
+## 📋 Estado Post-Reorganización
+
+✅ **Scripts consolidados** - Todos los scripts de debug organizados en `debug/`  
+✅ **Tests organizados** - Tests por categoría en carpetas específicas  
+✅ **Duplicados eliminados** - Sin archivos redundantes  
+✅ **Documentación unificada** - READMEs temáticos en `docs/README/`
+
+---
+*Para documentación completa, ver [docs/README/INDEX-MAESTRO.md](../docs/README/INDEX-MAESTRO.md)*
 ├── guides/                                  # Guías y tutoriales
 │   ├── date-handling.md                     # Guía manejo fechas
 │   └── GUIA-DEBUGGING-MATERIALSELECTOR.md   # Guía debug MaterialSelector
