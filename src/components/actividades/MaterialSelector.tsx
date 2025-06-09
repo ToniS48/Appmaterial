@@ -23,9 +23,11 @@ import {
   Tab,
   TabPanels,
   TabPanel,
-  Divider
+  Divider,
+  IconButton
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
+import { FiGrid } from 'react-icons/fi';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
 import messages from '../../constants/messages';
 import MaterialCard from '../material/MaterialCard';
@@ -65,6 +67,8 @@ export interface MaterialSelectorProps {
     creadorId?: string;
   };
   usuarios?: Array<{ uid: string; nombre: string; apellidos: string; }>;
+  // Nuevas props para QR Scanner
+  onOpenQRScanner?: () => void;
 }
 
 /**
@@ -79,7 +83,8 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
   borderColor,
   actividadId,
   responsables,
-  usuarios = []
+  usuarios = [],
+  onOpenQRScanner
 }) => {
   // Debug inicial
   console.log("📦 MaterialSelector - Props recibidas:");
@@ -387,19 +392,29 @@ const MaterialSelector: React.FC<MaterialSelectorProps> = ({
             {messages.actions.retry || "Reintentar"}
           </Button>
         </Box>
-      ) : (
-        <>          {/* Sección de búsqueda */}
+      ) : (        <>          {/* Sección de búsqueda */}
           <Box mb={4}>
-            <InputGroup mb={4}>
-              <InputLeftElement pointerEvents="none">
-                <SearchIcon color="gray.300" />
-              </InputLeftElement>
-              <Input 
-                placeholder={messages.material.selector.buscarPlaceholder} 
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </InputGroup>
+            <Flex gap={2} mb={4}>
+              <InputGroup flex="1">
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.300" />
+                </InputLeftElement>
+                <Input 
+                  placeholder={messages.material.selector.buscarPlaceholder} 
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+              </InputGroup>                {/* Botón QR Scanner */}
+              {onOpenQRScanner && (                <IconButton
+                  aria-label="Escanear código QR"
+                  icon={<FiGrid />}
+                  colorScheme="brand"
+                  variant="outline"
+                  onClick={onOpenQRScanner}
+                  title="Escanear código QR para añadir material"
+                />
+              )}
+            </Flex>
             
             {/* Vista del catálogo de materiales con Tabs */}
             <Tabs variant="enclosed" colorScheme="brand" isLazy>
