@@ -27,7 +27,8 @@ import messages from '../../constants/messages';
 import { 
   safeISOString, 
   isSameDay, 
-  toDate, 
+  toTimestamp,
+  timestampToDate, 
   normalizarFecha 
 } from '../../utils/dateUtils';
 
@@ -145,35 +146,45 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   const isCurrentMonth = (day: Date): boolean => {
     return day.getMonth() === currentMonth.getMonth();
   };
-  
-  // Verificar si un día es hoy
+    // Verificar si un día es hoy
   const isToday = (day: Date): boolean => {
-    return isSameDay(day, new Date());
+    const dayTimestamp = toTimestamp(day);
+    const todayTimestamp = toTimestamp(new Date());
+    return isSameDay(dayTimestamp, todayTimestamp);
   };
 
   // Verificar si un día es pasado
   const isPastDay = (day: Date): boolean => {
-    const today = normalizarFecha(new Date());
-    const dateToCompare = normalizarFecha(day);
-    if (!today || !dateToCompare) return false;
-    return dateToCompare.getTime() < today.getTime();
+    const todayTs = normalizarFecha(toTimestamp(new Date()));
+    const dateToCompareTs = normalizarFecha(toTimestamp(day));
+    if (!todayTs || !dateToCompareTs) return false;
+    
+    const todayDate = timestampToDate(todayTs);
+    const compareDate = timestampToDate(dateToCompareTs);
+    if (!todayDate || !compareDate) return false;
+    
+    return compareDate.getTime() < todayDate.getTime();
   };
-  
-  // Obtener actividades para un día específico
+    // Obtener actividades para un día específico
   const getActividadesForDay = (day: Date): Actividad[] => {
     return actividades.filter(act => {
-      const inicio = toDate(act.fechaInicio);
-      const fin = toDate(act.fechaFin);
+      const inicio = timestampToDate(toTimestamp(act.fechaInicio));
+      const fin = timestampToDate(toTimestamp(act.fechaFin));
       if (!inicio || !fin) return false;
-      
-      const dayNormalized = normalizarFecha(day);
-      const inicioNormalized = normalizarFecha(inicio);
-      const finNormalized = normalizarFecha(fin);
+        const dayNormalizedTs = normalizarFecha(toTimestamp(day));
+      const inicioNormalizedTs = normalizarFecha(toTimestamp(inicio));
+      const finNormalizedTs = normalizarFecha(toTimestamp(fin));
       
       // Verificar que ninguno sea null antes de comparar
+      if (!dayNormalizedTs || !inicioNormalizedTs || !finNormalizedTs) return false;
+      
+      // Convertir a Date para comparación
+      const dayNormalized = timestampToDate(dayNormalizedTs);
+      const inicioNormalized = timestampToDate(inicioNormalizedTs);
+      const finNormalized = timestampToDate(finNormalizedTs);
+      
       if (!dayNormalized || !inicioNormalized || !finNormalized) return false;
       
-      // Si llegamos aquí, sabemos que ninguna variable es null
       // Comprobar si el día está dentro del rango de la actividad o coincide con el inicio/fin
       const diaEnRango = 
         dayNormalized.getTime() >= inicioNormalized.getTime() && 

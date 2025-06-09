@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { Material } from '../types/material';
 import { format } from 'date-fns';
+import { toTimestamp, timestampToDate } from '../utils/dateUtils';
 
 export type ExportFormat = 'csv' | 'excel' | 'json';
 
@@ -173,24 +174,14 @@ class MaterialExportService {
   }
   /**
    * Formatea una fecha para exportación
-   */
-  private formatDate(date: any): string {
+   */  private formatDate(date: any): string {
     if (!date) return '';
     
     try {
-      // Manejar Timestamp de Firebase
-      if (date && typeof date.toDate === 'function') {
-        return format(date.toDate(), 'dd/MM/yyyy');
-      }
-      
-      // Manejar Date normal
-      if (date instanceof Date) {
-        return format(date, 'dd/MM/yyyy');
-      }
-      
-      // Manejar string de fecha
-      if (typeof date === 'string') {
-        return format(new Date(date), 'dd/MM/yyyy');
+      // NUEVA ESTRATEGIA: Usar timestampToDate para conversión segura
+      const dateObj = timestampToDate(toTimestamp(date));
+      if (dateObj) {
+        return format(dateObj, 'dd/MM/yyyy');
       }
       
       return '';

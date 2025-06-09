@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import * as crypto from 'crypto-js';
+import { toTimestamp, timestampToDate } from '../utils/dateUtils';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 5 * 60 * 1000; // 5 minutos en milisegundos
@@ -39,17 +40,16 @@ export const checkLoginStatus = async (email: string): Promise<LoginStatus> => {
         attemptsRemaining: MAX_LOGIN_ATTEMPTS - userData.attempts,
       };
     }
-    
-    // Verificar si el bloqueo ha expirado
+      // Verificar si el bloqueo ha expirado
     if (userData.blockedUntil) {
-      const blockedUntil = new Date(userData.blockedUntil.toDate());
+      // NUEVA ESTRATEGIA: Usar timestampToDate para conversión segura
+      const blockedUntilDate = timestampToDate(toTimestamp(userData.blockedUntil));
       const now = new Date();
       
-      if (blockedUntil > now) {
-        return {
+      if (blockedUntilDate && blockedUntilDate > now) {        return {
           blocked: true,
           attemptsRemaining: 0,
-          blockedUntil: blockedUntil
+          blockedUntil: blockedUntilDate
         };
       } else {
         // El bloqueo ha expirado, reiniciar contador

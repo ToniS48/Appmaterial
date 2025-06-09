@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { 
   Box, Tabs, TabList, Tab, TabPanels, TabPanel, Container, 
-  Button, HStack, Center, Spinner, Alert, Spacer, Flex, useToast
+  Button, HStack, Center, Spinner, Alert, Spacer, Flex, useToast,
+  useBreakpointValue, Text, Tooltip
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiArrowRight, FiSave, FiFileText, FiUsers, FiPackage, FiLink, FiCheck, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -23,6 +24,7 @@ import { useActividadOptimizations } from '../../hooks/useActividadOptimizations
 import { setupSchedulerOptimizer, optimizeTabChange } from '../../utils/reactSchedulerOptimizer';
 import { listarUsuarios } from '../../services/usuarioService';
 import { Usuario } from '../../types/usuario';
+import { serializeTimestampsForStorage, deserializeTimestampsFromStorage, toTimestamp, timestampToDate } from '../../utils/dateUtils';
 
 export default function ActividadFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,21 +47,35 @@ export default function ActividadFormPage() {
     updateParticipantes,
     updateMaterial,
     updateEnlaces,
-    saveActividad,
-  } = useActividadForm({ actividadId: id });
-    // Añadir hook de optimizaciones para prevenir violaciones
+    saveActividad,  } = useActividadForm({ actividadId: id });
+  
+  // Añadir hook de optimizaciones para prevenir violaciones
   const {
     optimizedSave,
     optimizedTabChange,
     optimizedFormUpdate,
     getMetrics,
-    resetMetrics
-  } = useActividadOptimizations({ enableLogging: process.env.NODE_ENV === 'development' });
+    resetMetrics  } = useActividadOptimizations({ enableLogging: process.env.NODE_ENV === 'development' });
   
   // Hook para notificaciones
   const toast = useToast();
   
-  // Optimizar el scheduler de React al cargar el componente
+  // Hooks para diseño responsivo
+  const showTabText = useBreakpointValue({ base: false, sm: false, md: true });
+  const tabSize = useBreakpointValue({ base: 'sm', md: 'md' });
+  const tabFontSize = useBreakpointValue({ base: 'xs', sm: 'sm', md: 'md' });
+  
+  // Hook de validación
+  const validation = useActividadInfoValidation();
+  
+  // Estados del componente
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(initialError);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [completedTabs, setCompletedTabs] = useState<number[]>([]);
+  const totalTabs = 4; // Número total de pestañas
+    // Optimizar el scheduler de React al cargar el componente
   useLayoutEffect(() => {
     // Configurar el optimizador y guardar la función de limpieza
     const cleanupScheduler = setupSchedulerOptimizer();
@@ -68,16 +84,40 @@ export default function ActividadFormPage() {
       // Limpiar optimizaciones cuando se desmonta el componente
       if (cleanupScheduler) cleanupScheduler();
     };
-  }, []);  const validation = useActividadInfoValidation();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(initialError);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
-  // Nuevo estado para rastrear las pestañas completadas
-  const [completedTabs, setCompletedTabs] = useState<number[]>([]);
-  const totalTabs = 4; // Número total de pestañas
+  }, []);
   
+  // Función para renderizar el contenido de una pestaña de forma responsiva
+  const renderTabContent = (icon: React.ReactElement, text: string, isCompleted: boolean) => {
+    const content = (
+      <Flex align="center" justify="center" gap={showTabText ? 2 : 0}>
+        {React.cloneElement(icon, { 
+          size: showTabText ? '16' : '18',
+          style: { flexShrink: 0 }
+        })}
+        {showTabText && (
+          <Text fontSize={tabFontSize} whiteSpace="nowrap">
+            {text}
+          </Text>
+        )}
+        {isCompleted && (
+          <FiCheck
+            size={showTabText ? '14' : '16'}
+            style={{ color: 'green', flexShrink: 0 }}
+          />
+        )}
+      </Flex>
+    );
+
+    // En pantallas pequeñas, envolver en Tooltip para mostrar el texto
+    if (!showTabText) {
+      return (
+        <Tooltip label={text} placement="bottom" hasArrow>
+          {content}
+        </Tooltip>
+      );
+    }    return content;
+  };
+
   // Llamar al hook en el nivel superior
   const { validate } = useZodValidation(actividadBaseSchema);
   
@@ -159,10 +199,10 @@ export default function ActividadFormPage() {
                 if (isValid) {
                 optimizedFormUpdate(updateInfo, data);
                 setCompletedTabs(prev => Array.from(new Set([...prev, 0])));
-                nextTab();
-              } else {
+                nextTab();              } else {
                 setFirstTabErrors(data);
-              }            } else if (activeTabIndex === 1) {
+              }
+            } else if (activeTabIndex === 1) {
               // Pestaña de participantes - Llamar a la función submitForm del componente participantes
               console.log("ActividadFormPage - Iniciando validación de participantes");
               if (participantesEditorRef.current) {
@@ -187,10 +227,10 @@ export default function ActividadFormPage() {
               }
               
               // Marcar esta pestaña como completada
-              setCompletedTabs(prev => Array.from(new Set([...prev, 2])));
-              
+              setCompletedTabs(prev => Array.from(new Set([...prev, 2])));              
               // Avanzar a la siguiente pestaña
-              nextTab();            } else if (activeTabIndex === 3) {
+              nextTab();
+            } else if (activeTabIndex === 3) {
               // Actualizar enlaces de forma optimizada
               optimizedFormUpdate(updateEnlaces, data);
               
@@ -208,30 +248,42 @@ export default function ActividadFormPage() {
       });
     } catch (err) {
       setError('Error al procesar los datos: ' + (err instanceof Error ? err.message : 'Error desconocido'));
-    } finally {
-      setIsSubmitting(false);
-    }  };
-  
+    } finally {      setIsSubmitting(false);
+    }
+  };
+
   // Añadir una función helper para validar la primera pestaña
   const validateFirstTab = (data: any, silencioso: boolean = false) => {
-    const nombreValido = validation.validateNombre(data.nombre || '', silencioso) === undefined;
-    const lugarValido = validation.validateLugar(data.lugar || '', silencioso) === undefined;
-    const tipoValido = validation.validateTipo(data.tipo || [], silencioso) === undefined;
-    const subtipoValido = validation.validateSubtipo(data.subtipo || [], silencioso) === undefined;
+    const nombreResult = validation.validateNombre(data.nombre || '', silencioso);
+    const lugarResult = validation.validateLugar(data.lugar || '', silencioso);
+    const tipoResult = validation.validateTipo(data.tipo || [], silencioso);
+    const subtipoResult = validation.validateSubtipo(data.subtipo || [], silencioso);
     
-    let fechasValidas = true;
-    if (data.fechaInicio && data.fechaFin) {
-      // Convertir de Timestamp a Date si es necesario
-      const fechaInicio = data.fechaInicio instanceof Date 
-        ? data.fechaInicio 
-        : data.fechaInicio.toDate();
-      
-      const fechaFin = data.fechaFin instanceof Date 
-        ? data.fechaFin 
-        : data.fechaFin.toDate();
-      
-      validation.validateFechas(fechaInicio, fechaFin, silencioso);
-      fechasValidas = !validation.errors.fechaFin;
+    // CORRECCIÓN: Un campo es válido cuando NO hay error (undefined o falsy)
+    const nombreValido = !nombreResult;
+    const lugarValido = !lugarResult; 
+    const tipoValido = !tipoResult;
+    const subtipoValido = !subtipoResult;
+      let fechasValidas = true;    if (data.fechaInicio && data.fechaFin) {
+      // NUEVA ESTRATEGIA: Convertir a Timestamp primero, luego a Date solo para validación
+      const timestampInicio = toTimestamp(data.fechaInicio);
+      const timestampFin = toTimestamp(data.fechaFin);
+        if (timestampInicio && timestampFin) {
+        const fechaInicio = timestampToDate(timestampInicio);
+        const fechaFin = timestampToDate(timestampFin);
+        if (fechaInicio && fechaFin) {
+          validation.validateFechas(fechaInicio, fechaFin, silencioso);
+          fechasValidas = !validation.errors.fechaFin;
+        }
+      } else {
+        fechasValidas = false;
+        if (!timestampInicio) {
+          validation.setError('fechaInicio', 'Fecha de inicio inválida', !silencioso);
+        }
+        if (!timestampFin) {
+          validation.setError('fechaFin', 'Fecha de fin inválida', !silencioso);
+        }
+      }
     } else {
       fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
       // Validar fechas individuales si faltan - mostrar mensaje adecuado
@@ -260,7 +312,6 @@ export default function ActividadFormPage() {
   };
 
   // Añadir estas nuevas funciones para manejar los callbacks
-
   // Función para manejar la selección de responsables
   const handleResponsablesChange = (responsableActividadId: string, responsableMaterialId?: string) => {
     // Actualizar el estado usando la función que ya tenemos del hook
@@ -268,7 +319,7 @@ export default function ActividadFormPage() {
       formData.participanteIds || [],
       { responsableId: responsableActividadId, responsableMaterialId }
     );
-  };  // Función personalizada para manejar materiales con asignación automática de responsable
+  };// Función personalizada para manejar materiales con asignación automática de responsable
   const handleMaterialUpdate = (materiales: any[]) => {
     try {
       console.log("ActividadFormPage handleMaterialUpdate - Recibidos materiales:", materiales);
@@ -319,31 +370,38 @@ export default function ActividadFormPage() {
       console.error("ActividadFormPage handleParticipantesUpdate - Error:", error);
       throw error; // Re-lanzar el error para que submitForm lo capture
     }
-  };
-  // Validación de la primera pestaña optimizada
+  };  // Validación de la primera pestaña optimizada
   const validateFirstTabSilent = async (data: Partial<Actividad>): Promise<boolean> => {
     return new Promise((resolve) => {
       // Planificar la validación para el siguiente frame de animación
       requestAnimationFrame(() => {
         try {
-          const nombreValido = validation.validateNombre(data.nombre || '', true) === undefined;
-          const lugarValido = validation.validateLugar(data.lugar || '', true) === undefined;
-          const tipoValido = validation.validateTipo(data.tipo || [], true) === undefined;
-          const subtipoValido = validation.validateSubtipo(data.subtipo || [], true) === undefined;
+          const nombreResult = validation.validateNombre(data.nombre || '', true);
+          const lugarResult = validation.validateLugar(data.lugar || '', true);
+          const tipoResult = validation.validateTipo(data.tipo || [], true);
+          const subtipoResult = validation.validateSubtipo(data.subtipo || [], true);
           
+          // CORRECCIÓN: Un campo es válido cuando NO hay error
+          const nombreValido = !nombreResult;
+          const lugarValido = !lugarResult;
+          const tipoValido = !tipoResult;
+          const subtipoValido = !subtipoResult;          
           let fechasValidas = true;
           if (data.fechaInicio && data.fechaFin) {
-            // Convertir de Timestamp a Date si es necesario
-            const fechaInicio = data.fechaInicio instanceof Date 
-              ? data.fechaInicio 
-              : data.fechaInicio.toDate();
+            // NUEVA ESTRATEGIA: Convertir a Timestamp primero, luego a Date solo para validación
+            const timestampInicio = toTimestamp(data.fechaInicio);
+            const timestampFin = toTimestamp(data.fechaFin);
             
-            const fechaFin = data.fechaFin instanceof Date 
-              ? data.fechaFin 
-              : data.fechaFin.toDate();
-            
-            validation.validateFechas(fechaInicio, fechaFin, true);
-            fechasValidas = !validation.errors.fechaFin;
+            if (timestampInicio && timestampFin) {
+              const fechaInicio = timestampToDate(timestampInicio);
+              const fechaFin = timestampToDate(timestampFin);
+              if (fechaInicio && fechaFin) {
+                validation.validateFechas(fechaInicio, fechaFin, true);
+                fechasValidas = !validation.errors.fechaFin;
+              }
+            } else {
+              fechasValidas = false;
+            }
           } else {
             fechasValidas = Boolean(data.fechaInicio && data.fechaFin);
           }
@@ -356,51 +414,103 @@ export default function ActividadFormPage() {
         }
       });
     });
-  };
-
-  // Función para establecer errores en la primera pestaña de forma optimizada
+  };  // Función para establecer errores en la primera pestaña de forma optimizada
   const setFirstTabErrors = (data: Partial<Actividad>): void => {
     // Usar requestAnimationFrame para no bloquear la UI mientras se establecen errores
     requestAnimationFrame(() => {
-      const nombreValido = validation.validateNombre(data.nombre || '', true) === undefined;
-      const lugarValido = validation.validateLugar(data.lugar || '', true) === undefined;
-      const tipoValido = validation.validateTipo(data.tipo || [], true) === undefined;
-      const subtipoValido = validation.validateSubtipo(data.subtipo || [], true) === undefined;
+      console.log('🔍 setFirstTabErrors - Datos recibidos:', data);
       
-      if (!nombreValido) validation.validateNombre(data.nombre || '', true);
-      if (!lugarValido) validation.validateLugar(data.lugar || '', true);
-      if (!tipoValido) validation.validateTipo(data.tipo || [], true);
-      if (!subtipoValido) validation.validateSubtipo(data.subtipo || [], true);
+      // Llamar validaciones en modo COMPLETAMENTE silencioso (sin setError calls)
+      const nombreResult = validation.validateNombre(data.nombre || '', true);
+      const lugarResult = validation.validateLugar(data.lugar || '', true);
+      const tipoResult = validation.validateTipo(data.tipo || [], true);
+      const subtipoResult = validation.validateSubtipo(data.subtipo || [], true);
       
+      console.log('🔍 setFirstTabErrors - Resultados de validación:', {
+        nombreResult,
+        lugarResult,
+        tipoResult,
+        subtipoResult
+      });
+      
+      // CORRECCIÓN: Un campo es válido cuando NO hay error
+      const nombreValido = !nombreResult;
+      const lugarValido = !lugarResult;
+      const tipoValido = !tipoResult;
+      const subtipoValido = !subtipoResult;
+      
+      console.log('🔍 setFirstTabErrors - Estados de validez:', {
+        nombreValido,
+        lugarValido,
+        tipoValido,
+        subtipoValido
+      });      // Si ya ejecutamos la validación con silencioso=false, no necesitamos ejecutarla de nuevo
+      // Los errores ya se han establecido en la primera llamada
+      
+      let fechasValidas = true;
       if (data.fechaInicio && data.fechaFin) {
-        const fechaInicio = data.fechaInicio instanceof Date 
-          ? data.fechaInicio 
-          : data.fechaInicio.toDate();
+        // NUEVA ESTRATEGIA: Convertir a Timestamp primero, luego a Date solo para validación
+        const timestampInicio = toTimestamp(data.fechaInicio);
+        const timestampFin = toTimestamp(data.fechaFin);
         
-        const fechaFin = data.fechaFin instanceof Date 
-          ? data.fechaFin 
-          : data.fechaFin.toDate();
-        
-        validation.validateFechas(fechaInicio, fechaFin, true);
-      } else if (!data.fechaInicio) {
-        validation.setError('fechaInicio', 'La fecha de inicio es obligatoria', false);
-      } else if (!data.fechaFin) {
-        validation.setError('fechaFin', 'La fecha de finalización es obligatoria', false);
+        if (timestampInicio && timestampFin) {
+          const fechaInicio = timestampToDate(timestampInicio);
+          const fechaFin = timestampToDate(timestampFin);
+          if (fechaInicio && fechaFin) {
+            validation.validateFechas(fechaInicio, fechaFin, false);
+            fechasValidas = !validation.errors.fechaFin;
+          }
+        } else {
+          fechasValidas = false;
+          if (!timestampInicio) {
+            validation.setError('fechaInicio', 'Fecha de inicio inválida', false);
+          }
+          if (!timestampFin) {
+            validation.setError('fechaFin', 'Fecha de fin inválida', false);
+          }
+        }
+      } else {
+        fechasValidas = false;
+        if (!data.fechaInicio) {
+          validation.setError('fechaInicio', 'La fecha de inicio es obligatoria', false);
+        }
+        if (!data.fechaFin) {
+          validation.setError('fechaFin', 'La fecha de fin es obligatoria', false);
+        }
       }
       
-      // Mostrar toast de error con prevención de duplicados
+      console.log('🔍 setFirstTabErrors - Estado de fechas:', {
+        fechaInicio: data.fechaInicio,
+        fechaFin: data.fechaFin,
+        fechasValidas
+      });        // Mostrar toast de error con prevención de duplicados y errores específicos
+      const camposFaltantes: string[] = [];
+      if (!nombreValido) camposFaltantes.push('Nombre');
+      if (!lugarValido) camposFaltantes.push('Lugar');
+      if (!tipoValido) camposFaltantes.push('Tipo de actividad');
+      if (!subtipoValido) camposFaltantes.push('Subtipo de actividad');
+      if (!data.fechaInicio) camposFaltantes.push('Fecha de inicio');
+      if (!data.fechaFin) camposFaltantes.push('Fecha de fin');
+      
+      console.log('🔍 setFirstTabErrors - Campos faltantes:', camposFaltantes);
+      
       const toastId = "validation-tab-error";
-      if (!toast.isActive(toastId)) {
+      if (!toast.isActive(toastId) && camposFaltantes.length > 0) {
+        console.log('📢 setFirstTabErrors - Mostrando toast con mensaje específico');
         setTimeout(() => {
           toast({
             id: toastId,
-            title: "Error de validación",
-            description: "Por favor, complete correctamente todos los campos requeridos",
+            title: "Campos requeridos faltantes",
+            description: `Por favor, complete: ${camposFaltantes.join(', ')}`,
             status: "error",
-            duration: 3000,
+            duration: 5000,
             isClosable: true,
           });
         }, 50); // Pequeño retraso para evitar colisiones con otros eventos de UI
+      } else if (camposFaltantes.length === 0) {
+        console.log('✅ setFirstTabErrors - Todos los campos están completos');
+      } else {
+        console.log('⚠️ setFirstTabErrors - Toast ya activo, no mostrando duplicado');
       }
     });
   };
@@ -441,16 +551,57 @@ export default function ActividadFormPage() {
       await optimizedSetTab(newIndex);
     }
   };
-  
-  // Implementar autoguardado
-  // Usar una referencia para rastrear el último cambio
+    // Estado para manejar autoguardado y recuperación de borrador
+  const [hasRecoveredDraft, setHasRecoveredDraft] = useState(false);
   const lastChangeTimeRef = useRef<number>(Date.now());
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Optimizar el autoguardado para evitar múltiples temporizadores
+  // Recuperar borrador una sola vez al montar el componente
   useEffect(() => {
-    // Evitar autoguardar si estamos editando una actividad existente
-    if (id) return;
+    // Solo para nuevas actividades (no ediciones)
+    if (id) {
+      localStorage.removeItem('actividadDraft');
+      setHasRecoveredDraft(true);
+      return;
+    }
+    
+    const draft = localStorage.getItem('actividadDraft');
+    if (draft && !hasRecoveredDraft) {      if (window.confirm('Se encontró un borrador guardado de una actividad. ¿Desea recuperarlo?')) {        try {
+          const parsedData = JSON.parse(draft);
+          // NUEVA ESTRATEGIA: Deserializar timestamps correctamente desde localStorage
+          const draftData = deserializeTimestampsFromStorage(parsedData);
+          console.log('🔄 Recuperando borrador con timestamps deserializados:', draftData);
+          
+          // Resetear el formulario con los datos del borrador
+          methods.reset(draftData);
+          
+          // CORRECCIÓN: Sincronizar validación después de cargar el borrador
+          setTimeout(() => {
+            // Ejecutar validación para sincronizar el estado después de cargar el borrador
+            const data = methods.getValues();
+            console.log('🔄 Sincronizando validación después de cargar borrador:', data);
+            
+            // Usar la nueva función revalidateAllFields para sincronizar todo
+            validation.revalidateAllFields(data, false);
+            
+            console.log('✅ Validación sincronizada después de cargar borrador');
+          }, 100); // Pequeño delay para permitir que el formulario se actualice completamente
+          
+        } catch (err) {
+          console.error('Error al cargar borrador:', err);
+          localStorage.removeItem('actividadDraft');
+        }
+      } else {
+        localStorage.removeItem('actividadDraft');
+      }
+    }
+    setHasRecoveredDraft(true);
+  }, [id]); // Solo depende de id para ejecutarse una vez
+  
+  // Autoguardado separado
+  useEffect(() => {
+    // Evitar autoguardar si estamos editando una actividad existente o no hemos recuperado borrador
+    if (id || !hasRecoveredDraft) return;
     
     // Limpiar cualquier temporizador anterior
     if (saveTimeoutRef.current) {
@@ -462,12 +613,12 @@ export default function ActividadFormPage() {
     if (methods.formState.isDirty) {
       // Registrar el tiempo del cambio
       lastChangeTimeRef.current = Date.now();
-      
-      // Programar guardado para después de 2 minutos de inactividad
+        // Programar guardado para después de 2 minutos de inactividad
       saveTimeoutRef.current = setTimeout(() => {
         try {
-          const formValues = methods.getValues();
-          localStorage.setItem('actividadDraft', JSON.stringify(formValues));
+          const formValues = methods.getValues();          // NUEVA ESTRATEGIA: Serializar timestamps correctamente para localStorage
+          const serializedData = serializeTimestampsForStorage(formValues);
+          localStorage.setItem('actividadDraft', JSON.stringify(serializedData));
           
           // Reducir logs innecesarios en producción
           if (process.env.NODE_ENV === 'development') {
@@ -476,39 +627,15 @@ export default function ActividadFormPage() {
         } catch (err) {
           console.error('Error al guardar borrador:', err);
         }
-      }, 120000); // Aumentar a 2 minutos para reducir frecuencia
-      
-      return () => {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-      };
-    }
-  }, [methods.formState.isDirty, id]);
-
-  // Añadir este useEffect para recuperar borradores guardados al cargar
-  useEffect(() => {
-    // Solo para nuevas actividades (no ediciones)
-    if (id) {
-      localStorage.removeItem('actividadDraft');
-      return;
+      }, 120000); // 2 minutos para reducir frecuencia
     }
     
-    const draft = localStorage.getItem('actividadDraft');
-    if (draft) {
-      if (window.confirm('Se encontró un borrador guardado de una actividad. ¿Desea recuperarlo?')) {
-        try {
-          const draftData = JSON.parse(draft);
-          methods.reset(draftData);
-        } catch (err) {
-          console.error('Error al cargar borrador:', err);
-          localStorage.removeItem('actividadDraft');
-        }
-      } else {
-        localStorage.removeItem('actividadDraft');
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
-    }
-  }, [id, methods]);
+    };
+  }, [methods.formState.isDirty, id, hasRecoveredDraft]);
   useEffect(() => {
     // Para actividades nuevas, asignar el usuario actual como creador una sola vez
     if (!id && currentUser && !formData.creadorId) {
@@ -541,62 +668,50 @@ export default function ActividadFormPage() {
 
   return (
     <DashboardLayout title={id ? "Editar Actividad" : "Crear Actividad"}>
-      <Container maxW="container.xl" py={8}>
+      <Container 
+        maxW="container.xl" 
+        py={8} 
+        px={{ base: 4, md: 8 }}
+        w="full"
+      >
         <FormProvider {...methods}>
           <form
             onSubmit={handleSubmit(onSubmit)}
             noValidate
-          >
-            <Tabs 
-              isFitted 
+          >            <Tabs 
               variant="enclosed" 
               index={activeTabIndex}
               onChange={handleTabChange}
+              size={tabSize}
+              isFitted={!showTabText} // Solo usar isFitted en pantallas pequeñas
             >
-              <TabList>
-                <Tab>
-                  <Flex align="center">
-                    <FiFileText style={{ marginRight: '5px' }} /> 
-                    Información
-                    {completedTabs.includes(0) && (
-                      <FiCheck
-                        style={{ marginLeft: '5px', color: 'green' }}
-                      />
-                    )}
-                  </Flex>
+              <TabList 
+                overflowX="auto" 
+                sx={{
+                  // Estilos para scroll horizontal en caso necesario
+                  '::-webkit-scrollbar': {
+                    height: '4px',
+                  },
+                  '::-webkit-scrollbar-track': {
+                    bg: 'gray.100',
+                  },
+                  '::-webkit-scrollbar-thumb': {
+                    bg: 'gray.300',
+                    borderRadius: '4px',
+                  },
+                }}
+              >
+                <Tab minW={showTabText ? 'auto' : '60px'} px={showTabText ? 4 : 2}>
+                  {renderTabContent(<FiFileText />, 'Información', completedTabs.includes(0))}
                 </Tab>
-                <Tab>
-                  <Flex align="center">
-                    <FiUsers style={{ marginRight: '5px' }} /> 
-                    Participantes
-                    {completedTabs.includes(1) && (
-                      <FiCheck
-                        style={{ marginLeft: '5px', color: 'green' }}
-                      />
-                    )}
-                  </Flex>
+                <Tab minW={showTabText ? 'auto' : '60px'} px={showTabText ? 4 : 2}>
+                  {renderTabContent(<FiUsers />, 'Participantes', completedTabs.includes(1))}
                 </Tab>
-                <Tab>
-                  <Flex align="center">
-                    <FiPackage style={{ marginRight: '5px' }} /> 
-                    Material
-                    {completedTabs.includes(2) && (
-                      <FiCheck
-                        style={{ marginLeft: '5px', color: 'green' }}
-                      />
-                    )}
-                  </Flex>
+                <Tab minW={showTabText ? 'auto' : '60px'} px={showTabText ? 4 : 2}>
+                  {renderTabContent(<FiPackage />, 'Material', completedTabs.includes(2))}
                 </Tab>
-                <Tab>
-                  <Flex align="center">
-                    <FiLink style={{ marginRight: '5px' }} /> 
-                    Enlaces
-                    {completedTabs.includes(3) && (
-                      <FiCheck
-                        style={{ marginLeft: '5px', color: 'green' }}
-                      />
-                    )}
-                  </Flex>
+                <Tab minW={showTabText ? 'auto' : '60px'} px={showTabText ? 4 : 2}>
+                  {renderTabContent(<FiLink />, 'Enlaces', completedTabs.includes(3))}
                 </Tab>
               </TabList>
 
@@ -636,48 +751,76 @@ export default function ActividadFormPage() {
                   />
                 </TabPanel>
               </TabPanels>
-            </Tabs>
-
-            {/* Botones de navegación entre pestañas */}
-            <HStack justifyContent="space-between" mt={4}>
-              {/* Botón de Cancelar debe estar siempre visible */}
-              <Button 
-                leftIcon={<FiX />}
-                variant="outline" 
-                colorScheme="red"
-                onClick={handleCancel}
+            </Tabs>            {/* Botones de navegación entre pestañas */}
+            <Box mt={4}>
+              {/* En pantallas pequeñas, usar layout vertical para botones */}
+              <Flex 
+                direction={{ base: 'column', md: 'row' }} 
+                gap={{ base: 2, md: 0 }}
+                justifyContent="space-between"
+                align={{ base: 'stretch', md: 'center' }}
               >
-                Cancelar
-              </Button>
+                {/* Botón de Cancelar debe estar siempre visible */}
+                <Button 
+                  leftIcon={<FiX />}
+                  variant="outline" 
+                  colorScheme="red"
+                  onClick={handleCancel}
+                  size={{ base: 'sm', md: 'md' }}
+                  order={{ base: 3, md: 1 }}
+                >
+                  Cancelar
+                </Button>
 
-              {activeTabIndex > 0 && (
-                <Button onClick={prevTab} leftIcon={<FiArrowLeft />}>
-                  Anterior
-                </Button>
-              )}
-              
-              <Spacer />
-              
-              {activeTabIndex < totalTabs - 1 ? (
-                <Button 
-                  colorScheme="brand" 
-                  onClick={handleSubmit(onSubmit)} 
-                  rightIcon={<FiArrowRight />}
-                  isLoading={isSubmitting}
+                {/* Botones de navegación en pantallas grandes */}
+                <Flex 
+                  gap={2} 
+                  order={{ base: 1, md: 2 }}
+                  flex="1"
+                  justify={{ base: 'space-between', md: 'flex-end' }}
+                  display={{ base: activeTabIndex > 0 || activeTabIndex < totalTabs - 1 ? 'flex' : 'none', md: 'flex' }}
                 >
-                  Siguiente
-                </Button>
-              ) : (
-                <Button 
-                  colorScheme="green" 
-                  onClick={handleSubmit(onSubmit)}
-                  isLoading={isSubmitting}
-                  leftIcon={<FiSave />}
-                >
-                  Guardar Actividad
-                </Button>
-              )}
-            </HStack>
+                  {activeTabIndex > 0 && (
+                    <Button 
+                      onClick={prevTab} 
+                      leftIcon={<FiArrowLeft />}
+                      size={{ base: 'sm', md: 'md' }}
+                      flex={{ base: 1, md: 'none' }}
+                    >
+                      {showTabText ? 'Anterior' : ''}
+                    </Button>
+                  )}
+                  
+                  {/* Spacer solo en pantallas grandes */}
+                  <Box flex="1" display={{ base: 'none', md: 'block' }} />
+                  
+                  {activeTabIndex < totalTabs - 1 ? (
+                    <Button 
+                      colorScheme="brand" 
+                      onClick={handleSubmit(onSubmit)} 
+                      rightIcon={<FiArrowRight />}
+                      isLoading={isSubmitting}
+                      size={{ base: 'sm', md: 'md' }}
+                      flex={{ base: 1, md: 'none' }}
+                    >
+                      {showTabText ? 'Siguiente' : 'Sig.'}
+                    </Button>
+                  ) : (
+                    <Button 
+                      colorScheme="green" 
+                      onClick={handleSubmit(onSubmit)}
+                      isLoading={isSubmitting}
+                      leftIcon={<FiSave />}
+                      size={{ base: 'sm', md: 'md' }}
+                      flex={{ base: 1, md: 'none' }}
+                      order={{ base: 2, md: 1 }}
+                    >
+                      {showTabText ? 'Guardar Actividad' : 'Guardar'}
+                    </Button>
+                  )}
+                </Flex>
+              </Flex>
+            </Box>
           </form>
         </FormProvider>
         

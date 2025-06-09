@@ -40,14 +40,14 @@ export const obtenerNotificacionesUsuario = async (
         limit(limite)
       );
     }
-    
-    const snapshot = await getDocs(notificacionQuery);
+      const snapshot = await getDocs(notificacionQuery);
     return snapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
         ...data,
-        fecha: data.fecha instanceof Timestamp ? data.fecha.toDate() : data.fecha
+        // NUEVA ESTRATEGIA: Mantener Timestamp internamente, formatear solo en UI
+        fecha: data.fecha instanceof Timestamp ? data.fecha : (data.fecha ? Timestamp.fromDate(new Date(data.fecha)) : Timestamp.now())
       } as Notificacion;
     });
   } catch (error) {
@@ -165,11 +165,11 @@ export const suscribirseANotificaciones = (
   );
 
   return onSnapshot(q, 
-    (snapshot) => {
-      const notificaciones = snapshot.docs.map(doc => ({
+    (snapshot) => {      const notificaciones = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        fecha: doc.data().fecha instanceof Timestamp ? doc.data().fecha.toDate() : doc.data().fecha
+        // NUEVA ESTRATEGIA: Mantener Timestamp internamente
+        fecha: doc.data().fecha instanceof Timestamp ? doc.data().fecha : (doc.data().fecha ? Timestamp.fromDate(new Date(doc.data().fecha)) : Timestamp.now())
       } as Notificacion));
       callback(notificaciones);
     },
