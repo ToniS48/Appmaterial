@@ -51,6 +51,7 @@ import { materialService } from '../../services/MaterialServiceRefactored';
 import MaterialForm from '../../components/material/MaterialForm';
 import MaterialExportManager from '../../components/admin/MaterialExportManager';
 import MaterialImportManager from '../../components/admin/MaterialImportManager';
+import QRActionsMenu from '../../components/material/QRActionsMenu';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
 import { useOptimizedClickHandler, useOptimizedInputHandler } from '../../utils/eventOptimizer';
@@ -176,9 +177,25 @@ const GestionMaterialPage: React.FC = () => {
     } catch (error) {
       console.error('Error al importar materiales:', error);
       throw error; // Re-lanzar para que el componente de importación pueda manejarlo
+    }  }, [cargarMateriales, onImportClose]);
+  // Función para manejar material encontrado por QR
+  const handleMaterialFoundByQR = useCallback(async (material: any) => {
+    try {
+      // Aplicar filtro para mostrar solo el material escaneado
+      setBusqueda(material.nombre);
+      setFiltroEstado('');
+      setFiltroTipo('');
+      
+      // Scroll hacia arriba para mostrar el resultado
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      console.log('Material encontrado por QR:', material);
+    } catch (error) {
+      console.error('Error al procesar material encontrado por QR:', error);
     }
-  }, [cargarMateriales, onImportClose]);
-    // Comprobar si el usuario es admin (para mostrar opción de eliminar)
+  }, []);
+
+  // Comprobar si el usuario es admin (para mostrar opción de eliminar)
   const isAdmin = useMemo(() => userProfile?.rol === 'admin', [userProfile?.rol]);
 
   console.log('🔧 GestionMaterialPage - Renderizando componente:', {
@@ -242,19 +259,15 @@ const GestionMaterialPage: React.FC = () => {
                     </MenuItem>
                   </MenuList>
                 </Menu>
-              </>
-            )}
+              </>            )}
             
-            <Button
-              as={RouterLink}
-              to="/material/print-qr"
-              leftIcon={<FiPrinter />}
-              colorScheme="brand"
-              variant="outline"
-              width={{ base: "100%", sm: "auto" }}
-            >
-              Imprimir QRs
-            </Button>
+            <QRActionsMenu
+              onMaterialFound={handleMaterialFoundByQR}
+              variant="buttons"
+              size="md"
+              showLabels={true}
+            />
+            
             <Button 
               leftIcon={<AddIcon />} 
               colorScheme="brand" 
