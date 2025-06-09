@@ -1,11 +1,14 @@
-import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import {
   Box, Button, FormControl, FormLabel, FormErrorMessage,
-  Stack, Text, useColorModeValue, Alert, AlertIcon, Checkbox
+  Stack, Text, useColorModeValue, Alert, AlertIcon, Checkbox, Flex, Heading
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import MaterialSelector from './MaterialSelector';
+import QRScanner from '../common/QRScanner';
+import { FiZap } from 'react-icons/fi';
 import { MaterialAsignado } from '../../types/actividad';
+import { materialService } from '../../services/MaterialServiceRefactored';
 
 interface MaterialItem {
   materialId: string;
@@ -35,6 +38,9 @@ const MaterialEditor = forwardRef<
   { submitForm: () => void },
   MaterialEditorProps
 >(({ data, onSave, onCancel, mostrarBotones = true, isInsideForm = false, control: parentControl, actividadId, responsables, usuarios }, ref) => {
+  // Estados para el QR Scanner
+  const [isQROpen, setIsQROpen] = useState(false);
+  
   // Usar control del padre si isInsideForm=true, sino crear propio useForm
   const ownForm = useForm({
     defaultValues: {
@@ -49,7 +55,6 @@ const MaterialEditor = forwardRef<
   
   const cardBg = useColorModeValue("white", "gray.700");
   const borderColor = useColorModeValue("gray.200", "gray.600");
-
   // Función para validar y formatear materiales
   const validarMateriales = (materiales: any[]) => {
     if (!Array.isArray(materiales)) return [];
@@ -62,6 +67,109 @@ const MaterialEditor = forwardRef<
         cantidad: typeof m.cantidad === 'number' ? m.cantidad : parseInt(String(m.cantidad), 10) || 1
       }));
   };
+
+  // Función para manejar el resultado del QR Scanner
+  const handleQRScan = useCallback(async (qrCode: string) => {
+    try {
+      console.log('🔍 QR Scanner - Código escaneado:', qrCode);
+        // Extraer el ID del material del código QR
+      const extractMaterialIdFromQR = (qrData: string): string | null => {
+        try {
+          // Caso 1: URL completa del tipo "https://domain.com/material/detalle/ID"
+          const urlMatch = qrData.match(/\/material\/detalle\/([^/?]+)/);
+          if (urlMatch) {
+            return urlMatch[1];
+          }
+          
+          // Caso 2: Código corto del tipo "CUE-abc123" o similar
+          const codeMatch = qrData.match(/^[A-Z]{3}-([a-zA-Z0-9]{6,})$/);
+          if (codeMatch) {
+            return codeMatch[1];
+          }
+          
+          // Caso 3: Solo el ID del material
+          if (qrData.match(/^[a-zA-Z0-9]{6,}$/)) {
+            return qrData;
+          }
+          
+          return null;
+        } catch (error) {
+          console.error('Error al extraer ID del QR:', error);
+          return null;
+        }
+      };
+      
+      // Extraer el ID del material
+      const materialId = extractMaterialIdFromQR(qrCode);
+      
+      if (!materialId) {
+        console.log('❌ Código QR no válido:', qrCode);
+        return;
+      }
+      
+      // Buscar material por ID usando el método existente
+      const material = await materialService.obtenerMaterial(materialId);
+      
+      if (material) {
+        console.log('✅ Material encontrado por QR:', material);
+        
+        // Agregar material al formulario automáticamente
+        const materialesActuales = watch('materiales') || [];
+        
+        // Verificar si el material ya está en la lista
+        const materialExistente = materialesActuales.find((m: any) => m.materialId === material.id);
+        
+        if (materialExistente) {
+          // Si ya existe, incrementar cantidad
+          const nuevosMateriales = materialesActuales.map((m: any) => 
+            m.materialId === material.id 
+              ? { ...m, cantidad: (m.cantidad || 1) + 1 }
+              : m
+          );
+          
+          if (isInsideForm && parentControl) {
+            parentControl.setValue('materiales', nuevosMateriales);
+          } else {
+            ownForm.setValue('materiales', nuevosMateriales);
+          }
+          
+          console.log(`📦 Cantidad incrementada para ${material.nombre}`);
+        } else {
+          // Si no existe, agregar nuevo material
+          const nuevoMaterial = {
+            id: `material-${material.id}-${Date.now()}`,
+            materialId: material.id,
+            nombre: material.nombre,
+            cantidad: 1
+          };
+          
+          const nuevosMateriales = [...materialesActuales, nuevoMaterial];
+          
+          if (isInsideForm && parentControl) {
+            parentControl.setValue('materiales', nuevosMateriales);
+          } else {
+            ownForm.setValue('materiales', nuevosMateriales);
+          }
+          
+          console.log(`✅ Material agregado: ${material.nombre}`);
+        }
+      } else {
+        console.log('❌ Material no encontrado para el código QR:', qrCode);
+      }
+      
+      // Cerrar el scanner
+      setIsQROpen(false);
+      
+    } catch (error) {
+      console.error('❌ Error al procesar código QR:', error);
+      setIsQROpen(false);
+    }
+  }, [watch, isInsideForm, parentControl, ownForm]);
+
+  // Función para abrir el QR Scanner
+  const openQRScanner = useCallback(() => {
+    setIsQROpen(true);
+  }, []);
 
   // Función de envío del formulario
   const onSubmit = (formData: any) => {
@@ -169,8 +277,7 @@ const MaterialEditor = forwardRef<
             </Text>
           </Box>
         </Alert>
-      ) : (
-        /* Mostrar formulario de material solo si hay responsable */
+      ) : (        /* Mostrar formulario de material solo si hay responsable */
         <FormControl isInvalid={!!(errors as any)?.materiales}>
           <MaterialSelector 
             control={control} 
@@ -182,6 +289,7 @@ const MaterialEditor = forwardRef<
             actividadId={actividadId}
             responsables={responsables}
             usuarios={usuarios}
+            onOpenQRScanner={openQRScanner}
           />
           
           {(errors as any)?.materiales && (
@@ -202,16 +310,28 @@ const MaterialEditor = forwardRef<
       )}
     </>
   );
-
   // Renderizar según si está dentro de un formulario o no
-  return isInsideForm ? (
-    <Box>
-      {renderFormContent()}
-    </Box>
-  ) : (
-    <form onSubmit={ownForm.handleSubmit(onSubmit)}>
-      {renderFormContent()}
-    </form>
+  return (
+    <>
+      {isInsideForm ? (
+        <Box>
+          {renderFormContent()}
+        </Box>
+      ) : (
+        <form onSubmit={ownForm.handleSubmit(onSubmit)}>
+          {renderFormContent()}
+        </form>
+      )}
+      
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={isQROpen}
+        onClose={() => setIsQROpen(false)}
+        onScan={handleQRScan}
+        title="Escanear Material"
+        description="Apunta la cámara hacia el código QR del material para añadirlo automáticamente"
+      />
+    </>
   );
 });
 
