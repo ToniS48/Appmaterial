@@ -66,6 +66,23 @@
           "fieldPath": "__name__",
           "order": "ASCENDING"
         }
+      ]    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "actividadId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaPrestamo",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -73,7 +90,25 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "actividadId",
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaDevolucionPrevista",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
           "order": "ASCENDING"
         },
         {
