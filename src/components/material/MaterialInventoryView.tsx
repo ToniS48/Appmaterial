@@ -92,17 +92,20 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
 
     cargarMateriales();
   }, []);
-
   // Filtrado de materiales
   const materialesFiltrados = useMemo(() => {
     if (!materiales) return [];
     
     return materiales.filter((material: Material) => {
-      const cumpleBusqueda = !busqueda || 
+      // Filtro por búsqueda (nombre o código)
+      const cumpleBusqueda = !busqueda.trim() || 
         material.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
         material.codigo?.toLowerCase().includes(busqueda.toLowerCase());
       
+      // Filtro por tipo 
       const cumpleTipo = !filtroTipo || material.tipo === filtroTipo;
+      
+      // Filtro por estado
       const cumpleEstado = !filtroEstado || material.estado === filtroEstado;
       
       return cumpleBusqueda && cumpleTipo && cumpleEstado;
