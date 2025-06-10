@@ -387,18 +387,17 @@ export const obtenerActividadesClasificadas = async (usuarioId: string): Promise
     actividadesResponsable.forEach(act => {
       console.log(`  📋 Responsable de "${act.nombre}": creador=${act.creadorId === usuarioId}, respActividad=${act.responsableActividadId === usuarioId}, respMaterial=${act.responsableMaterialId === usuarioId}`);
     });
-    
-    // Ordenar por fecha de inicio descendente
+      // Ordenar por fecha de inicio ascendente (más antiguas primero)
     actividadesResponsable.sort((a, b) => {
       const fechaA = a.fechaInicio instanceof Date ? a.fechaInicio : a.fechaInicio.toDate();
       const fechaB = b.fechaInicio instanceof Date ? b.fechaInicio : b.fechaInicio.toDate();
-      return fechaB.getTime() - fechaA.getTime();
+      return fechaA.getTime() - fechaB.getTime();
     });
     
     actividadesParticipante.sort((a, b) => {
       const fechaA = a.fechaInicio instanceof Date ? a.fechaInicio : a.fechaInicio.toDate();
       const fechaB = b.fechaInicio instanceof Date ? b.fechaInicio : b.fechaInicio.toDate();
-      return fechaB.getTime() - fechaA.getTime();
+      return fechaA.getTime() - fechaB.getTime();
     });
     
     return { actividadesResponsable, actividadesParticipante };
@@ -627,8 +626,7 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
         } catch (error) {
           console.error('❌ Error al obtener responsable de la actividad:', error);
         }
-        
-        // Crear nuevo préstamo
+          // Crear nuevo préstamo
         const datosPrestamo = {
           materialId: material.materialId,
           nombreMaterial,
@@ -639,6 +637,7 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
           nombreActividad: actividad.nombre,
           fechaPrestamo: new Date(),
           fechaDevolucionPrevista: actividad.fechaFin,
+          fechaFinActividad: actividad.fechaFin,  // ✅ NUEVO CAMPO para optimizar detección
           estado: 'en_uso' as EstadoPrestamo,
           responsableActividad,
           nombreResponsableActividad,
