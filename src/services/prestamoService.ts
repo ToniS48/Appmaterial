@@ -1,4 +1,4 @@
-import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, Timestamp, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Prestamo, EstadoPrestamo } from '../types/prestamo';
 import { actualizarCantidadDisponible } from './materialService';
@@ -25,7 +25,8 @@ export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise
     console.log('📍 Obteniendo referencia a colección "prestamos"...');
     const prestamosRef = collection(db, 'prestamos');
     console.log('✅ Referencia obtenida:', prestamosRef.path);
-      console.log('💾 Intentando crear documento en Firestore...');
+    
+    console.log('💾 Intentando crear documento en Firestore...');
     const docRef = await addDoc(prestamosRef, prestamoData);
     console.log('✅ Documento creado con ID:', docRef.id);
     
@@ -45,12 +46,14 @@ export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise
       id: docRef.id,
       ...prestamoData
     };
-      console.log('🎉 crearPrestamo - ÉXITO. Préstamo creado:', nuevoPrestamoConId.id);
+    
+    console.log('🎉 crearPrestamo - ÉXITO. Préstamo creado:', nuevoPrestamoConId.id);
     
     // Limpiar cache de vencidos al crear nuevo préstamo
     limpiarCacheVencidos();
     
-    return nuevoPrestamoConId;} catch (error: unknown) {
+    return nuevoPrestamoConId;
+  } catch (error: unknown) {
     console.error('❌ crearPrestamo - ERROR:', error);
     console.error('🔍 Tipo de error:', typeof error);
     console.error('🔍 Error completo:', JSON.stringify(error, null, 2));
@@ -158,7 +161,8 @@ export const registrarDevolucion = async (prestamoId: string, observaciones?: st
     try {
       const cantidadDevuelta = prestamo.cantidadPrestada || 1;
       await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta); // Incrementar (cantidad positiva)
-      console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);    } catch (materialError) {
+      console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);
+    } catch (materialError) {
       console.error('⚠️ Error incrementando cantidad disponible:', materialError);
       // No lanzamos error para evitar que falle la devolución
     }
@@ -287,7 +291,8 @@ export const listarPrestamos = async (filtros?: {
         ...doc.data()
       } as Prestamo);
     });
-      console.log(`✅ [${callId}] Préstamos obtenidos: ${prestamos.length}`);
+    
+    console.log(`✅ [${callId}] Préstamos obtenidos: ${prestamos.length}`);
     return prestamos;
   } catch (error: any) {
     console.error(`❌ [${callId}] Error al listar préstamos:`, error);
@@ -342,7 +347,8 @@ export const obtenerPrestamosPorActividad = async (actividadId: string): Promise
     });
     
     console.log(`✅ obtenerPrestamosPorActividad - Retornando ${prestamos.length} préstamos`);
-    return prestamos;  } catch (error: unknown) {
+    return prestamos;
+  } catch (error: unknown) {
     console.error('❌ obtenerPrestamosPorActividad - ERROR:', error);
     console.error('🔍 Actividad ID:', actividadId);
     
@@ -531,6 +537,301 @@ export const obtenerPrestamosProximosVencer = async (diasAnticipacion: number = 
     return prestamos;
   } catch (error) {
     console.error('❌ Error al obtener préstamos próximos a vencer:', error);
+    throw error;
+  }
+};
+
+// Obtener préstamos donde el usuario es responsable (actividad o material)
+export const listarPrestamosPorResponsabilidad = async (userId: string): Promise<Prestamo[]> => {
+  const callId = Date.now();
+  console.log(`🔍 [${callId}] Buscando préstamos por responsabilidad para usuario: ${userId}`);
+  
+  try {
+    // PASO 1: Obtener préstamos directos (siempre funciona)
+    let prestamosDirectos: Prestamo[] = [];
+    try {
+      prestamosDirectos = await listarPrestamos({ usuarioId: userId });
+      console.log(`📊 [${callId}] Préstamos directos: ${prestamosDirectos.length}`);
+    } catch (directosError) {
+      console.error(`⚠️ [${callId}] Error obteniendo préstamos directos:`, directosError);
+      // Continuar sin préstamos directos
+    }
+    
+    // PASO 2: Obtener préstamos por responsabilidad de actividad (con manejo de errores)
+    let prestamosRespActividad: Prestamo[] = [];
+    try {
+      prestamosRespActividad = await obtenerPrestamosPorResponsableActividad(userId);
+      console.log(`📊 [${callId}] Préstamos por resp. actividad: ${prestamosRespActividad.length}`);
+    } catch (actividadError) {
+      console.warn(`⚠️ [${callId}] No se pudieron obtener préstamos por responsabilidad de actividad:`, actividadError);
+      // Continuar sin estos préstamos
+    }
+    
+    // PASO 3: Obtener préstamos por responsabilidad de material (con manejo de errores)
+    let prestamosRespMaterial: Prestamo[] = [];
+    try {
+      prestamosRespMaterial = await obtenerPrestamosPorResponsableMaterial(userId);
+      console.log(`📊 [${callId}] Préstamos por resp. material: ${prestamosRespMaterial.length}`);
+    } catch (materialError) {
+      console.warn(`⚠️ [${callId}] No se pudieron obtener préstamos por responsabilidad de material:`, materialError);
+      // Continuar sin estos préstamos
+    }
+    
+    // PASO 4: Combinar todos los préstamos y eliminar duplicados
+    const todosLosPrestamos = [...prestamosDirectos, ...prestamosRespActividad, ...prestamosRespMaterial];
+    const prestamosUnicos = todosLosPrestamos.filter((prestamo, index, array) => 
+      array.findIndex(p => p.id === prestamo.id) === index
+    );
+    
+    // PASO 5: Filtrar solo préstamos activos (incluyendo "por_devolver")
+    const prestamosActivos = prestamosUnicos.filter(p => 
+      p.estado === 'en_uso' || p.estado === 'pendiente' || p.estado === 'aprobado' || p.estado === 'por_devolver'
+    );
+    
+    console.log(`✅ [${callId}] Total encontrados: ${prestamosDirectos.length} directos + ${prestamosRespActividad.length} resp.actividad + ${prestamosRespMaterial.length} resp.material = ${prestamosActivos.length} activos`);
+    
+    return prestamosActivos;
+    
+  } catch (error: any) {
+    console.error(`❌ [${callId}] Error crítico al listar préstamos por responsabilidad:`, error);
+    
+    // FALLBACK FINAL: Si todo falla, intentar al menos obtener préstamos directos básicos
+    try {
+      console.log(`🆘 [${callId}] Fallback de emergencia: solo préstamos directos básicos...`);
+      
+      // Consulta más simple posible
+      const q = query(
+        collection(db, 'prestamos'),
+        where('usuarioId', '==', userId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const prestamosBasicos: Prestamo[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        prestamosBasicos.push({
+          id: doc.id,
+          ...data
+        } as Prestamo);
+      });
+      
+      // Filtrar activos (incluyendo "por_devolver")
+      const prestamosActivosBasicos = prestamosBasicos.filter(p => 
+        p.estado === 'en_uso' || p.estado === 'pendiente' || p.estado === 'aprobado' || p.estado === 'por_devolver'
+      );
+      
+      console.log(`✅ [${callId}] Fallback exitoso: ${prestamosActivosBasicos.length} préstamos básicos`);
+      return prestamosActivosBasicos;
+      
+    } catch (fallbackError) {
+      console.error(`❌ [${callId}] Error en fallback de emergencia:`, fallbackError);
+      
+      // Si incluso el fallback falla, devolver array vacío en lugar de lanzar error
+      console.log(`🔴 [${callId}] Devolviendo array vacío para evitar crash completo`);
+      return [];
+    }
+  }
+};
+
+// Función auxiliar para obtener préstamos por responsable de actividad
+const obtenerPrestamosPorResponsableActividad = async (userId: string): Promise<Prestamo[]> => {
+  try {
+    console.log(`🔍 Buscando préstamos donde usuario es responsable de actividad: ${userId}`);
+    
+    // Consulta simple sin múltiples where + orderBy para evitar problemas de índices
+    const q = query(
+      collection(db, 'prestamos'),
+      where('responsableActividad', '==', userId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Prestamo;
+      prestamos.push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    console.log(`✅ Encontrados ${prestamos.length} préstamos por responsable de actividad`);
+    return prestamos;
+  } catch (error: any) {
+    console.error('❌ Error al obtener préstamos por responsable de actividad:', error);
+    
+    // Registrar el tipo específico de error para diagnóstico
+    if (error?.code === 'failed-precondition') {
+      console.warn('⚠️ Error de índice faltante para responsableActividad - puede necesitar índices en Firebase');
+    } else if (error?.code === 'permission-denied') {
+      console.warn('⚠️ Permisos insuficientes para consultar préstamos por responsableActividad');
+    }
+    
+    // En caso de error, devolver array vacío para no romper la funcionalidad principal
+    console.log('🔄 Fallback: devolviendo array vacío para responsable de actividad');
+    return [];
+  }
+};
+
+// Función auxiliar para obtener préstamos por responsable de material
+const obtenerPrestamosPorResponsableMaterial = async (userId: string): Promise<Prestamo[]> => {
+  try {
+    console.log(`🔍 Buscando préstamos donde usuario es responsable de material: ${userId}`);
+    
+    // Consulta simple sin múltiples where + orderBy para evitar problemas de índices
+    const q = query(
+      collection(db, 'prestamos'),
+      where('responsableMaterial', '==', userId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Prestamo;
+      prestamos.push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    console.log(`✅ Encontrados ${prestamos.length} préstamos por responsable de material`);
+    return prestamos;
+  } catch (error: any) {
+    console.error('❌ Error al obtener préstamos por responsable de material:', error);
+    
+    // Registrar el tipo específico de error para diagnóstico
+    if (error?.code === 'failed-precondition') {
+      console.warn('⚠️ Error de índice faltante para responsableMaterial - puede necesitar índices en Firebase');
+    } else if (error?.code === 'permission-denied') {
+      console.warn('⚠️ Permisos insuficientes para consultar préstamos por responsableMaterial');
+    }
+    
+    // En caso de error, devolver array vacío para no romper la funcionalidad principal
+    console.log('🔄 Fallback: devolviendo array vacío para responsable de material');
+    return [];
+  }
+};
+
+// Marcar préstamo como "por devolver"
+export const marcarComoPorDevolver = async (prestamoId: string, motivo?: string): Promise<void> => {
+  console.log('🔄 marcarComoPorDevolver - INICIANDO para préstamo:', prestamoId);
+  
+  try {
+    const prestamoRef = doc(db, 'prestamos', prestamoId);
+    
+    // Verificar que el préstamo existe y está en estado válido
+    const prestamoDoc = await getDoc(prestamoRef);
+    if (!prestamoDoc.exists()) {
+      throw new Error('Préstamo no encontrado');
+    }
+    
+    const prestamoData = prestamoDoc.data() as Prestamo;
+    
+    // Solo permitir marcar como "por devolver" si está en uso
+    if (prestamoData.estado !== 'en_uso') {
+      throw new Error(`No se puede marcar para devolución un préstamo en estado: ${prestamoData.estado}`);
+    }
+    
+    // Actualizar el estado
+    await updateDoc(prestamoRef, {
+      estado: 'por_devolver' as EstadoPrestamo,
+      observaciones: motivo ? `${prestamoData.observaciones || ''}\n[MARCADO PARA DEVOLUCIÓN]: ${motivo}` : 
+                             `${prestamoData.observaciones || ''}\n[MARCADO PARA DEVOLUCIÓN]`,
+      fechaActualizacion: serverTimestamp()
+    });
+    
+    console.log('✅ Préstamo marcado como "por devolver" exitosamente');
+    
+    // Limpiar cache
+    limpiarCacheVencidos();
+    
+  } catch (error) {
+    console.error('❌ marcarComoPorDevolver - ERROR:', error);
+    throw error;
+  }
+};
+
+// Marcar múltiples préstamos de una actividad como "por devolver"
+export const marcarActividadComoPorDevolver = async (actividadId: string, motivo?: string): Promise<number> => {
+  console.log('🔄 marcarActividadComoPorDevolver - INICIANDO para actividad:', actividadId);
+  
+  try {
+    // Obtener préstamos activos de la actividad
+    const prestamos = await obtenerPrestamosPorActividad(actividadId);
+    const prestamosActivos = prestamos.filter(p => p.estado === 'en_uso');
+    
+    if (prestamosActivos.length === 0) {
+      console.log('ℹ️ No hay préstamos activos para marcar en la actividad');
+      return 0;
+    }
+    
+    // Batch operation para eficiencia
+    const batch = writeBatch(db);
+    
+    prestamosActivos.forEach(prestamo => {
+      const prestamoRef = doc(db, 'prestamos', prestamo.id!);
+      batch.update(prestamoRef, {
+        estado: 'por_devolver' as EstadoPrestamo,
+        observaciones: motivo ? 
+          `${prestamo.observaciones || ''}\n[ACTIVIDAD FINALIZADA - MARCADO PARA DEVOLUCIÓN]: ${motivo}` : 
+          `${prestamo.observaciones || ''}\n[ACTIVIDAD FINALIZADA - MARCADO PARA DEVOLUCIÓN]`,
+        fechaActualizacion: serverTimestamp()
+      });
+    });
+    
+    await batch.commit();
+    
+    console.log(`✅ ${prestamosActivos.length} préstamos marcados como "por devolver"`);
+    
+    // Limpiar cache
+    limpiarCacheVencidos();
+    
+    return prestamosActivos.length;
+    
+  } catch (error) {
+    console.error('❌ marcarActividadComoPorDevolver - ERROR:', error);
+    throw error;
+  }
+};
+
+// Obtener préstamos marcados como "por devolver"
+export const obtenerPrestamosPorDevolver = async (usuarioId?: string): Promise<Prestamo[]> => {
+  console.log('🔍 obtenerPrestamosPorDevolver - Buscando préstamos por devolver');
+  
+  try {
+    let q = query(
+      collection(db, 'prestamos'),
+      where('estado', '==', 'por_devolver'),
+      orderBy('fechaActualizacion', 'desc')
+    );
+    
+    // Filtrar por usuario si se especifica
+    if (usuarioId) {
+      q = query(
+        collection(db, 'prestamos'),
+        where('estado', '==', 'por_devolver'),
+        where('usuarioId', '==', usuarioId),
+        orderBy('fechaActualizacion', 'desc')
+      );
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      prestamos.push({
+        id: doc.id,
+        ...doc.data()
+      } as Prestamo);
+    });
+    
+    console.log(`✅ Encontrados ${prestamos.length} préstamos por devolver`);
+    return prestamos;
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo préstamos por devolver:', error);
     throw error;
   }
 };

@@ -1,7 +1,7 @@
 
 import { Timestamp } from 'firebase/firestore';
 
-export type EstadoPrestamo = 'solicitado' | 'aprobado' | 'rechazado' | 'en_uso' | 'devuelto' | 'expirado' | 'pendiente' | 'perdido' | 'estropeado' | 'cancelado';
+export type EstadoPrestamo = 'solicitado' | 'aprobado' | 'rechazado' | 'en_uso' | 'devuelto' | 'expirado' | 'pendiente' | 'perdido' | 'estropeado' | 'cancelado' | 'por_devolver';
 
 export interface Prestamo {
   id?: string;
@@ -17,11 +17,13 @@ export interface Prestamo {
   observaciones?: string;
   aprobadoPor?: string;
   nombreAprobador?: string;
-  
-  // Nuevos campos que faltan
+    // Nuevos campos que faltan
   actividadId?: string;
   nombreActividad?: string; 
   registradoPor?: string;
+  
+  // Campo para optimizar detección de actividades finalizadas
+  fechaFinActividad?: Timestamp | Date;
   
   // Responsables - nuevos campos
   responsableActividad?: string;
