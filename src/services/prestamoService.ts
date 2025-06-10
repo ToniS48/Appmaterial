@@ -45,8 +45,11 @@ export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise
       id: docRef.id,
       ...prestamoData
     };
+      console.log('🎉 crearPrestamo - ÉXITO. Préstamo creado:', nuevoPrestamoConId.id);
     
-    console.log('🎉 crearPrestamo - ÉXITO. Préstamo creado:', nuevoPrestamoConId.id);
+    // Limpiar cache de vencidos al crear nuevo préstamo
+    limpiarCacheVencidos();
+    
     return nuevoPrestamoConId;} catch (error: unknown) {
     console.error('❌ crearPrestamo - ERROR:', error);
     console.error('🔍 Tipo de error:', typeof error);
@@ -155,13 +158,15 @@ export const registrarDevolucion = async (prestamoId: string, observaciones?: st
     try {
       const cantidadDevuelta = prestamo.cantidadPrestada || 1;
       await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta); // Incrementar (cantidad positiva)
-      console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);
-    } catch (materialError) {
+      console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);    } catch (materialError) {
       console.error('⚠️ Error incrementando cantidad disponible:', materialError);
       // No lanzamos error para evitar que falle la devolución
     }
     
     console.log('🎉 registrarDevolucion - ÉXITO');
+    
+    // Limpiar cache de vencidos al registrar devolución
+    limpiarCacheVencidos();
   } catch (error) {
     console.error('❌ registrarDevolucion - ERROR:', error);
     throw error;
@@ -255,7 +260,10 @@ export const listarPrestamos = async (filtros?: {
   estado?: EstadoPrestamo;
   actividadId?: string;
 }): Promise<Prestamo[]> => {
+  const callId = Date.now();
   try {
+    console.log(`🔍 [${callId}] Listando préstamos con filtros:`, filtros);
+    
     let q = query(collection(db, 'prestamos'), orderBy('fechaPrestamo', 'desc'));
     
     if (filtros?.usuarioId) {
@@ -279,10 +287,18 @@ export const listarPrestamos = async (filtros?: {
         ...doc.data()
       } as Prestamo);
     });
-    
+      console.log(`✅ [${callId}] Préstamos obtenidos: ${prestamos.length}`);
     return prestamos;
-  } catch (error) {
-    console.error('Error al listar préstamos:', error);
+  } catch (error: any) {
+    console.error(`❌ [${callId}] Error al listar préstamos:`, error);
+    
+    // Manejo específico de errores de Firebase
+    if (error?.code === 'failed-precondition') {
+      console.error(`🔥 [${callId}] Error de índice en Firebase para listar préstamos`);
+    } else if (error?.code === 'permission-denied') {
+      console.error(`🔒 [${callId}] Permisos denegados para listar préstamos`);
+    }
+    
     throw error;
   }
 };
@@ -369,3 +385,152 @@ export const actualizarPrestamo = async (prestamoId: string, prestamoData: Parti
 
 // Alias para compatibilidad
 export const obtenerPrestamosUsuario = obtenerPrestamosPorUsuario;
+
+// Cache para préstamos vencidos
+let cacheVencidos: { data: Prestamo[], timestamp: number } | null = null;
+let loadingVencidos = false;
+
+// Función para limpiar el cache (útil cuando se crean/actualizan préstamos)
+export const limpiarCacheVencidos = () => {
+  console.log('🧹 Limpiando cache de préstamos vencidos');
+  cacheVencidos = null;
+};
+
+// Obtener préstamos vencidos/retrasados
+export const obtenerPrestamosVencidos = async (): Promise<Prestamo[]> => {
+  const callId = Date.now();
+  
+  // Si ya hay una petición en curso, esperar
+  if (loadingVencidos) {
+    console.log(`⏳ [${callId}] Ya hay una petición en curso, esperando...`);
+    // Esperar hasta que termine la petición actual
+    let attempts = 0;
+    while (loadingVencidos && attempts < 50) { // máximo 5 segundos
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    // Si hay cache válido después de esperar, devolverlo
+    if (cacheVencidos && (Date.now() - cacheVencidos.timestamp) < 30000) {
+      console.log(`📦 [${callId}] Usando cache después de espera`);
+      return cacheVencidos.data;
+    }
+  }
+  
+  // Verificar cache válido (30 segundos)
+  if (cacheVencidos && (Date.now() - cacheVencidos.timestamp) < 30000) {
+    console.log(`📦 [${callId}] Usando cache válido de préstamos vencidos`);
+    return cacheVencidos.data;
+  }
+  
+  loadingVencidos = true;
+  
+  try {
+    console.log(`🔍 [${callId}] Buscando préstamos vencidos en Firebase...`);
+    
+    // Obtener todos los préstamos activos (no devueltos)
+    const q = query(
+      collection(db, 'prestamos'),
+      where('estado', '!=', 'devuelto'),
+      orderBy('fechaDevolucionPrevista', 'asc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    const ahora = new Date();
+    
+    console.log(`📊 [${callId}] Documentos encontrados: ${querySnapshot.size}`);
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      const prestamo = {
+        id: doc.id,
+        ...data
+      } as Prestamo;
+      
+      // Calcular si está vencido
+      const fechaVencimiento = prestamo.fechaDevolucionPrevista instanceof Date ? 
+        prestamo.fechaDevolucionPrevista : 
+        (prestamo.fechaDevolucionPrevista as any).toDate();
+      
+      if (fechaVencimiento < ahora) {
+        console.log(`📅 [${callId}] Préstamo vencido: ${prestamo.nombreMaterial} - Vencido: ${fechaVencimiento.toLocaleDateString()}`);
+        prestamos.push(prestamo);
+      }
+    });
+    
+    // Guardar en cache
+    cacheVencidos = {
+      data: prestamos,
+      timestamp: Date.now()
+    };
+    
+    console.log(`✅ [${callId}] Préstamos vencidos encontrados: ${prestamos.length}`);
+    return prestamos;
+  } catch (error: any) {
+    console.error(`❌ [${callId}] Error al obtener préstamos vencidos:`, error);
+    
+    // Manejo específico de errores de Firebase
+    if (error?.code === 'failed-precondition') {
+      console.error(`🔥 [${callId}] Error de índice en Firebase. Consulta necesita un índice compuesto.`);
+      console.error(`💡 [${callId}] Intenta crear el índice desde Firebase Console o ejecuta: firebase deploy --only firestore:indexes`);
+    } else if (error?.code === 'permission-denied') {
+      console.error(`🔒 [${callId}] Permisos denegados para consultar préstamos`);
+    } else if (error?.code === 'unavailable') {
+      console.error(`📡 [${callId}] Firestore no disponible temporalmente`);
+    }
+    
+    // Si hay cache previo (aunque sea viejo), usarlo como fallback
+    if (cacheVencidos) {
+      console.log(`🔄 [${callId}] Usando cache como fallback ante error`);
+      return cacheVencidos.data;
+    }
+    
+    throw error;
+  } finally {
+    loadingVencidos = false;
+  }
+};
+
+// Obtener préstamos próximos a vencer
+export const obtenerPrestamosProximosVencer = async (diasAnticipacion: number = 3): Promise<Prestamo[]> => {
+  try {
+    console.log(`🔍 Buscando préstamos próximos a vencer en ${diasAnticipacion} días...`);
+    
+    // Obtener todos los préstamos activos (no devueltos)
+    const q = query(
+      collection(db, 'prestamos'),
+      where('estado', '!=', 'devuelto'),
+      orderBy('fechaDevolucionPrevista', 'asc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const prestamos: Prestamo[] = [];
+    const ahora = new Date();
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() + diasAnticipacion);
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      const prestamo = {
+        id: doc.id,
+        ...data
+      } as Prestamo;
+      
+      // Calcular si está próximo a vencer
+      const fechaVencimiento = prestamo.fechaDevolucionPrevista instanceof Date ? 
+        prestamo.fechaDevolucionPrevista : 
+        (prestamo.fechaDevolucionPrevista as any).toDate();
+      
+      if (fechaVencimiento <= fechaLimite && fechaVencimiento >= ahora) {
+        prestamos.push(prestamo);
+      }
+    });
+    
+    console.log(`✅ Se encontraron ${prestamos.length} préstamos próximos a vencer`);
+    return prestamos;
+  } catch (error) {
+    console.error('❌ Error al obtener préstamos próximos a vencer:', error);
+    throw error;
+  }
+};

@@ -570,7 +570,7 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
         let nombreUsuario = '';
         console.log('👤 DEBUGGING: Obteniendo datos del usuario...');
         try {
-          const usuario = await obtenerUsuario(actividad.responsableMaterialId);
+          const usuario = await obtenerUsuarioPorId(actividad.responsableMaterialId);
           nombreUsuario = usuario ? `${usuario.nombre} ${usuario.apellidos}` : '';
           console.log(`👤 Usuario responsable: ${nombreUsuario}`);
           console.log('✅ DEBUGGING: Datos del usuario obtenidos correctamente');
@@ -597,9 +597,37 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
           }
         } else {
           console.log('✅ DEBUGGING: Nombre del material ya disponible:', nombreMaterial);
+        }        console.log('🏗️ DEBUGGING: Preparando datos del préstamo...');        // Obtener información del responsable de material desde la actividad
+        let responsableMaterial = '';
+        let nombreResponsableMaterial = '';
+        try {
+          // El responsable del material se obtiene desde la actividad, no desde el material
+          if (actividad.responsableMaterialId) {
+            const responsableMaterialInfo = await obtenerUsuarioPorId(actividad.responsableMaterialId);
+            if (responsableMaterialInfo) {
+              responsableMaterial = actividad.responsableMaterialId;
+              nombreResponsableMaterial = `${responsableMaterialInfo.nombre} ${responsableMaterialInfo.apellidos}`;
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error al obtener responsable del material:', error);
         }
         
-        console.log('🏗️ DEBUGGING: Preparando datos del préstamo...');
+        // Obtener responsable de la actividad
+        let responsableActividad = '';
+        let nombreResponsableActividad = '';
+        try {
+          if (actividad.responsableActividadId) {
+            const responsableActividadInfo = await obtenerUsuarioPorId(actividad.responsableActividadId);
+            if (responsableActividadInfo) {
+              responsableActividad = actividad.responsableActividadId;
+              nombreResponsableActividad = `${responsableActividadInfo.nombre} ${responsableActividadInfo.apellidos}`;
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error al obtener responsable de la actividad:', error);
+        }
+        
         // Crear nuevo préstamo
         const datosPrestamo = {
           materialId: material.materialId,
@@ -611,7 +639,11 @@ export async function crearPrestamosParaActividad(actividad: Actividad): Promise
           nombreActividad: actividad.nombre,
           fechaPrestamo: new Date(),
           fechaDevolucionPrevista: actividad.fechaFin,
-          estado: 'en_uso' as EstadoPrestamo
+          estado: 'en_uso' as EstadoPrestamo,
+          responsableActividad,
+          nombreResponsableActividad,
+          responsableMaterial,
+          nombreResponsableMaterial
         };
         
         console.log(`💾 Creando préstamo con datos:`, datosPrestamo);
@@ -905,6 +937,3 @@ export const verificarNombreDuplicado = async (nombre: string, idExcluir?: strin
     return false;
   }
 };
-
-// Alias para mantener compatibilidad
-export const obtenerUsuario = obtenerUsuarioPorId;

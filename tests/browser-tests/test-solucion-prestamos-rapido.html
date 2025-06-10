@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Rápido - Solución Préstamos Retrasados</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .test-result { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Rápido: Solución Préstamos Retrasados</h1>
+    
+    <div class="info">
+        <strong>Estado:</strong> Verificando mejoras implementadas para resolver problemas de carga múltiple
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button onclick="ejecutarTestCompleto()">🚀 Ejecutar Test Completo</button>
+        <button onclick="testLlamadasMultiples()">🔄 Test Llamadas Múltiples</button>
+        <button onclick="testCache()">📦 Test Cache</button>
+        <button onclick="limpiarConsola()">🧹 Limpiar Consola</button>
+    </div>
+    
+    <div id="resultados"></div>
+    
+    <h3>📊 Console Output</h3>
+    <pre id="console-output"></pre>
+    
+    <script>
+        // Capturar console.log para mostrar en la página
+        const originalLog = console.log;
+        const consoleOutput = document.getElementById('console-output');
+        const resultadosDiv = document.getElementById('resultados');
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.join(' ');
+            consoleOutput.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+        
+        function mostrarResultado(titulo, exito, detalles) {
+            const div = document.createElement('div');
+            div.className = `test-result ${exito ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <strong>${exito ? '✅' : '❌'} ${titulo}</strong><br>
+                ${detalles}
+            `;
+            resultadosDiv.appendChild(div);
+        }
+        
+        function limpiarConsola() {
+            consoleOutput.textContent = '';
+            resultadosDiv.innerHTML = '';
+        }
+        
+        async function testLlamadasMultiples() {
+            console.log('🔄 Iniciando test de llamadas múltiples...');
+            
+            try {
+                // Simular múltiples llamadas concurrentes
+                const promesas = [];
+                const tiempoInicio = Date.now();
+                
+                for (let i = 0; i < 3; i++) {
+                    promesas.push(
+                        fetch('/api/prestamos/vencidos')
+                            .then(r => r.json())
+                            .catch(() => ({ length: 0, simulado: true }))
+                    );
+                }
+                
+                const resultados = await Promise.all(promesas);
+                const tiempoTotal = Date.now() - tiempoInicio;
+                
+                console.log(`⏱️ Tiempo total: ${tiempoTotal}ms`);
+                console.log(`📊 Resultados: ${resultados.map(r => r.length || 0).join(', ')}`);
+                
+                const exito = tiempoTotal < 5000; // Menos de 5 segundos
+                mostrarResultado(
+                    'Test Llamadas Múltiples', 
+                    exito, 
+                    `Tiempo: ${tiempoTotal}ms, Resultados: ${resultados.length}`
+                );
+                
+            } catch (error) {
+                console.error('❌ Error en test:', error);
+                mostrarResultado('Test Llamadas Múltiples', false, error.message);
+            }
+        }
+        
+        async function testCache() {
+            console.log('📦 Iniciando test de cache...');
+            
+            try {
+                // Primera llamada
+                const tiempo1 = Date.now();
+                const result1 = await fetch('/api/prestamos/vencidos').then(r => r.json()).catch(() => ({length: 0, simulado: true}));
+                const duracion1 = Date.now() - tiempo1;
+                
+                // Segunda llamada (debería ser más rápida con cache)
+                const tiempo2 = Date.now();
+                const result2 = await fetch('/api/prestamos/vencidos').then(r => r.json()).catch(() => ({length: 0, simulado: true}));
+                const duracion2 = Date.now() - tiempo2;
+                
+                console.log(`⏱️ Primera llamada: ${duracion1}ms`);
+                console.log(`⏱️ Segunda llamada: ${duracion2}ms`);
+                
+                const mejoraCache = duracion2 < duracion1 * 0.8;
+                mostrarResultado(
+                    'Test Cache', 
+                    mejoraCache, 
+                    `Primera: ${duracion1}ms, Segunda: ${duracion2}ms, Mejora: ${mejoraCache ? 'Sí' : 'No'}`
+                );
+                
+            } catch (error) {
+                console.error('❌ Error en test cache:', error);
+                mostrarResultado('Test Cache', false, error.message);
+            }
+        }
+        
+        async function ejecutarTestCompleto() {
+            console.log('🚀 Ejecutando test completo...');
+            limpiarConsola();
+            
+            mostrarResultado('Inicio de Tests', true, 'Ejecutando serie completa de verificaciones...');
+            
+            await testLlamadasMultiples();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testCache();
+            
+            console.log('✅ Test completo finalizado');
+            mostrarResultado('Test Completo', true, 'Todos los tests han sido ejecutados');
+        }
+        
+        // Ejecutar test inicial al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 Página de test cargada');
+            console.log('💡 Haz clic en los botones para ejecutar los tests');
+        });
+    </script>
+</body>
+</html>

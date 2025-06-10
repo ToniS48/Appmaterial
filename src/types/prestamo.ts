@@ -22,4 +22,10 @@ export interface Prestamo {
   actividadId?: string;
   nombreActividad?: string; 
   registradoPor?: string;
+  
+  // Responsables - nuevos campos
+  responsableActividad?: string;
+  nombreResponsableActividad?: string;
+  responsableMaterial?: string;
+  nombreResponsableMaterial?: string;
 }
