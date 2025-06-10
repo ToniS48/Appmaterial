@@ -90,7 +90,7 @@ const GestionMaterialPage: React.FC = () => {
     const cleanup = setupSchedulerOptimizer();
     return cleanup;
   }, []);
-    // Función optimizada para cargar la lista de materiales
+  // Función optimizada para cargar la lista de materiales (SIN filtros backend)
   const cargarMateriales = useCallback(async () => {
     console.log('🔧 GestionMaterialPage - Iniciando carga de materiales');
     return deferCallback(async () => {
@@ -98,14 +98,8 @@ const GestionMaterialPage: React.FC = () => {
         setIsLoading(true);
         console.log('🔧 GestionMaterialPage - Estado de carga: true');
         
-        const filters: { tipo?: string; estado?: string } = {};
-        
-        if (filtroTipo) filters.tipo = filtroTipo;
-        if (filtroEstado) filters.estado = filtroEstado;
-        
-        console.log('🔧 GestionMaterialPage - Aplicando filtros:', filters);
-        
-        const materialesData = await listarMateriales(filters);
+        // Cargar TODOS los materiales sin filtros backend para filtrar localmente
+        const materialesData = await listarMateriales();
         console.log('🔧 GestionMaterialPage - Materiales cargados:', materialesData.length);
         
         setMateriales(materialesData);
@@ -116,20 +110,36 @@ const GestionMaterialPage: React.FC = () => {
         console.log('🔧 GestionMaterialPage - Estado de carga: false');
       }
     });
-  }, [filtroTipo, filtroEstado]);
-    // Cargar materiales al montar el componente o cambiar filtros
+  }, []); // Sin dependencias de filtros    // Cargar materiales al montar el componente (sin dependencia de filtros)
   useEffect(() => {
     console.log('🔧 GestionMaterialPage - useEffect ejecutado, cargando materiales...');
     cargarMateriales();
   }, [cargarMateriales]);
   
-  // Filtrar materiales por búsqueda con memoización
+  // Filtrar materiales por TODOS los filtros con memoización
   const materialesFiltrados = useMemo(() => {
-    if (!busqueda.trim()) return materiales;
-    return materiales.filter(material => 
-      material.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    );
-  }, [materiales, busqueda]);
+    console.log('🔧 GestionMaterialPage - Aplicando filtros locales:', {
+      busqueda: busqueda.trim(),
+      filtroTipo,
+      filtroEstado,
+      materialesTotal: materiales.length
+    });
+    
+    return materiales.filter(material => {
+      // Filtro por búsqueda
+      const cumpleBusqueda = !busqueda.trim() || 
+        material.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        material.codigo?.toLowerCase().includes(busqueda.toLowerCase());
+      
+      // Filtro por tipo
+      const cumpleTipo = !filtroTipo || material.tipo === filtroTipo;
+      
+      // Filtro por estado
+      const cumpleEstado = !filtroEstado || material.estado === filtroEstado;
+      
+      return cumpleBusqueda && cumpleTipo && cumpleEstado;
+    });
+  }, [materiales, busqueda, filtroTipo, filtroEstado]);
   
   // Handlers optimizados para evitar violaciones del scheduler
   const handleEdit = useOptimizedClickHandler((material: any) => {
