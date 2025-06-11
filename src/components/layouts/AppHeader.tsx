@@ -89,6 +89,18 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
   const handleReporteError = () => {
     setIsReportModalOpen(true);
   };
+
+  // Función mejorada para manejar el logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // La redirección ya se maneja en la función logout del contexto
+    } catch (error) {
+      console.error('Error durante logout:', error);
+      // Redirección de emergencia si hay algún problema
+      window.location.href = '/login';
+    }
+  };
   
   // Función para enviar el reporte
   const sendReport = async () => {
@@ -293,11 +305,10 @@ const AppHeader: React.FC<HeaderProps> = ({ title, children }) => {
               <Box px={4} py={3} borderBottomWidth="1px" borderColor={borderColor}>
                 <Text fontWeight="medium">{userProfile?.nombre || 'Usuario'}</Text>
                 <Text fontSize="sm" color="gray.600">{userProfile?.email}</Text>
-              </Box>
-              <MenuItem as={RouterLink} to="/profile" icon={<Icon as={FiUser} />}>
+              </Box>              <MenuItem as={RouterLink} to="/profile" icon={<Icon as={FiUser} />}>
                 Mi Perfil
               </MenuItem>
-              <MenuItem onClick={logout} icon={<Icon as={FiLogOut} />}>
+              <MenuItem onClick={handleLogout} icon={<Icon as={FiLogOut} />}>
                 Cerrar Sesión
               </MenuItem>
             </MenuList>

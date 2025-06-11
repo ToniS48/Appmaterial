@@ -69,14 +69,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   };
-
   // Función simple para cerrar sesión
   const logout = async (): Promise<void> => {
     try {
       await signOut(auth);
+      // Forzar redirección inmediata al login
+      window.location.href = '/login';
     } catch (error) {
       console.error("Error en logout:", error);
       handleFirebaseError(error, "Error al cerrar sesión");
+      // Incluso si hay error, redirigir al login como medida de seguridad
+      window.location.href = '/login';
       throw error;
     }
   };
@@ -126,7 +129,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error al cargar perfil:', error);
     }
   };
-
   // Efecto para manejar cambios de autenticación
   useEffect(() => {
     console.log('Configurando listener de autenticación...');
@@ -140,6 +142,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setCurrentUser(null);
         setUserProfile(null);
+        
+        // Si no hay usuario y estamos en una ruta protegida, redirigir
+        const currentPath = window.location.pathname;
+        const publicRoutes = ['/login', '/register', '/'];
+        
+        if (!publicRoutes.includes(currentPath)) {
+          console.log('Usuario no autenticado en ruta protegida, redirigiendo...');
+          window.location.href = '/login';
+        }
       }
       
       setLoading(false);
