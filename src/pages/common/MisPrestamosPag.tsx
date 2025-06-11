@@ -13,35 +13,27 @@ import {
   IconButton,
   Button,
   ButtonGroup,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   useDisclosure,
   useToast,
   Tooltip
 } from '@chakra-ui/react';
-import { FiCheck, FiUsers, FiRefreshCw, FiCheckSquare, FiClock } from 'react-icons/fi';
+import { FiCheck, FiUsers, FiRefreshCw, FiCheckSquare } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   listarPrestamosPorResponsabilidad, 
-  registrarDevolucion, 
-  marcarActividadComoPorDevolver,
-  marcarComoPorDevolver 
+  registrarDevolucion
 } from '../../services/prestamoService';
 import { Prestamo } from '../../types/prestamo';
 import { formatFecha } from '../../utils/dateUtils';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
+import DevolucionAvanzadaForm from '../../components/prestamos/DevolucionAvanzadaForm';
 
 const MisPrestamosPag: React.FC = () => {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<Prestamo | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
   const { userProfile } = useAuth();
   const toast = useToast();
 
@@ -106,6 +98,37 @@ const MisPrestamosPag: React.FC = () => {
         
         console.log('✅ MisPrestamosPag - Préstamos cargados:', misPrestamosActivos.length);
         setPrestamos(misPrestamosActivos);
+
+        // Verificar si hay préstamos marcados automáticamente recientemente
+        const prestamosRecienMarcados = misPrestamosActivos.filter(prestamo => 
+          prestamo.estado === 'por_devolver' && 
+          (prestamo as any).marcadoAutomaticamente === true &&
+          (prestamo as any).fechaMarcadoAutomatico
+        );
+
+        if (prestamosRecienMarcados.length > 0) {
+          // Verificar si el marcado fue reciente (últimas 24 horas)
+          const prestamosRecientes = prestamosRecienMarcados.filter(prestamo => {
+            const fechaMarcado = (prestamo as any).fechaMarcadoAutomatico?.toDate?.() || 
+                                 (prestamo as any).fechaMarcadoAutomatico;
+            if (!fechaMarcado) return false;
+            
+            const hace24Horas = new Date();
+            hace24Horas.setHours(hace24Horas.getHours() - 24);
+            
+            return fechaMarcado > hace24Horas;
+          });
+
+          if (prestamosRecientes.length > 0) {
+            toast({
+              title: "⏰ Préstamos marcados automáticamente",
+              description: `${prestamosRecientes.length} préstamo(s) han sido marcados como "por devolver" porque su actividad finalizó hace más de una semana`,
+              status: "warning",
+              duration: 10000,
+              isClosable: true,
+            });
+          }
+        }
         
         // Mostrar toast informativo solo si hay préstamos
         if (misPrestamosActivos.length > 0) {
@@ -288,119 +311,31 @@ const MisPrestamosPag: React.FC = () => {
     const diferenciaMilisegundos = ahora.getTime() - fechaReferencia.getTime();
     return Math.floor(diferenciaMilisegundos / (1000 * 60 * 60 * 24));
   };
-
-  // Manejar marcar préstamo individual como "por devolver"
-  const handleMarcarPorDevolver = async (prestamo: Prestamo) => {
-    try {
-      await marcarComoPorDevolver(prestamo.id as string, 'Marcado manualmente por el usuario');
-      
-      toast({
-        title: 'Material marcado para devolución',
-        description: `${prestamo.nombreMaterial} ha sido marcado como "por devolver"`,
-        status: 'info',
-        duration: 4000,
-        isClosable: true,
-      });
-      
-      // Actualizar el estado del préstamo en la lista local
-      setPrestamos(prestamos.map(p => 
-        p.id === prestamo.id 
-          ? { ...p, estado: 'por_devolver' as any }
-          : p
-      ));
-      
-    } catch (error) {
-      console.error('Error al marcar préstamo como por devolver:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo marcar el material para devolución. Intenta de nuevo.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-    }
-  };
-
-  // Manejar marcar toda la actividad como "por devolver"
-  const handleMarcarActividadPorDevolver = async (actividadId: string, nombreActividad: string) => {
-    try {
-      const prestamosActividad = prestamos.filter(p => p.actividadId === actividadId && p.estado === 'en_uso');
-      
-      if (prestamosActividad.length === 0) {
-        toast({
-          title: 'Sin préstamos activos',
-          description: 'No hay materiales activos en esta actividad para marcar.',
-          status: 'warning',
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-      
-      const count = await marcarActividadComoPorDevolver(actividadId, `Actividad "${nombreActividad}" marcada como finalizada`);
-      
-      toast({
-        title: 'Actividad marcada para devolución',
-        description: `${count} material(es) de "${nombreActividad}" marcados como "por devolver"`,
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Actualizar los estados en la lista local
-      setPrestamos(prestamos.map(p => 
-        p.actividadId === actividadId && p.estado === 'en_uso'
-          ? { ...p, estado: 'por_devolver' as any }
-          : p
-      ));
-      
-    } catch (error) {
-      console.error('Error al marcar actividad como por devolver:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo marcar la actividad para devolución. Intenta de nuevo.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-    }
-  };
-
   // Manejar la solicitud de devolución
   const handleSolicitarDevolucion = (prestamo: Prestamo) => {
     setPrestamoSeleccionado(prestamo);
     onOpen();
   };
 
-  // Confirmar devolución
-  const confirmarDevolucion = async () => {
-    if (!prestamoSeleccionado) return;
-    
-    try {
-      await registrarDevolucion(prestamoSeleccionado.id as string);
-      
-      toast({
-        title: messages.prestamos.devolucionRegistrada,
-        description: `Has registrado la devolución de ${prestamoSeleccionado.nombreMaterial}`,
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Actualizar lista de préstamos
-      setPrestamos(prestamos.filter(p => p.id !== prestamoSeleccionado.id));
-      onClose();
-    } catch (error) {
-      console.error('Error al registrar devolución:', error);
-      toast({
-        title: messages.prestamos.errorDevolucion,
-        description: messages.prestamos.errorDevolucionDesc,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+  // Manejar devolución de toda la actividad
+  const handleDevolverTodaActividad = (actividadId: string, nombreActividad: string) => {
+    // Para simplicidad, abrimos el modal con el primer préstamo de la actividad
+    // El formulario de devolución avanzada puede manejar múltiples devoluciones
+    const primerPrestamo = prestamos.find(p => p.actividadId === actividadId && p.estado === 'en_uso');
+    if (primerPrestamo) {
+      setPrestamoSeleccionado(primerPrestamo);
+      onOpen();
     }
   };
+  // Manejar éxito de devolución avanzada
+  const handleDevolucionSuccess = () => {
+    if (!prestamoSeleccionado) return;
+    
+    // Actualizar lista de préstamos removiendo el devuelto
+    setPrestamos(prestamos.filter(p => p.id !== prestamoSeleccionado.id));
+    setPrestamoSeleccionado(null);
+  };
+
   // Renderizar estado del préstamo
   const renderEstado = (estado: string) => {
     let colorScheme = '';
@@ -549,18 +484,18 @@ const MisPrestamosPag: React.FC = () => {
                               ⚠️ {materialesConRetraso.length} material(es) retrasado(s)
                             </Badge>
                           )}
-                          
-                          {/* Botón para marcar toda la actividad como "por devolver" */}
+                            {/* Botón para devolver toda la actividad */}
                           {materialesActivos.length > 0 && grupo.actividad !== 'Préstamos individuales' && (
-                            <Tooltip label={`Marcar todos los ${materialesActivos.length} materiales de esta actividad como "por devolver"`}>
-                              <IconButton
+                            <Tooltip label={`Devolver todos los ${materialesActivos.length} materiales de esta actividad`}>
+                              <Button
                                 size="sm"
-                                colorScheme="orange"
+                                colorScheme="green"
                                 variant="outline"
-                                icon={<FiUsers />}
-                                onClick={() => handleMarcarActividadPorDevolver(grupo.prestamos[0]?.actividadId!, grupo.actividad)}
-                                aria-label="Marcar actividad como por devolver"
-                              />
+                                leftIcon={<FiUsers />}
+                                onClick={() => handleDevolverTodaActividad(grupo.prestamos[0]?.actividadId!, grupo.actividad)}
+                              >
+                                Devolver todo
+                              </Button>
                             </Tooltip>
                           )}
                         </Flex>
@@ -639,19 +574,6 @@ const MisPrestamosPag: React.FC = () => {
                           >
                             {esActividadFinalizadaConMaterialPendiente(prestamo) ? "Devolver YA" : "Devolver"}
                           </Button>
-                          
-                          {/* Botón secundario: Marcar como "por devolver" (solo si está en uso) */}
-                          {prestamo.estado === 'en_uso' && (
-                            <Tooltip label="Marcar como 'por devolver' - útil cuando la actividad ha terminado pero aún no has devuelto el material">
-                              <IconButton
-                                colorScheme="orange"
-                                variant="outline"
-                                icon={<FiClock />}
-                                onClick={() => handleMarcarPorDevolver(prestamo)}
-                                aria-label="Marcar como por devolver"
-                              />
-                            </Tooltip>
-                          )}
                         </ButtonGroup>
                       </Td>
                     </Tr>
@@ -660,53 +582,17 @@ const MisPrestamosPag: React.FC = () => {
               </Table>
             </Box>
           ))
-        )}
-      </Box>
+        )}      </Box>
 
-      {/* Diálogo de confirmación */}
-      <AlertDialog
-        isOpen={isOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={onClose}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Confirmar devolución
-            </AlertDialogHeader>            <AlertDialogBody>
-              {prestamoSeleccionado && esActividadFinalizadaConMaterialPendiente(prestamoSeleccionado) ? (
-                <Box>
-                  <Box color="red.600" fontWeight="bold" mb={2}>
-                    ⚠️ DEVOLUCIÓN URGENTE REQUERIDA
-                  </Box>
-                  <Box mb={2}>
-                    La actividad <strong>{prestamoSeleccionado.nombreActividad}</strong> ya ha finalizado hace{' '}
-                    <strong>{calcularDiasRetraso(prestamoSeleccionado)} día(s)</strong>.
-                  </Box>
-                  <Box>
-                    ¿Confirmas la devolución del material <strong>{prestamoSeleccionado.nombreMaterial}</strong>? 
-                    Esta acción notificará a los responsables para que revisen el material.
-                  </Box>
-                </Box>
-              ) : (
-                <>
-                  ¿Estás seguro de que quieres registrar la devolución de este material? 
-                  Esta acción notificará a los responsables para que revisen el material.
-                </>
-              )}
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onClose}>
-                Cancelar
-              </Button>
-              <Button colorScheme="green" onClick={confirmarDevolucion} ml={3}>
-                Confirmar devolución
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
+      {/* Modal de devolución avanzada */}
+      {prestamoSeleccionado && (
+        <DevolucionAvanzadaForm
+          isOpen={isOpen}
+          onClose={onClose}
+          prestamo={prestamoSeleccionado}
+          onSuccess={handleDevolucionSuccess}
+        />
+      )}
     </DashboardLayout>
   );
 };

@@ -26,21 +26,23 @@ import {
   Input,
   FormControl,
   FormLabel,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,  AlertDialogContent,
-  AlertDialogOverlay,
   useToast
 } from '@chakra-ui/react';
-import { FiEdit, FiCheck, FiPlus, FiSearch } from 'react-icons/fi';
+import { FiEdit, FiCheck, FiPlus, FiSearch, FiClock } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { listarPrestamos, registrarDevolucion, obtenerPrestamosVencidos, limpiarCacheVencidos } from '../../services/prestamoService';
+import { 
+  listarPrestamos, 
+  registrarDevolucion, 
+  obtenerPrestamosVencidos, 
+  limpiarCacheVencidos,
+  marcarPrestamosVencidosAutomaticamente 
+} from '../../services/prestamoService';
 import { obtenerActividad } from '../../services/actividadService';
 import { Prestamo, EstadoPrestamo } from '../../types/prestamo';
 import { RolUsuario } from '../../types/usuario';
 import PrestamoForm from './PrestamoForm';
+import DevolucionAvanzadaForm from './DevolucionAvanzadaForm';
 import DashboardLayout from '../layouts/DashboardLayout';
 import messages from '../../constants/messages';
 
@@ -57,12 +59,13 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
   const [contadorRetrasados, setContadorRetrasados] = useState(0);
   const [isLoadingContador, setIsLoadingContador] = useState(false);
   const [loadingRequestId, setLoadingRequestId] = useState<number | null>(null);
+  const [isLoadingVerificacion, setIsLoadingVerificacion] = useState(false);
   const toast = useToast();
 
   // Modales y diálogos
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isDevolucionOpen, onOpen: onDevolucionOpen, onClose: onDevolucionClose } = useDisclosure();
-  const cancelRef = React.useRef<HTMLButtonElement>(null);  // Cargar préstamos
+  // Cargar préstamos
   const cargarPrestamos = async () => {
     const requestId = Date.now();
     const mostrarSoloRetrasados = filtroEstado === 'retrasados';
@@ -134,14 +137,15 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
           duration: 5000,
           isClosable: true,
         });      }
-    } finally {
-      // Limpiar loading solo si esta es la petición actual o más nueva
+    } finally {      // Limpiar loading solo si esta es la petición actual o más nueva
       if (!loadingRequestId || loadingRequestId <= requestId) {
         setIsLoading(false);
         setLoadingRequestId(null);
       }
     }
-  };  // Cargar contador de retrasados independientemente con cache
+  };
+
+  // Cargar contador de retrasados independientemente con cache
   const cargarContadorRetrasados = async () => {
     const mostrarSoloRetrasados = filtroEstado === 'retrasados';
     if (mostrarSoloRetrasados || isLoadingContador) {
@@ -178,6 +182,73 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
       setContadorRetrasados(0);
     } finally {
       setIsLoadingContador(false);
+    }
+  };
+
+  // Manejar verificación automática de préstamos vencidos
+  const handleVerificacionAutomatica = async () => {
+    if (rol !== 'admin') {
+      toast({
+        title: "Acceso denegado",
+        description: "Solo los administradores pueden ejecutar esta función",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingVerificacion(true);
+      
+      console.log('🔍 Ejecutando verificación automática manual...');
+      const resultado = await marcarPrestamosVencidosAutomaticamente();
+      
+      if (resultado.marcados > 0) {
+        toast({
+          title: "Verificación completada",
+          description: `${resultado.marcados} préstamo(s) marcado(s) como "por devolver". Se procesaron ${resultado.procesados} actividad(es).`,
+          status: "success",
+          duration: 8000,
+          isClosable: true,
+        });
+        
+        // Recargar la lista de préstamos para mostrar los cambios
+        cargarPrestamos();
+        
+      } else if (resultado.procesados === 0) {
+        toast({
+          title: "Sin actividades vencidas",
+          description: "No se encontraron actividades finalizadas hace más de 7 días con préstamos activos",
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: "Verificación completada",
+          description: `Se procesaron ${resultado.procesados} actividad(es), pero no se encontraron préstamos que marcar`,
+          status: "info",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+      
+      if (resultado.errores > 0) {
+        console.warn(`⚠️ Se produjeron ${resultado.errores} error(es) durante la verificación`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en verificación automática:', error);
+      toast({
+        title: "Error en verificación",
+        description: "No se pudo completar la verificación automática. Revisa la consola para más detalles.",
+        status: "error",
+        duration: 8000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoadingVerificacion(false);
     }
   };
 
@@ -242,35 +313,19 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
     return () => {
       // No limpiar cache al desmontar para mantener performance
     };
-  }, []);
-  // Manejar registro de devolución
-  const handleDevolucion = async () => {
+    }, []);
+  
+  // Manejar éxito de devolución avanzada
+  const handleDevolucionSuccess = () => {
     if (!prestamoSeleccionado) return;
     
-    try {
-      await registrarDevolucion(prestamoSeleccionado.id as string);
-      onDevolucionClose();
-      toast({
-        title: messages.prestamos.devolucionRegistrada,
-        description: messages.prestamos.devolucionRegistradaDesc.replace('{nombre}', prestamoSeleccionado.nombreMaterial),
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
-      cargarPrestamos();
-      actualizarContadorTrasDevolución(); // Actualizar contador
-    } catch (error) {
-      console.error('Error al registrar devolución:', error);
-      toast({
-        title: messages.prestamos.errorDevolucion,
-        description: messages.prestamos.errorDevolucionDesc,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
+    onDevolucionClose();
+    cargarPrestamos();
+    actualizarContadorTrasDevolución(); // Actualizar contador
+    setPrestamoSeleccionado(null);
   };
-  // Renderizar el estado del préstamo con un Badge colorido
+
+  // Renderizar el estado del préstamo with un Badge colorido
   const renderEstadoBadge = (estado: EstadoPrestamo) => {
     let color = '';
     switch (estado) {
@@ -353,7 +408,23 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
             >
               {messages.prestamos.nuevoPrestamo}
             </Button>
-              {/* Botón de acceso rápido a retrasados */}
+
+            {/* Botón de verificación automática - solo para admins */}
+            {rol === 'admin' && (
+              <Button
+                leftIcon={<FiClock />}
+                variant="outline"
+                colorScheme="orange"
+                size="sm"
+                onClick={handleVerificacionAutomatica}
+                isLoading={isLoadingVerificacion}
+                loadingText="Verificando..."
+              >
+                Verificar Vencidos
+              </Button>
+            )}
+
+            {/* Botón de acceso rápido a retrasados */}
             {contadorRetrasados > 0 && filtroEstado !== 'retrasados' && (
               <Button
                 size="sm"
@@ -628,36 +699,17 @@ const PrestamosDashboard: React.FC<PrestamosDashboardProps> = ({ rol, titulo }) 
               onCancel={onFormClose}
             />
           </ModalBody>
-        </ModalContent>
-      </Modal>
+        </ModalContent>      </Modal>
 
-      {/* Diálogo de confirmación para devolución */}
-      <AlertDialog
-        isOpen={isDevolucionOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={onDevolucionClose}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              {messages.prestamos.registrarDevolucion}
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              {messages.prestamos.confirmarDevolucion}
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onDevolucionClose}>
-                {messages.prestamos.cancelar}
-              </Button>
-              <Button colorScheme="green" onClick={handleDevolucion} ml={3}>
-                {messages.prestamos.confirmar}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
+      {/* Modal de devolución avanzada */}
+      {prestamoSeleccionado && (
+        <DevolucionAvanzadaForm
+          isOpen={isDevolucionOpen}
+          onClose={onDevolucionClose}
+          prestamo={prestamoSeleccionado}
+          onSuccess={handleDevolucionSuccess}
+        />
+      )}
     </DashboardLayout>
   );
 };

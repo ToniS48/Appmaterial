@@ -870,3 +870,186 @@ export const obtenerPrestamosPorDevolver = async (usuarioId?: string): Promise<P
     throw error;
   }
 };
+
+// Función para marcar automáticamente préstamos como "por devolver" cuando la actividad termina
+export const marcarPrestamosVencidosAutomaticamente = async (): Promise<{
+  procesados: number;
+  marcados: number;
+  errores: number;
+}> => {
+  const callId = Date.now();
+  console.log(`🔄 [${callId}] Iniciando marcado automático de préstamos vencidos...`);
+  
+  try {
+    // Fecha límite: hace una semana
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() - 7);
+    
+    console.log(`📅 [${callId}] Buscando actividades finalizadas antes de: ${fechaLimite.toISOString()}`);
+    
+    // Buscar actividades finalizadas hace más de una semana
+    const actividadesQuery = query(
+      collection(db, 'actividades'),
+      where('estado', '==', 'finalizada'),
+      where('fechaFin', '<=', Timestamp.fromDate(fechaLimite))
+    );
+    
+    const actividadesSnapshot = await getDocs(actividadesQuery);
+    console.log(`📋 [${callId}] Actividades finalizadas encontradas: ${actividadesSnapshot.size}`);
+    
+    let procesados = 0;
+    let marcados = 0;
+    let errores = 0;
+    
+    for (const actividadDoc of actividadesSnapshot.docs) {
+      try {
+        const actividad = actividadDoc.data();
+        const actividadId = actividadDoc.id;
+        
+        console.log(`📦 [${callId}] Procesando actividad: ${actividad.nombre} (${actividadId})`);
+        
+        // Buscar préstamos en estado 'en_uso' de esta actividad
+        const prestamosQuery = query(
+          collection(db, 'prestamos'),
+          where('actividadId', '==', actividadId),
+          where('estado', '==', 'en_uso')
+        );
+        
+        const prestamosSnapshot = await getDocs(prestamosQuery);
+        
+        if (prestamosSnapshot.size > 0) {
+          console.log(`🔍 [${callId}] Encontrados ${prestamosSnapshot.size} préstamos activos en actividad ${actividad.nombre}`);
+          
+          // Marcar cada préstamo como "por devolver"
+          for (const prestamoDoc of prestamosSnapshot.docs) {
+            try {
+              const prestamoRef = doc(db, 'prestamos', prestamoDoc.id);
+              const prestamoData = prestamoDoc.data();
+              
+              await updateDoc(prestamoRef, {
+                estado: 'por_devolver' as EstadoPrestamo,
+                observaciones: `${prestamoData.observaciones || ''}\n[MARCADO AUTOMÁTICAMENTE]: Actividad "${actividad.nombre}" finalizada hace más de 7 días`,
+                fechaActualizacion: serverTimestamp(),
+                marcadoAutomaticamente: true,
+                fechaMarcadoAutomatico: serverTimestamp()
+              });
+              
+              marcados++;
+              console.log(`✅ [${callId}] Préstamo ${prestamoDoc.id} marcado como "por devolver"`);
+              
+            } catch (prestamoError) {
+              console.error(`❌ [${callId}] Error marcando préstamo ${prestamoDoc.id}:`, prestamoError);
+              errores++;
+            }
+          }
+        }
+        
+        procesados++;
+        
+      } catch (actividadError) {
+        console.error(`❌ [${callId}] Error procesando actividad ${actividadDoc.id}:`, actividadError);
+        errores++;
+      }
+    }
+    
+    console.log(`✅ [${callId}] Marcado automático completado:`);
+    console.log(`   📊 Actividades procesadas: ${procesados}`);
+    console.log(`   ✅ Préstamos marcados: ${marcados}`);
+    console.log(`   ❌ Errores: ${errores}`);
+    
+    // Limpiar cache
+    limpiarCacheVencidos();
+    
+    return { procesados, marcados, errores };
+    
+  } catch (error) {
+    console.error(`❌ [${callId}] Error en marcado automático:`, error);
+    throw error;
+  }
+};
+
+// Función para verificar si una actividad debe tener sus préstamos marcados automáticamente
+export const verificarActividadParaMarcadoAutomatico = async (actividadId: string): Promise<boolean> => {
+  try {
+    console.log(`🔍 Verificando actividad ${actividadId} para marcado automático...`);
+    
+    // Obtener datos de la actividad
+    const actividadRef = doc(db, 'actividades', actividadId);
+    const actividadDoc = await getDoc(actividadRef);
+    
+    if (!actividadDoc.exists()) {
+      console.log(`❌ Actividad ${actividadId} no encontrada`);
+      return false;
+    }
+    
+    const actividad = actividadDoc.data();
+    
+    // Verificar que esté finalizada
+    if (actividad.estado !== 'finalizada') {
+      console.log(`ℹ️ Actividad ${actividadId} no está finalizada (estado: ${actividad.estado})`);
+      return false;
+    }
+    
+    // Verificar que haya pasado más de una semana desde la finalización
+    const fechaFin = actividad.fechaFin.toDate();
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() - 7);
+    
+    if (fechaFin > fechaLimite) {
+      console.log(`ℹ️ Actividad ${actividadId} finalizó hace menos de 7 días`);
+      return false;
+    }
+    
+    // Verificar si hay préstamos activos
+    const prestamosQuery = query(
+      collection(db, 'prestamos'),
+      where('actividadId', '==', actividadId),
+      where('estado', '==', 'en_uso')
+    );
+    
+    const prestamosSnapshot = await getDocs(prestamosQuery);
+    
+    if (prestamosSnapshot.size === 0) {
+      console.log(`ℹ️ Actividad ${actividadId} no tiene préstamos activos`);
+      return false;
+    }
+    
+    console.log(`✅ Actividad ${actividadId} cumple criterios para marcado automático (${prestamosSnapshot.size} préstamos activos)`);
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ Error verificando actividad ${actividadId}:`, error);
+    return false;
+  }
+};
+
+// Función para configurar verificación automática periódica
+export const configurarVerificacionAutomatica = (): (() => void) => {
+  console.log('🔧 Configurando verificación automática de préstamos vencidos...');
+  
+  // Ejecutar inmediatamente
+  marcarPrestamosVencidosAutomaticamente().catch(error => {
+    console.error('❌ Error en verificación automática inicial:', error);
+  });
+  
+  // Configurar intervalo para ejecutar cada 24 horas
+  const intervalo = setInterval(async () => {
+    try {
+      console.log('⏰ Ejecutando verificación automática programada...');
+      const resultado = await marcarPrestamosVencidosAutomaticamente();
+      
+      if (resultado.marcados > 0) {
+        console.log(`📢 Verificación automática: ${resultado.marcados} préstamos marcados como "por devolver"`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en verificación automática programada:', error);
+    }
+  }, 24 * 60 * 60 * 1000); // 24 horas
+  
+  // Retornar función para cancelar el intervalo
+  return () => {
+    console.log('🛑 Cancelando verificación automática...');
+    clearInterval(intervalo);
+  };
+};

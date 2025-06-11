@@ -8,8 +8,8 @@ import { MensajeriaProvider } from './contexts/MensajeriaContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppRoutes from './routes';
 import { iniciarTareasProgramadas } from './services/programacionService';
+import { useVerificacionAutomaticaPrestamos } from './hooks/useVerificacionAutomaticaPrestamos';
 import ErrorBoundary from './components/common/ErrorBoundary';
-
 
 // DebugHelper removido - problema MaterialSelector resuelto
 
@@ -22,6 +22,12 @@ const LoadingFallback = () => (
     </Box>
   </Center>
 );
+
+// Componente interno para gestionar verificación automática
+const VerificacionAutomaticaManager: React.FC = () => {
+  useVerificacionAutomaticaPrestamos();
+  return null; // No renderiza nada, solo ejecuta la lógica
+};
 
 function App() {
   useEffect(() => {
@@ -75,6 +81,7 @@ function App() {
               <AuthProvider>
                 <NotificacionProvider>
                   <MensajeriaProvider>
+                    <VerificacionAutomaticaManager />
                     <AppRoutes />
                     {/* DebugHelper removido - problema MaterialSelector resuelto */}
                   </MensajeriaProvider>

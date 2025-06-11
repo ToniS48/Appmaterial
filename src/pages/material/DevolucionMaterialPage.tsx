@@ -28,7 +28,7 @@ import { ArrowBackIcon, ViewIcon } from '@chakra-ui/icons';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { obtenerPrestamosUsuario } from '../../services/prestamoService';
 import { Prestamo } from '../../types/prestamo';
-import DevolucionForm from '../../components/prestamos/DevolucionForm';
+import DevolucionAvanzadaForm from '../../components/prestamos/DevolucionAvanzadaForm';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 
@@ -72,11 +72,13 @@ const DevolucionMaterialPage: React.FC = () => {
     setSelectedPrestamo(prestamo);
     onOpen();
   };
-  
-  const handleDevolucionSuccess = () => {
+    const handleDevolucionSuccess = () => {
+    if (!selectedPrestamo) return;
+    
     onClose();
     // Actualizar la lista de préstamos
     setPrestamos(prestamos.filter(p => p.id !== selectedPrestamo?.id));
+    setSelectedPrestamo(null);
     toast({
       title: messages.material.devoluciones.devolucionRegistrada,
       description: messages.material.devoluciones.materialDevuelto,
@@ -166,26 +168,17 @@ const DevolucionMaterialPage: React.FC = () => {
               ))}
             </List>
           </Box>
-        )}
-      </Container>
+        )}      </Container>
       
-      {/* Modal para el formulario de devolución */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{messages.material.devoluciones.titulo}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            {selectedPrestamo && (
-              <DevolucionForm 
-                prestamo={selectedPrestamo}
-                onSuccess={handleDevolucionSuccess}
-                onCancel={onClose}
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      {/* Modal de devolución avanzada */}
+      {selectedPrestamo && (
+        <DevolucionAvanzadaForm
+          isOpen={isOpen}
+          onClose={onClose}
+          prestamo={selectedPrestamo}
+          onSuccess={handleDevolucionSuccess}
+        />
+      )}
     </DashboardLayout>
   );
 };
