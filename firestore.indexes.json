@@ -114,10 +114,29 @@
         {
           "fieldPath": "fechaPrestamo",
           "order": "DESCENDING"
-        },
-        {
+        },        {
           "fieldPath": "__name__",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "responsableActividad",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "responsableMaterial",
+          "order": "ASCENDING"
         }
       ]
     }

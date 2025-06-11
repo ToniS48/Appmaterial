@@ -1,16 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Heading, Table, Thead, Tbody, Tr, Th, Td, 
-  Button, Badge, useToast, AlertDialog,
-  AlertDialogBody, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogContent, AlertDialogOverlay, useDisclosure, Flex,
-  ButtonGroup, IconButton, Tooltip
+  Box,
+  Heading,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Badge,
+  Flex,
+  IconButton,
+  Button,
+  ButtonGroup,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
+  useToast,
+  Tooltip
 } from '@chakra-ui/react';
-import { FiCheckSquare, FiClock, FiUsers } from 'react-icons/fi';
-import { listarPrestamosPorResponsabilidad, registrarDevolucion, marcarComoPorDevolver, marcarActividadComoPorDevolver } from '../../services/prestamoService';
-import DashboardLayout from '../../components/layouts/DashboardLayout';
-import { Prestamo } from '../../types/prestamo';
+import { FiCheck, FiUsers, FiRefreshCw, FiCheckSquare, FiClock } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import { 
+  listarPrestamosPorResponsabilidad, 
+  registrarDevolucion, 
+  marcarActividadComoPorDevolver,
+  marcarComoPorDevolver 
+} from '../../services/prestamoService';
+import { Prestamo } from '../../types/prestamo';
+import { formatFecha } from '../../utils/dateUtils';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
 
 const MisPrestamosPag: React.FC = () => {
@@ -21,7 +44,55 @@ const MisPrestamosPag: React.FC = () => {
   const cancelRef = React.useRef<HTMLButtonElement>(null);
   const { userProfile } = useAuth();
   const toast = useToast();
-    // Cargar préstamos del usuario actual (incluyendo responsabilidades)
+
+  // Función de diagnóstico temporal
+  const ejecutarDiagnostico = async () => {
+    if (!userProfile) return;
+    
+    console.log('🔧 === DIAGNÓSTICO MANUAL DESDE COMPONENTE ===');
+    console.log('👤 Usuario:', userProfile.uid);
+    console.log('📧 Email:', userProfile.email);
+    
+    try {
+      // Probar la función paso a paso
+      console.log('🔍 Ejecutando listarPrestamosPorResponsabilidad...');
+      const result = await listarPrestamosPorResponsabilidad(userProfile.uid);
+      console.log('📊 Resultado:', result.length, 'préstamos');
+      
+      if (result.length === 0) {
+        console.log('⚠️ NO HAY RESULTADOS - Verificando datos directamente...');
+        
+        // Probar consulta directa
+        const { listarPrestamos } = await import('../../services/prestamoService');
+        const prestamosDirectos = await listarPrestamos({ usuarioId: userProfile.uid });
+        console.log('📋 Préstamos directos:', prestamosDirectos.length);
+        
+        // Mostrar todos los préstamos del sistema relacionados con el usuario
+        const todosPrestamos = await listarPrestamos();
+        const relacionados = todosPrestamos.filter(p => 
+          p.usuarioId === userProfile.uid || 
+          p.responsableActividad === userProfile.uid || 
+          p.responsableMaterial === userProfile.uid
+        );
+        console.log('📋 Préstamos relacionados contigo:', relacionados.length);
+        relacionados.forEach(p => {
+          let roles = [];
+          if (p.usuarioId === userProfile.uid) roles.push('Usuario');
+          if (p.responsableActividad === userProfile.uid) roles.push('Resp.Actividad');
+          if (p.responsableMaterial === userProfile.uid) roles.push('Resp.Material');
+          console.log(`   - ${p.nombreMaterial} (${p.estado}) - Roles: ${roles.join(', ')}`);
+        });
+      }
+      
+      // Actualizar estado del componente
+      setPrestamos(result);
+      console.log('✅ Estado del componente actualizado');
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+    }
+  };
+  // Cargar préstamos del usuario actual (incluyendo responsabilidades)
   useEffect(() => {
     const cargarMisPrestamos = async () => {
       if (!userProfile) return;
@@ -45,6 +116,35 @@ const MisPrestamosPag: React.FC = () => {
             duration: 3000,
             isClosable: true,
           });
+        } else {
+          // Diagnóstico adicional cuando no hay resultados
+          console.log('⚠️ MisPrestamosPag - No se encontraron préstamos activos');
+          console.log('🔍 Ejecutando diagnóstico adicional...');
+          
+          // Verificar si hay préstamos en otros estados
+          try {
+            const { listarPrestamos } = await import('../../services/prestamoService');
+            const todosPrestamosUsuario = await listarPrestamos({ usuarioId: userProfile.uid });
+            
+            if (todosPrestamosUsuario.length > 0) {
+              const estadosPrestamos = todosPrestamosUsuario.reduce((acc, p) => {
+                acc[p.estado] = (acc[p.estado] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              
+              console.log('📊 Estados de préstamos del usuario:', estadosPrestamos);
+              
+              toast({
+                title: 'Información de préstamos',
+                description: `Tienes ${todosPrestamosUsuario.length} préstamo(s) total(es), pero ninguno en estado activo`,
+                status: 'info',
+                duration: 5000,
+                isClosable: true,
+              });
+            }
+          } catch (diagnosticError) {
+            console.warn('⚠️ Error en diagnóstico adicional:', diagnosticError);
+          }
         }
         
       } catch (error) {
@@ -342,11 +442,51 @@ const MisPrestamosPag: React.FC = () => {
     );
   }
   return (    <DashboardLayout title="Mis Préstamos">
-      <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="white">
-        <Flex justify="space-between" align="center" mb={4}>
+      <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="white">        <Flex justify="space-between" align="center" mb={4}>
           <Heading size="md">
             Mis Préstamos Activos ({prestamos.length})
           </Heading>
+          
+          {/* Botón de diagnóstico temporal para debugging */}
+          {process.env.NODE_ENV === 'development' && (
+            <Button
+              size="sm"
+              colorScheme="orange"
+              variant="outline"
+              leftIcon={<FiRefreshCw />}
+              onClick={async () => {
+                if (!userProfile) return;
+                
+                console.log('🔧 === DIAGNÓSTICO MANUAL DESDE COMPONENTE ===');
+                console.log('👤 Usuario:', userProfile.uid);
+                
+                try {
+                  const result = await listarPrestamosPorResponsabilidad(userProfile.uid);
+                  console.log('📊 Resultado:', result.length, 'préstamos');
+                  setPrestamos(result);
+                  
+                  toast({
+                    title: 'Diagnóstico ejecutado',
+                    description: `Encontrados ${result.length} préstamos. Ver consola para detalles.`,
+                    status: result.length > 0 ? 'success' : 'warning',
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                } catch (error) {
+                  console.error('❌ Error en diagnóstico:', error);
+                  toast({
+                    title: 'Error en diagnóstico',
+                    description: 'Ver consola para detalles del error',
+                    status: 'error',
+                    duration: 3000,
+                    isClosable: true,
+                  });
+                }
+              }}
+            >
+              🔧 Debug
+            </Button>
+          )}
           
           {/* Resumen de materiales con retraso */}
           {(() => {

@@ -259,8 +259,7 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               <FormErrorMessage>{errors.estado.message?.toString()}</FormErrorMessage>
             )}
           </FormControl>
-          
-          <FormControl isRequired isInvalid={!!errors.fechaAdquisicion}>
+            <FormControl isRequired isInvalid={!!errors.fechaAdquisicion}>
             <FormLabel>Fecha de adquisición</FormLabel>
             <Controller
               name="fechaAdquisicion"
@@ -268,8 +267,8 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               rules={{ required: 'La fecha de adquisición es obligatoria' }}
               render={({ field }) => (
                 <DatePicker
-                  name={field.name}
-                  control={control}
+                  selectedDate={field.value}
+                  onChange={(date: Date | null) => field.onChange(date)}
                 />
               )}
             />
@@ -277,8 +276,7 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               <FormErrorMessage>{errors.fechaAdquisicion.message?.toString()}</FormErrorMessage>
             )}
           </FormControl>
-          
-          <FormControl isRequired isInvalid={!!errors.fechaUltimaRevision}>
+            <FormControl isRequired isInvalid={!!errors.fechaUltimaRevision}>
             <FormLabel>Última revisión</FormLabel>
             <Controller
               name="fechaUltimaRevision"
@@ -286,8 +284,8 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               rules={{ required: 'La fecha de última revisión es obligatoria' }}
               render={({ field }) => (
                 <DatePicker
-                  name={field.name}
-                  control={control}
+                  selectedDate={field.value}
+                  onChange={(date: Date | null) => field.onChange(date)}
                 />
               )}
             />
@@ -295,8 +293,7 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               <FormErrorMessage>{errors.fechaUltimaRevision.message?.toString()}</FormErrorMessage>
             )}
           </FormControl>
-          
-          <FormControl isRequired isInvalid={!!errors.proximaRevision}>
+            <FormControl isRequired isInvalid={!!errors.proximaRevision}>
             <FormLabel>Próxima revisión</FormLabel>
             <Controller
               name="proximaRevision"
@@ -304,8 +301,8 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               rules={{ required: 'La fecha de próxima revisión es obligatoria' }}
               render={({ field }) => (
                 <DatePicker
-                  name={field.name}
-                  control={control}
+                  selectedDate={field.value}
+                  onChange={(date: Date | null) => field.onChange(date)}
                 />
               )}
             />

@@ -552,6 +552,9 @@ export const listarPrestamosPorResponsabilidad = async (userId: string): Promise
     try {
       prestamosDirectos = await listarPrestamos({ usuarioId: userId });
       console.log(`📊 [${callId}] Préstamos directos: ${prestamosDirectos.length}`);
+      if (prestamosDirectos.length > 0) {
+        console.log(`   [${callId}] Primeros préstamos directos:`, prestamosDirectos.slice(0, 3).map(p => `${p.nombreMaterial} (${p.estado})`));
+      }
     } catch (directosError) {
       console.error(`⚠️ [${callId}] Error obteniendo préstamos directos:`, directosError);
       // Continuar sin préstamos directos
@@ -562,8 +565,14 @@ export const listarPrestamosPorResponsabilidad = async (userId: string): Promise
     try {
       prestamosRespActividad = await obtenerPrestamosPorResponsableActividad(userId);
       console.log(`📊 [${callId}] Préstamos por resp. actividad: ${prestamosRespActividad.length}`);
-    } catch (actividadError) {
+      if (prestamosRespActividad.length > 0) {
+        console.log(`   [${callId}] Primeros préstamos por resp. actividad:`, prestamosRespActividad.slice(0, 3).map(p => `${p.nombreMaterial} (${p.estado})`));
+      }    } catch (actividadError) {
       console.warn(`⚠️ [${callId}] No se pudieron obtener préstamos por responsabilidad de actividad:`, actividadError);
+      if ((actividadError as any)?.code === 'failed-precondition') {
+        console.error(`🔥 [${callId}] PROBLEMA CRÍTICO: Índice faltante para responsableActividad`);
+        console.log(`💡 [${callId}] SOLUCIÓN: Crear índice en Firebase Console: Collection=prestamos, Field=responsableActividad`);
+      }
       // Continuar sin estos préstamos
     }
     
@@ -572,16 +581,25 @@ export const listarPrestamosPorResponsabilidad = async (userId: string): Promise
     try {
       prestamosRespMaterial = await obtenerPrestamosPorResponsableMaterial(userId);
       console.log(`📊 [${callId}] Préstamos por resp. material: ${prestamosRespMaterial.length}`);
-    } catch (materialError) {
+      if (prestamosRespMaterial.length > 0) {
+        console.log(`   [${callId}] Primeros préstamos por resp. material:`, prestamosRespMaterial.slice(0, 3).map(p => `${p.nombreMaterial} (${p.estado})`));
+      }    } catch (materialError) {
       console.warn(`⚠️ [${callId}] No se pudieron obtener préstamos por responsabilidad de material:`, materialError);
+      if ((materialError as any)?.code === 'failed-precondition') {
+        console.error(`🔥 [${callId}] PROBLEMA CRÍTICO: Índice faltante para responsableMaterial`);
+        console.log(`💡 [${callId}] SOLUCIÓN: Crear índice en Firebase Console: Collection=prestamos, Field=responsableMaterial`);
+      }
       // Continuar sin estos préstamos
     }
     
     // PASO 4: Combinar todos los préstamos y eliminar duplicados
     const todosLosPrestamos = [...prestamosDirectos, ...prestamosRespActividad, ...prestamosRespMaterial];
+    console.log(`🔍 [${callId}] Total antes de deduplicar: ${todosLosPrestamos.length}`);
+    
     const prestamosUnicos = todosLosPrestamos.filter((prestamo, index, array) => 
       array.findIndex(p => p.id === prestamo.id) === index
     );
+    console.log(`🔍 [${callId}] Total después de deduplicar: ${prestamosUnicos.length}`);
     
     // PASO 5: Filtrar solo préstamos activos (incluyendo "por_devolver")
     const prestamosActivos = prestamosUnicos.filter(p => 
@@ -589,6 +607,23 @@ export const listarPrestamosPorResponsabilidad = async (userId: string): Promise
     );
     
     console.log(`✅ [${callId}] Total encontrados: ${prestamosDirectos.length} directos + ${prestamosRespActividad.length} resp.actividad + ${prestamosRespMaterial.length} resp.material = ${prestamosActivos.length} activos`);
+    
+    // Log adicional si no hay resultados para ayudar en diagnóstico
+    if (prestamosActivos.length === 0) {
+      console.log(`⚠️ [${callId}] NO HAY PRÉSTAMOS ACTIVOS - Diagnóstico:`);
+      console.log(`   - Préstamos directos encontrados: ${prestamosDirectos.length}`);
+      console.log(`   - Préstamos por resp. actividad: ${prestamosRespActividad.length}`);
+      console.log(`   - Préstamos por resp. material: ${prestamosRespMaterial.length}`);
+      
+      if (prestamosUnicos.length > 0) {
+        const estadosPrestamos = prestamosUnicos.reduce((acc, p) => {
+          acc[p.estado] = (acc[p.estado] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log(`   - Estados de préstamos encontrados:`, estadosPrestamos);
+        console.log(`   - Estados activos permitidos: en_uso, pendiente, aprobado, por_devolver`);
+      }
+    }
     
     return prestamosActivos;
     

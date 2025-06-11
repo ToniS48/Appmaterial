@@ -1,5 +1,5 @@
 import React from 'react';
-import { UseFormRegister, FieldErrors, Control, UseFormWatch, UseFormSetValue } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, Control, UseFormWatch, UseFormSetValue, Controller } from 'react-hook-form';
 import {
   SimpleGrid,
   FormControl,
@@ -181,12 +181,17 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
           <FormErrorMessage>{errors.fechaFabricacion.message?.toString()}</FormErrorMessage>
         )}
       </FormControl>
-      
-      <FormControl isInvalid={!!errors.fechaPrimerUso}>
+        <FormControl isInvalid={!!errors.fechaPrimerUso}>
         <FormLabel>Fecha de primer uso</FormLabel>
-        <DatePicker
+        <Controller
           name="fechaPrimerUso"
           control={control}
+          render={({ field }) => (
+            <DatePicker
+              selectedDate={field.value}
+              onChange={(date: Date | null) => field.onChange(date)}
+            />
+          )}
         />
         {errors.fechaPrimerUso && (
           <FormErrorMessage>{errors.fechaPrimerUso.message?.toString()}</FormErrorMessage>
