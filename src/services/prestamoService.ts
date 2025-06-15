@@ -1053,3 +1053,80 @@ export const configurarVerificacionAutomatica = (): (() => void) => {
     clearInterval(intervalo);
   };
 };
+
+// Función para devolver todos los materiales de una actividad en bulk
+export const devolverTodosLosMaterialesActividad = async (
+  actividadId: string, 
+  observaciones?: string
+): Promise<{ exito: number; errores: string[] }> => {
+  console.log('🔄 devolverTodosLosMaterialesActividad - INICIANDO para actividad:', actividadId);
+  
+  try {
+    // 1. Obtener todos los préstamos activos de la actividad
+    const prestamosActivos = await obtenerPrestamosPorActividad(actividadId);
+    const prestamosADevolver = prestamosActivos.filter(p => p.estado === 'en_uso' || p.estado === 'por_devolver');
+    
+    if (prestamosADevolver.length === 0) {
+      console.log('ℹ️ No hay préstamos activos para devolver en la actividad');
+      return { exito: 0, errores: [] };
+    }
+
+    console.log(`📦 Encontrados ${prestamosADevolver.length} préstamos para devolver`);
+
+    // 2. Usar batch operations para eficiencia
+    const batch = writeBatch(db);
+    const errores: string[] = [];
+    let exitosos = 0;
+
+    // 3. Actualizar todos los préstamos en el batch
+    for (const prestamo of prestamosADevolver) {
+      try {
+        const prestamoRef = doc(db, 'prestamos', prestamo.id!);
+        
+        // Actualizar préstamo como devuelto
+        batch.update(prestamoRef, {
+          estado: 'devuelto' as EstadoPrestamo,
+          fechaDevolucion: serverTimestamp(),
+          observacionesDevolucion: observaciones || 'Devolución en lote de toda la actividad'
+        });
+
+        exitosos++;
+      } catch (error) {
+        console.error(`❌ Error preparando devolución de préstamo ${prestamo.id}:`, error);
+        errores.push(`Error con material ${prestamo.nombreMaterial}: ${error}`);
+      }
+    }
+
+    // 4. Ejecutar el batch
+    if (exitosos > 0) {
+      await batch.commit();
+      console.log(`✅ Batch ejecutado: ${exitosos} préstamos devueltos`);
+    }
+
+    // 5. Actualizar cantidades disponibles de materiales (secuencialmente para evitar conflictos)
+    for (const prestamo of prestamosADevolver.slice(0, exitosos)) {
+      try {
+        const cantidadDevuelta = prestamo.cantidadPrestada || 1;
+        await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta);
+        console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);
+      } catch (materialError) {
+        console.error(`⚠️ Error actualizando cantidad disponible para material ${prestamo.materialId}:`, materialError);
+        errores.push(`Error actualizando stock de ${prestamo.nombreMaterial}: ${materialError}`);
+      }
+    }
+
+    // 6. Limpiar cache
+    limpiarCacheVencidos();
+
+    console.log(`🎉 devolverTodosLosMaterialesActividad - COMPLETADO: ${exitosos} éxitos, ${errores.length} errores`);
+    
+    return {
+      exito: exitosos,
+      errores
+    };
+
+  } catch (error) {
+    console.error('❌ devolverTodosLosMaterialesActividad - ERROR CRÍTICO:', error);
+    throw error;
+  }
+};

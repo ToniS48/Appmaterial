@@ -88,13 +88,18 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
       codigo: '' // Nuevo campo para código personalizado
     }
   });
-
   // Actualizar el estado del tipo de material cuando cambia
   const watchTipo = watch('tipo');
   useEffect(() => {
     setTipoMaterial(watchTipo);
-  }, [watchTipo]);
-
+    
+    // Si se selecciona cuerda, establecer automáticamente cantidad = 1
+    if (watchTipo === 'cuerda') {
+      setValue('cantidad', 1);
+      setValue('cantidadDisponible', 1);
+      console.log('🎯 MaterialForm - Tipo cuerda seleccionado, cantidad establecida automáticamente a 1');
+    }
+  }, [watchTipo, setValue]);
   // Función para enviar el formulario
   const onSubmit = async (data: any) => {
     try {
@@ -107,6 +112,13 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
         fechaUltimaRevision: data.fechaUltimaRevision,
         proximaRevision: data.proximaRevision,
       };
+      
+      // Para las cuerdas, establecer automáticamente cantidad = 1 y cantidadDisponible = 1
+      if (data.tipo === 'cuerda') {
+        materialData.cantidad = 1;
+        materialData.cantidadDisponible = 1;
+        console.log('✅ MaterialForm - Cantidad automática para cuerda:', materialData.nombre);
+      }
       
       // Si es una cuerda y tiene año de fabricación, convertirlo a fecha completa (1 de enero del año especificado)
       if (data.tipo === 'cuerda' && data.fechaFabricacion) {

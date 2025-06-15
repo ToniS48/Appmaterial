@@ -48,6 +48,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales, eliminarMaterial } from '../../services/materialService';
 import { materialService } from '../../services/MaterialServiceRefactored';
+import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import MaterialForm from '../../components/material/MaterialForm';
 import MaterialExportManager from '../../components/admin/MaterialExportManager';
 import MaterialImportManager from '../../components/admin/MaterialImportManager';
@@ -69,27 +70,14 @@ const ESTADOS_MATERIAL = [
 
 const GestionMaterialPage: React.FC = () => {
   console.log('🔧 GestionMaterialPage - Component rendering iniciado');
-  
-  // Estados
+    // Estados
   const [materiales, setMateriales] = useState<any[]>([]);
+  const [cantidadesPrestadas, setCantidadesPrestadas] = useState<{ [key: string]: number }>({});
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('');
-  const [busqueda, setBusqueda] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');  const [busqueda, setBusqueda] = useState('');
   
-  // Contextos y hooks
-  const { currentUser, userProfile } = useAuth();
-  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
-  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
-  const { isOpen: isExportOpen, onOpen: onExportOpen, onClose: onExportClose } = useDisclosure();
-  const { isOpen: isImportOpen, onOpen: onImportOpen, onClose: onImportClose } = useDisclosure();
-  
-  // Setup scheduler optimizer
-  useEffect(() => {
-    const cleanup = setupSchedulerOptimizer();
-    return cleanup;
-  }, []);
   // Función optimizada para cargar la lista de materiales (SIN filtros backend)
   const cargarMateriales = useCallback(async () => {
     console.log('🔧 GestionMaterialPage - Iniciando carga de materiales');
@@ -98,11 +86,37 @@ const GestionMaterialPage: React.FC = () => {
         setIsLoading(true);
         console.log('🔧 GestionMaterialPage - Estado de carga: true');
         
+        // Crear instancia del repository dentro del callback
+        const prestamoRepository = new PrestamoRepository();
+        
         // Cargar TODOS los materiales sin filtros backend para filtrar localmente
         const materialesData = await listarMateriales();
         console.log('🔧 GestionMaterialPage - Materiales cargados:', materialesData.length);
         
-        setMateriales(materialesData);
+        setMateriales(materialesData);// Cargar cantidades prestadas para todos los materiales
+        const cantidadesMap: { [key: string]: number } = {};
+        
+        for (const material of materialesData) {
+          try {
+            const cantidadPrestada = await prestamoRepository.getCantidadPrestada(material.id);
+            cantidadesMap[material.id] = cantidadPrestada;
+            
+            // Log de depuración para identificar problemas
+            if (isNaN(cantidadPrestada) || cantidadPrestada < 0) {
+              console.warn(`⚠️ Cantidad prestada inválida para material ${material.nombre} (${material.id}): ${cantidadPrestada}`);
+            }
+            if (material.tipo === 'cuerda' && cantidadPrestada > 1) {
+              console.warn(`⚠️ Cuerda con cantidad prestada > 1: ${material.nombre} = ${cantidadPrestada}`);
+            }
+          } catch (error) {
+            console.error(`Error al obtener cantidad prestada para material ${material.id}:`, error);
+            cantidadesMap[material.id] = 0;
+          }
+        }
+        
+        setCantidadesPrestadas(cantidadesMap);
+        console.log('🔧 GestionMaterialPage - Cantidades prestadas cargadas:', cantidadesMap);
+        
       } catch (error) {
         console.error('❌ GestionMaterialPage - Error al cargar materiales:', error);
       } finally {
@@ -110,7 +124,7 @@ const GestionMaterialPage: React.FC = () => {
         console.log('🔧 GestionMaterialPage - Estado de carga: false');
       }
     });
-  }, []); // Sin dependencias de filtros    // Cargar materiales al montar el componente (sin dependencia de filtros)
+  }, []); // Sin dependencias de filtros// Cargar materiales al montar el componente (sin dependencia de filtros)
   useEffect(() => {
     console.log('🔧 GestionMaterialPage - useEffect ejecutado, cargando materiales...');
     cargarMateriales();
@@ -137,9 +151,52 @@ const GestionMaterialPage: React.FC = () => {
       // Filtro por estado
       const cumpleEstado = !filtroEstado || material.estado === filtroEstado;
       
-      return cumpleBusqueda && cumpleTipo && cumpleEstado;
-    });
+      return cumpleBusqueda && cumpleTipo && cumpleEstado;    });
   }, [materiales, busqueda, filtroTipo, filtroEstado]);
+  
+  // Función para renderizar la columna "En uso / Total"
+  const renderEnUsoTotal = (material: any) => {
+    const cantidadPrestada = Number(cantidadesPrestadas[material.id]) || 0;
+    
+    // Para cuerdas, el total es siempre 1
+    const cantidadTotal = material.tipo === 'cuerda' ? 1 : (Number(material.cantidad) || 0);
+
+    // Validar valores para evitar NaN
+    if (isNaN(cantidadPrestada) || isNaN(cantidadTotal)) {
+      return (
+        <Badge colorScheme="red">
+          Error en datos
+        </Badge>
+      );
+    }
+
+    // Determinar color basado en el estado de uso
+    let colorScheme = 'green'; // Disponible por defecto
+    if (cantidadPrestada === cantidadTotal) {
+      colorScheme = 'red'; // Completamente prestado
+    } else if (cantidadPrestada > 0) {
+      colorScheme = 'orange'; // Parcialmente prestado
+    }
+
+    return (
+      <Badge colorScheme={colorScheme}>
+        {cantidadPrestada}/{cantidadTotal}
+      </Badge>
+    );
+  };
+  
+  // Contextos y hooks
+  const { currentUser, userProfile } = useAuth();
+  const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { isOpen: isExportOpen, onOpen: onExportOpen, onClose: onExportClose } = useDisclosure();
+  const { isOpen: isImportOpen, onOpen: onImportOpen, onClose: onImportClose } = useDisclosure();
+  
+  // Setup scheduler optimizer
+  useEffect(() => {
+    const cleanup = setupSchedulerOptimizer();
+    return cleanup;
+  }, []);
   
   // Handlers optimizados para evitar violaciones del scheduler
   const handleEdit = useOptimizedClickHandler((material: any) => {
@@ -346,12 +403,11 @@ const GestionMaterialPage: React.FC = () => {
         
         {/* Tabla de materiales */}
         <Box overflowX="auto">
-          <Table variant="simple" display={{ base: "none", md: "table" }}>
-            <Thead>
+          <Table variant="simple" display={{ base: "none", md: "table" }}>            <Thead>
               <Tr>
                 <Th>Nombre</Th>
                 <Th>Tipo</Th>
-                <Th>Estado</Th>
+                <Th>En uso / Total</Th>
                 <Th>Última revisión</Th>
                 <Th>Próxima revisión</Th>
                 <Th>Acciones</Th>
@@ -380,13 +436,8 @@ const GestionMaterialPage: React.FC = () => {
                          material.tipo === 'anclaje' ? 'Anclaje' :
                          'Varios'}
                       </Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={
-                        ESTADOS_MATERIAL.find(e => e.value === material.estado)?.color || 'gray'
-                      }>
-                        {ESTADOS_MATERIAL.find(e => e.value === material.estado)?.label || material.estado}
-                      </Badge>
+                    </Td>                    <Td>
+                      {renderEnUsoTotal(material)}
                     </Td>
                     <Td>
                       {material.fechaUltimaRevision instanceof Date 
@@ -483,8 +534,7 @@ const GestionMaterialPage: React.FC = () => {
                         </MenuList>
                       </Menu>
                     </Flex>
-                    
-                    <Flex gap={2} mt={2} flexWrap="wrap">
+                      <Flex gap={2} mt={2} flexWrap="wrap">
                       <Badge colorScheme={
                         material.tipo === 'cuerda' ? 'blue' :
                         material.tipo === 'anclaje' ? 'orange' : 
@@ -495,11 +545,7 @@ const GestionMaterialPage: React.FC = () => {
                          'Varios'}
                       </Badge>
                       
-                      <Badge colorScheme={
-                        ESTADOS_MATERIAL.find(e => e.value === material.estado)?.color || 'gray'
-                      }>
-                        {material.estado}
-                      </Badge>
+                      {renderEnUsoTotal(material)}
                     </Flex>
                     
                     <Text mt={2}>Cantidad: {material.cantidad}</Text>

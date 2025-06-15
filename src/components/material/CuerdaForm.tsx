@@ -11,7 +11,10 @@ import {
   NumberInputField,
   NumberInputStepper,
   NumberIncrementStepper,
-  NumberDecrementStepper
+  NumberDecrementStepper,
+  Alert,
+  AlertIcon,
+  Text
 } from '@chakra-ui/react';
 import DatePicker from '../common/DatePicker';
 
@@ -52,160 +55,171 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
   const currentYear = new Date().getFullYear();
 
   return (
-    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-      <FormControl isRequired isInvalid={!!errors.codigo}>
-        <FormLabel>Código</FormLabel>
-        <Input
-          {...register('codigo', { 
-            required: 'El código es obligatorio' 
-          })}
-          placeholder="Código interno"
-        />
-        {errors.codigo && (
-          <FormErrorMessage>{errors.codigo.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
+    <>
+      {/* Alerta informativa sobre las cuerdas como elementos únicos */}
+      <Alert status="info" mb={4}>
+        <AlertIcon />
+        <Text fontSize="sm">
+          Las cuerdas se consideran elementos únicos. La cantidad se establece automáticamente en 1.
+        </Text>
+      </Alert>
       
-      <FormControl isRequired isInvalid={!!errors.longitud}>
-        <FormLabel>Longitud (metros)</FormLabel>
-        <NumberInput min={1} max={200} defaultValue={50}>
-          <NumberInputField
-            id="longitud"  // Añadir esta línea
-            {...register('longitud', {
-              required: 'La longitud es obligatoria',
-              min: { value: 1, message: 'La longitud mínima es 1m' },
-              max: { value: 200, message: 'La longitud máxima es 200m' }
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+        <FormControl isRequired isInvalid={!!errors.codigo}>
+          <FormLabel>Código</FormLabel>
+          <Input
+            {...register('codigo', { 
+              required: 'El código es obligatorio' 
             })}
+            placeholder="Código interno"
           />
-          <NumberInputStepper>
-            <NumberIncrementStepper />
-            <NumberDecrementStepper />
-          </NumberInputStepper>
-        </NumberInput>
-        {errors.longitud && (
-          <FormErrorMessage>{errors.longitud.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isRequired isInvalid={!!errors.diametro}>
-        <FormLabel>Diámetro (mm)</FormLabel>
-        <NumberInput min={8} max={13} defaultValue={9} step={0.1} precision={1}>
-          <NumberInputField
-            {...register('diametro', {
-              required: 'El diámetro es obligatorio',
-              min: { value: 8, message: 'El diámetro mínimo es 8mm' },
-              max: { value: 13, message: 'El diámetro máximo es 13mm' }
-            })}
-          />
-          <NumberInputStepper>
-            <NumberIncrementStepper />
-            <NumberDecrementStepper />
-          </NumberInputStepper>
-        </NumberInput>
-        {errors.diametro && (
-          <FormErrorMessage>{errors.diametro.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isInvalid={!!errors.usos}>
-        <FormLabel>Número de usos</FormLabel>
-        <NumberInput min={0} defaultValue={0}>
-          <NumberInputField
-            {...register('usos', {
-              min: { value: 0, message: 'El valor no puede ser negativo' }
-            })}
-          />
-          <NumberInputStepper>
-            <NumberIncrementStepper />
-            <NumberDecrementStepper />
-          </NumberInputStepper>
-        </NumberInput>
-        {errors.usos && (
-          <FormErrorMessage>{errors.usos.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isRequired isInvalid={!!errors.tipoCuerda}>
-        <FormLabel>Tipo de cuerda</FormLabel>
-        <Select
-          {...register('tipoCuerda', { 
-            required: 'El tipo de cuerda es obligatorio' 
-          })}
-          placeholder="Seleccione un tipo"
-        >
-          <option value="espeleologia">Espeleología</option>
-          <option value="barrancos">Barrancos</option>
-          <option value="mixta">Mixta</option>
-        </Select>
-        {errors.tipoCuerda && (
-          <FormErrorMessage>{errors.tipoCuerda.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isInvalid={!!errors.numeroSerie}>
-        <FormLabel>Número de serie</FormLabel>
-        <Input
-          {...register('numeroSerie')}
-          placeholder="Número de serie del fabricante"
-        />
-        {errors.numeroSerie && (
-          <FormErrorMessage>{errors.numeroSerie.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isInvalid={!!errors.fechaFabricacion}>
-        <FormLabel>Año de fabricación</FormLabel>
-        <NumberInput 
-          min={1980} 
-          max={currentYear}
-          defaultValue={currentYear}
-        >
-          <NumberInputField
-            {...register('fechaFabricacion', {
-              validate: value => {
-                const year = parseInt(value);
-                if (isNaN(year)) return 'Debe ser un año válido';
-                if (year < 1980) return 'El año debe ser posterior a 1980';
-                if (year > currentYear) return 'El año no puede ser futuro';
-                return true;
-              }
-            })}
-            placeholder="AAAA"
-          />
-          <NumberInputStepper>
-            <NumberIncrementStepper />
-            <NumberDecrementStepper />
-          </NumberInputStepper>
-        </NumberInput>
-        {errors.fechaFabricacion && (
-          <FormErrorMessage>{errors.fechaFabricacion.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-        <FormControl isInvalid={!!errors.fechaPrimerUso}>
-        <FormLabel>Fecha de primer uso</FormLabel>
-        <Controller
-          name="fechaPrimerUso"
-          control={control}
-          render={({ field }) => (
-            <DatePicker
-              selectedDate={field.value}
-              onChange={(date: Date | null) => field.onChange(date)}
-            />
+          {errors.codigo && (
+            <FormErrorMessage>{errors.codigo.message?.toString()}</FormErrorMessage>
           )}
-        />
-        {errors.fechaPrimerUso && (
-          <FormErrorMessage>{errors.fechaPrimerUso.message?.toString()}</FormErrorMessage>
-        )}
-      </FormControl>
-      
-      <FormControl isReadOnly>
-        <FormLabel>Vida útil restante (días)</FormLabel>
-        <Input
-          {...register('vidaUtilRestante')}
-          readOnly
-        />
-      </FormControl>
-    </SimpleGrid>
+        </FormControl>
+        
+        <FormControl isRequired isInvalid={!!errors.longitud}>
+          <FormLabel>Longitud (metros)</FormLabel>
+          <NumberInput min={1} max={200} defaultValue={50}>
+            <NumberInputField
+              id="longitud"
+              {...register('longitud', {
+                required: 'La longitud es obligatoria',
+                min: { value: 1, message: 'La longitud mínima es 1m' },
+                max: { value: 200, message: 'La longitud máxima es 200m' }
+              })}
+            />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          {errors.longitud && (
+            <FormErrorMessage>{errors.longitud.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isRequired isInvalid={!!errors.diametro}>
+          <FormLabel>Diámetro (mm)</FormLabel>
+          <NumberInput min={8} max={13} defaultValue={9} step={0.1} precision={1}>
+            <NumberInputField
+              {...register('diametro', {
+                required: 'El diámetro es obligatorio',
+                min: { value: 8, message: 'El diámetro mínimo es 8mm' },
+                max: { value: 13, message: 'El diámetro máximo es 13mm' }
+              })}
+            />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          {errors.diametro && (
+            <FormErrorMessage>{errors.diametro.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isInvalid={!!errors.usos}>
+          <FormLabel>Número de usos</FormLabel>
+          <NumberInput min={0} defaultValue={0}>
+            <NumberInputField
+              {...register('usos', {
+                min: { value: 0, message: 'El valor no puede ser negativo' }
+              })}
+            />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          {errors.usos && (
+            <FormErrorMessage>{errors.usos.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isRequired isInvalid={!!errors.tipoCuerda}>
+          <FormLabel>Tipo de cuerda</FormLabel>
+          <Select
+            {...register('tipoCuerda', { 
+              required: 'El tipo de cuerda es obligatorio' 
+            })}
+            placeholder="Seleccione un tipo"
+          >
+            <option value="espeleologia">Espeleología</option>
+            <option value="barrancos">Barrancos</option>
+            <option value="mixta">Mixta</option>
+          </Select>
+          {errors.tipoCuerda && (
+            <FormErrorMessage>{errors.tipoCuerda.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isInvalid={!!errors.numeroSerie}>
+          <FormLabel>Número de serie</FormLabel>
+          <Input
+            {...register('numeroSerie')}
+            placeholder="Número de serie del fabricante"
+          />
+          {errors.numeroSerie && (
+            <FormErrorMessage>{errors.numeroSerie.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isInvalid={!!errors.fechaFabricacion}>
+          <FormLabel>Año de fabricación</FormLabel>
+          <NumberInput 
+            min={1980} 
+            max={currentYear}
+            defaultValue={currentYear}
+          >
+            <NumberInputField
+              {...register('fechaFabricacion', {
+                validate: value => {
+                  const year = parseInt(value);
+                  if (isNaN(year)) return 'Debe ser un año válido';
+                  if (year < 1980) return 'El año debe ser posterior a 1980';
+                  if (year > currentYear) return 'El año no puede ser futuro';
+                  return true;
+                }
+              })}
+              placeholder="AAAA"
+            />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          {errors.fechaFabricacion && (
+            <FormErrorMessage>{errors.fechaFabricacion.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isInvalid={!!errors.fechaPrimerUso}>
+          <FormLabel>Fecha de primer uso</FormLabel>
+          <Controller
+            name="fechaPrimerUso"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                selectedDate={field.value}
+                onChange={(date: Date | null) => field.onChange(date)}
+              />
+            )}
+          />
+          {errors.fechaPrimerUso && (
+            <FormErrorMessage>{errors.fechaPrimerUso.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+        
+        <FormControl isReadOnly>
+          <FormLabel>Vida útil restante (días)</FormLabel>
+          <Input
+            {...register('vidaUtilRestante')}
+            readOnly
+          />
+        </FormControl>
+      </SimpleGrid>
+    </>
   );
 };
 

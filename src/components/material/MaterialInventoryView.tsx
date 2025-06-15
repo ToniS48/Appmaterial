@@ -34,6 +34,7 @@ import {
 import { FiSearch, FiEye, FiFilter } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales } from '../../services/materialService';
+import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import messages from '../../constants/messages';
 
 // Estados de material con colores para el inventario
@@ -68,9 +69,9 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
   
   // Estados para carga de datos
   const [materiales, setMateriales] = useState<Material[]>([]);
+  const [cantidadesPrestadas, setCantidadesPrestadas] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   // Contextos
   const { userProfile } = useAuth();
 
@@ -80,8 +81,41 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
       try {
         setIsLoading(true);
         setError(null);
+        
+        // Crear instancia del repository dentro del useEffect
+        const prestamoRepository = new PrestamoRepository();
+        
+        // Cargar materiales
         const materialesData = await listarMateriales();
         setMateriales(materialesData);
+        
+        // Cargar cantidades prestadas para cada material
+        const cantidadesPrestadas: Record<string, number> = {};
+        await Promise.all(
+          materialesData.map(async (material) => {
+            if (material.id) {
+              try {
+                const cantidad = await prestamoRepository.getCantidadPrestada(material.id);
+                cantidadesPrestadas[material.id] = cantidad;
+                
+                // Log de depuración para identificar problemas
+                if (isNaN(cantidad) || cantidad < 0) {
+                  console.warn(`⚠️ Cantidad prestada inválida para material ${material.nombre} (${material.id}): ${cantidad}`);
+                }
+                if (material.tipo === 'cuerda' && cantidad > 1) {
+                  console.warn(`⚠️ Cuerda con cantidad prestada > 1: ${material.nombre} = ${cantidad}`);
+                }
+              } catch (error) {
+                console.error(`Error obteniendo cantidad prestada para material ${material.id}:`, error);
+                cantidadesPrestadas[material.id] = 0;
+              }
+            } else {
+              console.warn(`⚠️ Material sin ID encontrado:`, material);
+            }
+          })
+        );
+        
+        setCantidadesPrestadas(cantidadesPrestadas);
       } catch (err) {
         console.error('Error al cargar materiales:', err);
         setError('Error al cargar los materiales');
@@ -153,9 +187,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               variant="ghost"
               colorScheme="brand"
             />
-          </Flex>
-
-          <Flex gap={2} flexWrap="wrap">
+          </Flex>          <Flex gap={2} flexWrap="wrap">
             <Badge colorScheme={
               material.tipo === 'cuerda' ? 'blue' :
               material.tipo === 'anclaje' ? 'orange' : 
@@ -165,12 +197,37 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                material.tipo === 'anclaje' ? 'Anclaje' :
                'Varios'}
             </Badge>
-            
-            <Badge colorScheme={
-              ESTADOS_MATERIAL.find(e => e.value === material.estado)?.color || 'gray'
-            }>
-              {ESTADOS_MATERIAL.find(e => e.value === material.estado)?.label || material.estado}
-            </Badge>
+              {(() => {
+              const cantidadPrestada = cantidadesPrestadas[material.id || ''] || 0;
+              
+              if (material.tipo === 'cuerda') {
+                // Para cuerdas: usar cantidad prestada real / 1
+                return (
+                  <Badge colorScheme={cantidadPrestada > 0 ? "orange" : "green"}>
+                    En uso: {cantidadPrestada}/1
+                  </Badge>
+                );              } else {
+                const cantidadTotal = Number(material.cantidad) || 0;
+                const prestada = Number(cantidadPrestada) || 0;
+                
+                // Validar que los valores sean números válidos
+                if (isNaN(cantidadTotal) || isNaN(prestada)) {
+                  return (
+                    <Badge colorScheme="red">
+                      Error en datos
+                    </Badge>
+                  );
+                }
+                
+                return (
+                  <Badge colorScheme={prestada > 0 ? 
+                                    prestada >= cantidadTotal ? "red" : "orange" : 
+                                    "green"}>
+                    En uso: {prestada}/{cantidadTotal}
+                  </Badge>
+                );
+              }
+            })()}
           </Flex>
 
           {/* Información específica por tipo */}
@@ -236,13 +293,39 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
            material.tipo === 'anclaje' ? 'Anclaje' :
            'Varios'}
         </Badge>
-      </Td>
-      <Td>
-        <Badge colorScheme={
-          ESTADOS_MATERIAL.find(e => e.value === material.estado)?.color || 'gray'
-        }>
-          {ESTADOS_MATERIAL.find(e => e.value === material.estado)?.label || material.estado}
-        </Badge>
+      </Td>      <Td>
+        {(() => {
+          const cantidadPrestada = cantidadesPrestadas[material.id || ''] || 0;
+          
+          if (material.tipo === 'cuerda') {
+            // Para cuerdas: usar cantidad prestada real / 1
+            return (
+              <Text color={cantidadPrestada > 0 ? "orange.600" : "green.600"}>
+                {cantidadPrestada} / 1
+              </Text>
+            );            } else {
+              // Para materiales con cantidad: prestado / total
+              const cantidadTotal = Number(material.cantidad) || 0;
+              const prestada = Number(cantidadPrestada) || 0;
+              
+              // Validar que los valores sean números válidos
+              if (isNaN(cantidadTotal) || isNaN(prestada)) {
+                return (
+                  <Text color="red.600">
+                    Error en datos
+                  </Text>
+                );
+              }
+              
+              return (
+                <Text color={prestada > 0 ? 
+                             prestada >= cantidadTotal ? "red.600" : "orange.600" : 
+                             "green.600"}>
+                  {prestada} / {cantidadTotal}
+              </Text>
+            );
+          }
+        })()}
       </Td>
       <Td>
         {material.tipo === 'cuerda' ? (
@@ -386,8 +469,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
             <Tab>Varios ({materialesPorTipo.varios.length})</Tab>
           </TabList>
 
-          <TabPanels>
-            <TabPanel px={0}>
+          <TabPanels>            <TabPanel px={0}>
               {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesFiltrados.map(renderMaterialCard)}
@@ -399,7 +481,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>Estado</Th>
+                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -410,9 +492,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                   </Table>
                 </Box>
               )}
-            </TabPanel>
-
-            <TabPanel px={0}>
+            </TabPanel>            <TabPanel px={0}>
               {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesPorTipo.cuerdas.map(renderMaterialCard)}
@@ -424,7 +504,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>Estado</Th>
+                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -441,15 +521,14 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesPorTipo.anclajes.map(renderMaterialCard)}
-                </SimpleGrid>
-              ) : (
+                </SimpleGrid>                ) : (
                 <Box overflowX="auto">
                   <Table variant="simple">
                     <Thead>
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>Estado</Th>
+                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -467,14 +546,13 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesPorTipo.varios.map(renderMaterialCard)}
                 </SimpleGrid>
-              ) : (
-                <Box overflowX="auto">
+              ) : (                <Box overflowX="auto">
                   <Table variant="simple">
                     <Thead>
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>Estado</Th>
+                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -493,15 +571,14 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
         vistaActiva === 'grid' ? (
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
             {materialesFiltrados.map(renderMaterialCard)}
-          </SimpleGrid>
-        ) : (
+          </SimpleGrid>        ) : (
           <Box overflowX="auto">
             <Table variant="simple">
               <Thead>
                 <Tr>
                   <Th>Material</Th>
                   <Th>Tipo</Th>
-                  <Th>Estado</Th>
+                  <Th>En uso / Total</Th>
                   <Th>Especificaciones</Th>
                   <Th width="50px">Acciones</Th>
                 </Tr>

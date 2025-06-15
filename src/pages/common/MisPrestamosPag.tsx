@@ -21,19 +21,23 @@ import { FiCheck, FiUsers, FiRefreshCw, FiCheckSquare } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   listarPrestamosPorResponsabilidad, 
-  registrarDevolucion
+  registrarDevolucion,
+  devolverTodosLosMaterialesActividad
 } from '../../services/prestamoService';
 import { Prestamo } from '../../types/prestamo';
 import { formatFecha } from '../../utils/dateUtils';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import messages from '../../constants/messages';
 import DevolucionAvanzadaForm from '../../components/prestamos/DevolucionAvanzadaForm';
+import DevolucionBulkForm from '../../components/prestamos/DevolucionBulkForm';
 
 const MisPrestamosPag: React.FC = () => {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<Prestamo | null>(null);
+  const [actividadSeleccionada, setActividadSeleccionada] = useState<{prestamos: Prestamo[]; nombre: string} | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isBulkOpen, onOpen: onBulkOpen, onClose: onBulkClose } = useDisclosure();
   const { userProfile } = useAuth();
   const toast = useToast();
 
@@ -80,132 +84,133 @@ const MisPrestamosPag: React.FC = () => {
       setPrestamos(result);
       console.log('✅ Estado del componente actualizado');
       
-    } catch (error) {
-      console.error('❌ Error en diagnóstico:', error);
+    } catch (error) {      console.error('❌ Error en diagnóstico:', error);
     }
   };
-  // Cargar préstamos del usuario actual (incluyendo responsabilidades)
-  useEffect(() => {
-    const cargarMisPrestamos = async () => {
-      if (!userProfile) return;
+
+  // Función para cargar préstamos del usuario actual (incluyendo responsabilidades)
+  const cargarMisPrestamos = async () => {
+    if (!userProfile) return;
+    
+    try {
+      setIsLoading(true);
+      console.log('🔍 MisPrestamosPag - Cargando préstamos para usuario:', userProfile.uid);
       
-      try {
-        setIsLoading(true);
-        console.log('🔍 MisPrestamosPag - Cargando préstamos para usuario:', userProfile.uid);
-        
-        // Usar la nueva función que incluye préstamos por responsabilidad
-        const misPrestamosActivos = await listarPrestamosPorResponsabilidad(userProfile.uid);
-        
-        console.log('✅ MisPrestamosPag - Préstamos cargados:', misPrestamosActivos.length);
-        setPrestamos(misPrestamosActivos);
+      // Usar la nueva función que incluye préstamos por responsabilidad
+      const misPrestamosActivos = await listarPrestamosPorResponsabilidad(userProfile.uid);
+      
+      console.log('✅ MisPrestamosPag - Préstamos cargados:', misPrestamosActivos.length);
+      setPrestamos(misPrestamosActivos);
 
-        // Verificar si hay préstamos marcados automáticamente recientemente
-        const prestamosRecienMarcados = misPrestamosActivos.filter(prestamo => 
-          prestamo.estado === 'por_devolver' && 
-          (prestamo as any).marcadoAutomaticamente === true &&
-          (prestamo as any).fechaMarcadoAutomatico
-        );
+      // Verificar si hay préstamos marcados automáticamente recientemente
+      const prestamosRecienMarcados = misPrestamosActivos.filter(prestamo => 
+        prestamo.estado === 'por_devolver' && 
+        (prestamo as any).marcadoAutomaticamente === true &&
+        (prestamo as any).fechaMarcadoAutomatico
+      );
 
-        if (prestamosRecienMarcados.length > 0) {
-          // Verificar si el marcado fue reciente (últimas 24 horas)
-          const prestamosRecientes = prestamosRecienMarcados.filter(prestamo => {
-            const fechaMarcado = (prestamo as any).fechaMarcadoAutomatico?.toDate?.() || 
-                                 (prestamo as any).fechaMarcadoAutomatico;
-            if (!fechaMarcado) return false;
-            
-            const hace24Horas = new Date();
-            hace24Horas.setHours(hace24Horas.getHours() - 24);
-            
-            return fechaMarcado > hace24Horas;
+      if (prestamosRecienMarcados.length > 0) {
+        // Verificar si el marcado fue reciente (últimas 24 horas)
+        const prestamosRecientes = prestamosRecienMarcados.filter(prestamo => {
+          const fechaMarcado = (prestamo as any).fechaMarcadoAutomatico?.toDate?.() || 
+                               (prestamo as any).fechaMarcadoAutomatico;
+          if (!fechaMarcado) return false;
+          
+          const hace24Horas = new Date();
+          hace24Horas.setHours(hace24Horas.getHours() - 24);
+          
+          return fechaMarcado > hace24Horas;
+        });
+
+        if (prestamosRecientes.length > 0) {
+          toast({
+            title: "⏰ Préstamos marcados automáticamente",
+            description: `${prestamosRecientes.length} préstamo(s) han sido marcados como "por devolver" porque su actividad finalizó hace más de una semana`,
+            status: "warning",
+            duration: 10000,
+            isClosable: true,
           });
-
-          if (prestamosRecientes.length > 0) {
+        }
+      }
+      
+      // Mostrar toast informativo solo si hay préstamos
+      if (misPrestamosActivos.length > 0) {
+        toast({
+          title: 'Préstamos cargados',
+          description: `Se encontraron ${misPrestamosActivos.length} préstamo(s) activo(s)`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        // Diagnóstico adicional cuando no hay resultados
+        console.log('⚠️ MisPrestamosPag - No se encontraron préstamos activos');
+        console.log('🔍 Ejecutando diagnóstico adicional...');
+        
+        // Verificar si hay préstamos en otros estados
+        try {
+          const { listarPrestamos } = await import('../../services/prestamoService');
+          const todosPrestamosUsuario = await listarPrestamos({ usuarioId: userProfile.uid });
+          
+          if (todosPrestamosUsuario.length > 0) {
+            const estadosPrestamos = todosPrestamosUsuario.reduce((acc, p) => {
+              acc[p.estado] = (acc[p.estado] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>);
+            
+            console.log('📊 Estados de préstamos del usuario:', estadosPrestamos);
+            
             toast({
-              title: "⏰ Préstamos marcados automáticamente",
-              description: `${prestamosRecientes.length} préstamo(s) han sido marcados como "por devolver" porque su actividad finalizó hace más de una semana`,
-              status: "warning",
-              duration: 10000,
+              title: 'Información de préstamos',
+              description: `Tienes ${todosPrestamosUsuario.length} préstamo(s) total(es), pero ninguno en estado activo`,
+              status: 'info',
+              duration: 5000,
               isClosable: true,
             });
           }
+        } catch (diagnosticError) {
+          console.warn('⚠️ Error en diagnóstico adicional:', diagnosticError);
         }
-        
-        // Mostrar toast informativo solo si hay préstamos
-        if (misPrestamosActivos.length > 0) {
-          toast({
-            title: 'Préstamos cargados',
-            description: `Se encontraron ${misPrestamosActivos.length} préstamo(s) activo(s)`,
-            status: 'success',
-            duration: 3000,
-            isClosable: true,
-          });
-        } else {
-          // Diagnóstico adicional cuando no hay resultados
-          console.log('⚠️ MisPrestamosPag - No se encontraron préstamos activos');
-          console.log('🔍 Ejecutando diagnóstico adicional...');
-          
-          // Verificar si hay préstamos en otros estados
-          try {
-            const { listarPrestamos } = await import('../../services/prestamoService');
-            const todosPrestamosUsuario = await listarPrestamos({ usuarioId: userProfile.uid });
-            
-            if (todosPrestamosUsuario.length > 0) {
-              const estadosPrestamos = todosPrestamosUsuario.reduce((acc, p) => {
-                acc[p.estado] = (acc[p.estado] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>);
-              
-              console.log('📊 Estados de préstamos del usuario:', estadosPrestamos);
-              
-              toast({
-                title: 'Información de préstamos',
-                description: `Tienes ${todosPrestamosUsuario.length} préstamo(s) total(es), pero ninguno en estado activo`,
-                status: 'info',
-                duration: 5000,
-                isClosable: true,
-              });
-            }
-          } catch (diagnosticError) {
-            console.warn('⚠️ Error en diagnóstico adicional:', diagnosticError);
-          }
-        }
-        
-      } catch (error) {
-        console.error('❌ MisPrestamosPag - Error al cargar préstamos:', error);
-        
-        // Mostrar error más detallado según el tipo
-        let errorMessage = 'No se pudieron cargar tus préstamos. Intenta nuevamente.';
-        let errorTitle = 'Error de carga';
-        
-        if (error instanceof Error) {
-          if (error.message.includes('permission-denied')) {
-            errorMessage = 'No tienes permisos para acceder a esta información.';
-            errorTitle = 'Permisos insuficientes';
-          } else if (error.message.includes('failed-precondition')) {
-            errorMessage = 'Hay un problema de configuración en la base de datos. Contacta al administrador.';
-            errorTitle = 'Error de configuración';
-          } else if (error.message.includes('unavailable')) {
-            errorMessage = 'El servicio no está disponible temporalmente. Intenta en unos minutos.';
-            errorTitle = 'Servicio no disponible';
-          }
-        }
-        
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-        
-        // En caso de error crítico, al menos mostrar una lista vacía en lugar de bloquear
-        setPrestamos([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
-    
-    cargarMisPrestamos();  }, [userProfile, toast]);
+      
+    } catch (error) {
+      console.error('❌ MisPrestamosPag - Error al cargar préstamos:', error);
+      
+      // Mostrar error más detallado según el tipo
+      let errorMessage = 'No se pudieron cargar tus préstamos. Intenta nuevamente.';
+      let errorTitle = 'Error de carga';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          errorMessage = 'No tienes permisos para acceder a esta información.';
+          errorTitle = 'Permisos insuficientes';
+        } else if (error.message.includes('failed-precondition')) {
+          errorMessage = 'Hay un problema de configuración en la base de datos. Contacta al administrador.';
+          errorTitle = 'Error de configuración';
+        } else if (error.message.includes('unavailable')) {
+          errorMessage = 'El servicio no está disponible temporalmente. Intenta en unos minutos.';
+          errorTitle = 'Servicio no disponible';
+        }
+      }
+      
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // En caso de error crítico, al menos mostrar una lista vacía en lugar de bloquear
+      setPrestamos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cargar préstamos cuando el componente se monta o cambia el usuario
+  useEffect(() => {
+    cargarMisPrestamos();}, [userProfile, toast]);
 
   // Agrupar préstamos por actividad
   const agruparPrestamosPorActividad = (prestamos: Prestamo[]) => {
@@ -315,25 +320,45 @@ const MisPrestamosPag: React.FC = () => {
   const handleSolicitarDevolucion = (prestamo: Prestamo) => {
     setPrestamoSeleccionado(prestamo);
     onOpen();
-  };
+  };  // Manejar devolución de toda la actividad
+  const handleDevolverTodaActividad = async (actividadId: string, nombreActividad: string) => {
+    // Obtener todos los préstamos de la actividad
+    const prestamosActividad = prestamos.filter(p => p.actividadId === actividadId);
+    const prestamosActivos = prestamosActividad.filter(p => p.estado === 'en_uso' || p.estado === 'por_devolver');
 
-  // Manejar devolución de toda la actividad
-  const handleDevolverTodaActividad = (actividadId: string, nombreActividad: string) => {
-    // Para simplicidad, abrimos el modal con el primer préstamo de la actividad
-    // El formulario de devolución avanzada puede manejar múltiples devoluciones
-    const primerPrestamo = prestamos.find(p => p.actividadId === actividadId && p.estado === 'en_uso');
-    if (primerPrestamo) {
-      setPrestamoSeleccionado(primerPrestamo);
-      onOpen();
+    if (prestamosActivos.length === 0) {
+      toast({
+        title: 'Sin materiales para devolver',
+        description: `No se encontraron materiales activos para devolver en la actividad "${nombreActividad}"`,
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
     }
-  };
-  // Manejar éxito de devolución avanzada
+
+    // Configurar datos para el modal de devolución en bulk
+    setActividadSeleccionada({
+      prestamos: prestamosActivos,
+      nombre: nombreActividad
+    });
+    
+    // Abrir modal de devolución en bulk
+    onBulkOpen();
+  };  // Manejar éxito de devolución avanzada
   const handleDevolucionSuccess = () => {
     if (!prestamoSeleccionado) return;
     
     // Actualizar lista de préstamos removiendo el devuelto
     setPrestamos(prestamos.filter(p => p.id !== prestamoSeleccionado.id));
     setPrestamoSeleccionado(null);
+  };
+
+  // Manejar éxito de devolución en bulk
+  const handleDevolucionBulkSuccess = async () => {
+    // Recargar todos los préstamos para reflejar los cambios
+    await cargarMisPrestamos();
+    setActividadSeleccionada(null);
   };
 
   // Renderizar estado del préstamo
@@ -483,10 +508,9 @@ const MisPrestamosPag: React.FC = () => {
                             <Badge colorScheme="red" size="sm">
                               ⚠️ {materialesConRetraso.length} material(es) retrasado(s)
                             </Badge>
-                          )}
-                            {/* Botón para devolver toda la actividad */}
+                          )}                            {/* Botón para devolver toda la actividad */}
                           {materialesActivos.length > 0 && grupo.actividad !== 'Préstamos individuales' && (
-                            <Tooltip label={`Devolver todos los ${materialesActivos.length} materiales de esta actividad`}>
+                            <Tooltip label={`Abrir formulario para devolver todos los ${materialesActivos.length} materiales de esta actividad con observaciones e incidencias`}>
                               <Button
                                 size="sm"
                                 colorScheme="green"
@@ -494,7 +518,7 @@ const MisPrestamosPag: React.FC = () => {
                                 leftIcon={<FiUsers />}
                                 onClick={() => handleDevolverTodaActividad(grupo.prestamos[0]?.actividadId!, grupo.actividad)}
                               >
-                                Devolver todo
+                                Devolver todo ({materialesActivos.length})
                               </Button>
                             </Tooltip>
                           )}
@@ -582,15 +606,24 @@ const MisPrestamosPag: React.FC = () => {
               </Table>
             </Box>
           ))
-        )}      </Box>
-
-      {/* Modal de devolución avanzada */}
+        )}      </Box>      {/* Modal de devolución avanzada */}
       {prestamoSeleccionado && (
         <DevolucionAvanzadaForm
           isOpen={isOpen}
           onClose={onClose}
           prestamo={prestamoSeleccionado}
           onSuccess={handleDevolucionSuccess}
+        />
+      )}
+
+      {/* Modal de devolución en bulk */}
+      {actividadSeleccionada && (
+        <DevolucionBulkForm
+          isOpen={isBulkOpen}
+          onClose={onBulkClose}
+          prestamos={actividadSeleccionada.prestamos}
+          actividadNombre={actividadSeleccionada.nombre}
+          onSuccess={handleDevolucionBulkSuccess}
         />
       )}
     </DashboardLayout>
