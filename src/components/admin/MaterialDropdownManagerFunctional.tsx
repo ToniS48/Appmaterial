@@ -315,10 +315,6 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
         return 'Tipos de Anclaje';
       case 'categoriasVarios':
         return 'Categorías de Varios';
-      case 'subcategoriasVarios':
-        return 'Subcategorías de Varios';
-      case 'subcategoriasAnclaje':
-        return 'Subcategorías de Anclaje';
       default:
         return '';
     }
@@ -354,8 +350,7 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
           <CardBody>
             <Heading size="md" mb={4}>
               Seleccionar Sección a Editar
-            </Heading>
-            <HStack spacing={4} wrap="wrap">
+            </Heading>            <HStack spacing={4} wrap="wrap">
               <Button 
                 colorScheme={activeSection === 'estados' ? 'blue' : 'gray'}
                 onClick={() => setActiveSection('estados')}
@@ -367,17 +362,12 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
                 onClick={() => setActiveSection('tiposCuerda')}
               >
                 Tipos de Cuerda
-              </Button>              <Button 
+              </Button>
+              <Button 
                 colorScheme={activeSection === 'tiposAnclaje' ? 'blue' : 'gray'}
                 onClick={() => setActiveSection('tiposAnclaje')}
               >
                 Tipos de Anclaje
-              </Button>
-              <Button 
-                colorScheme={activeSection === 'subcategoriasAnclaje' ? 'blue' : 'gray'}
-                onClick={() => setActiveSection('subcategoriasAnclaje')}
-              >
-                Subcategorías de Anclaje
               </Button>
               <Button 
                 colorScheme={activeSection === 'categoriasVarios' ? 'blue' : 'gray'}
@@ -385,17 +375,10 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
               >
                 Categorías de Varios
               </Button>
-              <Button 
-                colorScheme={activeSection === 'subcategoriasVarios' ? 'blue' : 'gray'}
-                onClick={() => setActiveSection('subcategoriasVarios')}
-              >
-                Subcategorías de Varios
-              </Button>
             </HStack>
           </CardBody>
         </Card>        {/* Sección activa */}
-        {activeSection !== 'subcategoriasAnclaje' && activeSection !== 'subcategoriasVarios' ? (
-          <Card>
+        <Card>
             <CardBody>
               <Flex align="center" mb={4}>
                 <Heading size="md">
@@ -414,40 +397,145 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
 
               <VStack spacing={3} align="stretch">
                 {getCurrentSectionData().map((item: DropdownOption) => (
-                  <Box key={item.value} p={4} bg="gray.50" borderRadius="md">
-                    <Flex align="center">
-                      <VStack align="start" flex={1} spacing={1}>
-                        <HStack>
-                          <Text fontWeight="medium">{item.label}</Text>
-                          {item.color && (
-                            <Badge colorScheme={item.color}>{item.color}</Badge>
-                          )}
+                  <Box key={item.value}>
+                    {/* Elemento principal */}
+                    <Box p={4} bg="gray.50" borderRadius="md">
+                      <Flex align="center">
+                        <VStack align="start" flex={1} spacing={1}>
+                          <HStack>
+                            <Text fontWeight="medium">{item.label}</Text>
+                            {item.color && (
+                              <Badge colorScheme={item.color}>{item.color}</Badge>
+                            )}
+                          </HStack>
+                          <Text fontSize="sm" color="gray.600">
+                            Valor: {item.value}
+                          </Text>
+                        </VStack>
+                        <HStack spacing={2}>
+                          <IconButton
+                            aria-label="Editar"
+                            icon={<FiEdit2 />}
+                            size="sm"
+                            colorScheme="blue"
+                            variant="outline"
+                            onClick={() => handleEdit(item)}
+                            isDisabled={isSaving}
+                          />
+                          <IconButton
+                            aria-label="Eliminar"
+                            icon={<FiTrash2 />}
+                            size="sm"
+                            colorScheme="red"
+                            variant="outline"
+                            onClick={() => handleDelete(activeSection, item.value)}
+                            isDisabled={isSaving}
+                          />
                         </HStack>
-                        <Text fontSize="sm" color="gray.600">
-                          Valor: {item.value}
-                        </Text>
-                      </VStack>
-                      <HStack spacing={2}>
-                        <IconButton
-                          aria-label="Editar"
-                          icon={<FiEdit2 />}
-                          size="sm"
-                          colorScheme="blue"
-                          variant="outline"
-                          onClick={() => handleEdit(item)}
-                          isDisabled={isSaving}
-                        />
-                        <IconButton
-                          aria-label="Eliminar"
-                          icon={<FiTrash2 />}
-                          size="sm"
-                          colorScheme="red"
-                          variant="outline"
-                          onClick={() => handleDelete(activeSection, item.value)}
-                          isDisabled={isSaving}
-                        />
-                      </HStack>
-                    </Flex>
+                      </Flex>
+                    </Box>                    {/* Subcategorías para tipos de anclaje */}
+                    {activeSection === 'tiposAnclaje' && (
+                      <Box ml={6} mt={2} p={3} bg="blue.50" borderRadius="md" borderLeft="3px solid" borderColor="blue.200">
+                        <VStack spacing={2} align="stretch">
+                          <HStack>
+                            <Text fontSize="sm" fontWeight="medium" color="blue.700">
+                              Subcategorías de {item.label}
+                            </Text>
+                            <Spacer />
+                            <Button
+                              size="xs"
+                              colorScheme="blue"
+                              variant="outline"
+                              leftIcon={<FiPlus />}
+                              onClick={() => handleAddSubcategoria(item.value)}
+                              isDisabled={isSaving}
+                            >
+                              Agregar
+                            </Button>
+                          </HStack>
+                          
+                          {config?.subcategoriasAnclaje[item.value]?.map((subcat: DropdownOption) => (
+                            <Box key={subcat.value} p={2} bg="white" borderRadius="sm">
+                              <Flex align="center">
+                                <VStack align="start" flex={1} spacing={0}>
+                                  <Text fontSize="sm" fontWeight="medium">{subcat.label}</Text>
+                                  <Text fontSize="xs" color="gray.600">
+                                    Valor: {subcat.value}
+                                  </Text>
+                                </VStack>
+                                <IconButton
+                                  aria-label="Eliminar subcategoría"
+                                  icon={<FiTrash2 />}
+                                  size="xs"
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteSubcategoria(item.value, subcat.value)}
+                                  isDisabled={isSaving}
+                                />
+                              </Flex>
+                            </Box>
+                          ))}
+                          
+                          {(!config?.subcategoriasAnclaje[item.value] || config.subcategoriasAnclaje[item.value].length === 0) && (
+                            <Text fontSize="xs" color="gray.500" textAlign="center" py={1}>
+                              No hay subcategorías para este tipo de anclaje
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
+
+                    {/* Subcategorías para categorías de varios */}
+                    {activeSection === 'categoriasVarios' && (
+                      <Box ml={6} mt={2} p={3} bg="green.50" borderRadius="md" borderLeft="3px solid" borderColor="green.200">
+                        <VStack spacing={2} align="stretch">
+                          <HStack>
+                            <Text fontSize="sm" fontWeight="medium" color="green.700">
+                              Subcategorías de {item.label}
+                            </Text>
+                            <Spacer />
+                            <Button
+                              size="xs"
+                              colorScheme="green"
+                              variant="outline"
+                              leftIcon={<FiPlus />}
+                              onClick={() => handleAddSubcategoriaVarios(item.value)}
+                              isDisabled={isSaving}
+                            >
+                              Agregar
+                            </Button>
+                          </HStack>
+                          
+                          {config?.subcategoriasVarios[item.value]?.map((subcat: DropdownOption) => (
+                            <Box key={subcat.value} p={2} bg="white" borderRadius="sm">
+                              <Flex align="center">
+                                <VStack align="start" flex={1} spacing={0}>
+                                  <Text fontSize="sm" fontWeight="medium">{subcat.label}</Text>
+                                  <Text fontSize="xs" color="gray.600">
+                                    Valor: {subcat.value}
+                                  </Text>
+                                </VStack>
+                                <IconButton
+                                  aria-label="Eliminar subcategoría"
+                                  icon={<FiTrash2 />}
+                                  size="xs"
+                                  colorScheme="red"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteSubcategoriaVarios(item.value, subcat.value)}
+                                  isDisabled={isSaving}
+                                />
+                              </Flex>
+                            </Box>
+                          ))}
+                          
+                          {(!config?.subcategoriasVarios[item.value] || config.subcategoriasVarios[item.value].length === 0) && (
+                            <Text fontSize="xs" color="gray.500" textAlign="center" py={1}>
+                              No hay subcategorías para esta categoría
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </VStack>
@@ -456,115 +544,8 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
                 <Text color="gray.500" textAlign="center" py={4}>
                   No hay elementos configurados en esta sección
                 </Text>
-              )}
-            </CardBody>
-          </Card>        ) : activeSection === 'subcategoriasAnclaje' ? (
-          /* Sección especial para subcategorías de anclaje */
-          <VStack spacing={4} align="stretch">
-            {config?.tiposAnclaje.map((tipoAnclaje: DropdownOption) => (
-              <Card key={tipoAnclaje.value}>
-                <CardBody>
-                  <Heading size="sm" mb={3}>
-                    {tipoAnclaje.label} - Subcategorías
-                  </Heading>
-                  <VStack spacing={2} align="stretch">
-                    {config?.subcategoriasAnclaje[tipoAnclaje.value]?.map((subcat: DropdownOption) => (
-                      <Box key={subcat.value} p={3} bg="gray.50" borderRadius="md">
-                        <Flex align="center">
-                          <VStack align="start" flex={1} spacing={1}>
-                            <Text fontWeight="medium">{subcat.label}</Text>
-                            <Text fontSize="sm" color="gray.600">
-                              Valor: {subcat.value}
-                            </Text>
-                          </VStack>
-                          <HStack spacing={2}>
-                            <IconButton
-                              aria-label="Eliminar subcategoría"
-                              icon={<FiTrash2 />}
-                              size="sm"
-                              colorScheme="red"
-                              variant="outline"
-                              onClick={() => handleDeleteSubcategoria(tipoAnclaje.value, subcat.value)}
-                              isDisabled={isSaving}
-                            />
-                          </HStack>
-                        </Flex>
-                      </Box>
-                    ))}
-                    {(!config?.subcategoriasAnclaje[tipoAnclaje.value] || config.subcategoriasAnclaje[tipoAnclaje.value].length === 0) && (
-                      <Text color="gray.500" textAlign="center" py={2} fontSize="sm">
-                        No hay subcategorías para este tipo de anclaje
-                      </Text>
-                    )}
-                    <Button
-                      size="sm"
-                      colorScheme="green"
-                      variant="outline"
-                      leftIcon={<FiPlus />}
-                      onClick={() => handleAddSubcategoria(tipoAnclaje.value)}
-                      isDisabled={isSaving}
-                    >
-                      Agregar subcategoría
-                    </Button>
-                  </VStack>
-                </CardBody>
-              </Card>
-            ))}
-          </VStack>
-        ) : (
-          /* Sección especial para subcategorías de varios */
-          <VStack spacing={4} align="stretch">
-            {config?.categoriasVarios.map((categoria: DropdownOption) => (
-              <Card key={categoria.value}>
-                <CardBody>
-                  <Heading size="sm" mb={3}>
-                    {categoria.label} - Subcategorías
-                  </Heading>
-                  <VStack spacing={2} align="stretch">
-                    {config?.subcategoriasVarios[categoria.value]?.map((subcat: DropdownOption) => (
-                      <Box key={subcat.value} p={3} bg="gray.50" borderRadius="md">
-                        <Flex align="center">
-                          <VStack align="start" flex={1} spacing={1}>
-                            <Text fontWeight="medium">{subcat.label}</Text>
-                            <Text fontSize="sm" color="gray.600">
-                              Valor: {subcat.value}
-                            </Text>
-                          </VStack>
-                          <HStack spacing={2}>
-                            <IconButton
-                              aria-label="Eliminar subcategoría"
-                              icon={<FiTrash2 />}
-                              size="sm"
-                              colorScheme="red"
-                              variant="outline"
-                              onClick={() => handleDeleteSubcategoriaVarios(categoria.value, subcat.value)}
-                              isDisabled={isSaving}
-                            />
-                          </HStack>
-                        </Flex>
-                      </Box>
-                    ))}
-                    {(!config?.subcategoriasVarios[categoria.value] || config.subcategoriasVarios[categoria.value].length === 0) && (
-                      <Text color="gray.500" textAlign="center" py={2} fontSize="sm">
-                        No hay subcategorías para esta categoría
-                      </Text>
-                    )}
-                    <Button
-                      size="sm"
-                      colorScheme="green"
-                      variant="outline"
-                      leftIcon={<FiPlus />}
-                      onClick={() => handleAddSubcategoriaVarios(categoria.value)}
-                      isDisabled={isSaving}
-                    >
-                      Agregar subcategoría
-                    </Button>
-                  </VStack>
-                </CardBody>
-              </Card>
-            ))}
-          </VStack>
-        )}
+              )}            </CardBody>
+        </Card>
 
         {/* Botones de acción */}
         <HStack spacing={4}>
