@@ -26,6 +26,7 @@ import {
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons'; // Añadir esta importación
 import DashboardLayout from '../../components/layouts/DashboardLayout';
+import MaterialDropdownManagerFunctional from '../../components/admin/MaterialDropdownManagerFunctional';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import messages from '../../constants/messages';
@@ -193,11 +194,11 @@ const ConfiguracionPage: React.FC = () => {
           </CardBody>
         </Card>
         
-        <Tabs colorScheme="brand" isLazy>
-          <TabList mb={4}>
+        <Tabs colorScheme="brand" isLazy>          <TabList mb={4}>
             <Tab>General</Tab>
             <Tab>Notificaciones</Tab>
             <Tab>Seguridad</Tab>
+            <Tab>Formularios Material</Tab>
           </TabList>
           
           <TabPanels>
@@ -420,10 +421,26 @@ const ConfiguracionPage: React.FC = () => {
                     });
                   }}
                   isLoading={isLoading}
-                >
-                  Realizar copia de seguridad ahora
+                >                  Realizar copia de seguridad ahora
                 </Button>
               </Box>
+            </TabPanel>
+            
+            {/* Nueva pestaña para gestión de dropdowns de material */}
+            <TabPanel>
+              <Card>
+                <CardBody>
+                  <HStack mb={4}>
+                    <Heading size="md">Gestión de Formularios de Material</Heading>
+                    <Badge colorScheme="blue">Configuración Dinámica</Badge>
+                  </HStack>
+                  <Text color="gray.600" mb={6}>
+                    Gestiona las opciones disponibles en los formularios de nuevo material. 
+                    Los cambios se aplicarán inmediatamente a todos los formularios de material.
+                  </Text>
+                  <MaterialDropdownManagerFunctional />
+                </CardBody>
+              </Card>
             </TabPanel>
           </TabPanels>
         </Tabs>

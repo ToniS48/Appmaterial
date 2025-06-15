@@ -13,93 +13,49 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper
 } from '@chakra-ui/react';
+import { DropdownOption } from '../../services/materialDropdownService';
 
 interface VariosFormProps {
   register: UseFormRegister<any>;
   errors: FieldErrors<any>;
   control: Control<any>;
+  categoriasVarios?: DropdownOption[];
+  subcategoriasVarios?: Record<string, DropdownOption[]>;
 }
 
-// Categorías de material varios
-const CATEGORIAS_VARIOS = [
-  { value: 'equipoTPV', label: 'Equipo TPV' },
-  { value: 'tienda', label: 'Tienda' },
-  { value: 'poteEstanco', label: 'Pote Estanco' },
-  { value: 'iluminacion', label: 'Iluminación' },
-  { value: 'arneses', label: 'Arneses' },
-  { value: 'mosquetones', label: 'Mosquetones' },
-  { value: 'herramientas', label: 'Herramientas' },
-  { value: 'otro', label: 'Otro' }
-];
-
-// Subcategorías por categoría
-const SUBCATEGORIAS = {
-  equipoTPV: [
-    { value: 'bloqueadores', label: 'Bloqueadores' },
-    { value: 'descensores', label: 'Descensores' },
-    { value: 'poleas', label: 'Poleas' },
-    { value: 'otro', label: 'Otro' }
-  ],
-  tienda: [
-    { value: 'carpas', label: 'Carpas' },
-    { value: 'toldos', label: 'Toldos' },
-    { value: 'otro', label: 'Otro' }
-  ],
-  iluminacion: [
-    { value: 'frontales', label: 'Frontales' },
-    { value: 'lamparas', label: 'Lámparas' },
-    { value: 'baterias', label: 'Baterías' },
-    { value: 'otro', label: 'Otro' }
-  ],
-  arneses: [
-    { value: 'completos', label: 'Arneses completos' },
-    { value: 'pecho', label: 'Arneses de pecho' },
-    { value: 'pelvis', label: 'Arneses de pelvis' },
-    { value: 'otro', label: 'Otro' }
-  ],
-  mosquetones: [
-    { value: 'hms', label: 'HMS' },
-    { value: 'seguridad', label: 'Seguridad' },
-    { value: 'basicos', label: 'Básicos' },
-    { value: 'otro', label: 'Otro' }
-  ],
-  herramientas: [
-    { value: 'taladros', label: 'Taladros' },
-    { value: 'brocas', label: 'Brocas' },
-    { value: 'martillos', label: 'Martillos' },
-    { value: 'otro', label: 'Otro' }
-  ]
-};
+// Configuración por defecto (fallback) - se mantendrá como respaldo
+// Las categorías y subcategorías ahora se cargan dinámicamente
 
 const VariosForm: React.FC<VariosFormProps> = ({ 
   register, 
   errors,
-  control 
+  control,
+  categoriasVarios = [],
+  subcategoriasVarios = {}
 }) => {
   const [categoria, setCategoria] = React.useState('');
-  const [subcategorias, setSubcategorias] = React.useState<{value: string, label: string}[]>([]);
+  const [subcategorias, setSubcategorias] = React.useState<DropdownOption[]>([]);
 
   // Actualizar subcategorías cuando cambia la categoría
   React.useEffect(() => {
-    if (categoria) {
-      setSubcategorias(SUBCATEGORIAS[categoria as keyof typeof SUBCATEGORIAS] || []);
+    if (categoria && subcategoriasVarios[categoria]) {
+      setSubcategorias(subcategoriasVarios[categoria]);
     } else {
       setSubcategorias([]);
     }
-  }, [categoria]);
+  }, [categoria, subcategoriasVarios]);
 
   return (
     <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
       <FormControl isRequired isInvalid={!!errors.categoria}>
-        <FormLabel>Categoría</FormLabel>
-        <Select
+        <FormLabel>Categoría</FormLabel>        <Select
           {...register('categoria', { 
             required: 'La categoría es obligatoria' 
           })}
           placeholder="Seleccione una categoría"
           onChange={(e) => setCategoria(e.target.value)}
         >
-          {CATEGORIAS_VARIOS.map(cat => (
+          {categoriasVarios.map(cat => (
             <option key={cat.value} value={cat.value}>
               {cat.label}
             </option>

@@ -26,6 +26,7 @@ import { useForm, Controller } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
 import { crearMaterial, actualizarMaterial } from '../../services/materialService';
 import { useAuth } from '../../contexts/AuthContext';
+import { getMaterialDropdownConfig, MaterialDropdownConfig } from '../../services/materialDropdownService';
 import messages from '../../constants/messages';
 
 // Importamos el nuevo componente QR
@@ -36,14 +37,8 @@ import CuerdaForm from './CuerdaForm';
 import AnclajeForm from './AnclajeForm';
 import VariosForm from './VariosForm';
 
-// Tipos de estado de material disponibles
-const ESTADOS_MATERIAL = [
-  { value: 'disponible', label: 'Disponible', color: 'green' },
-  { value: 'prestado', label: 'Prestado', color: 'orange' },
-  { value: 'mantenimiento', label: 'Mantenimiento', color: 'blue' },
-  { value: 'baja', label: 'Baja', color: 'gray' },
-  { value: 'perdido', label: 'Perdido', color: 'red' }
-];
+// Tipos de estado de material disponibles - ahora se cargarán dinámicamente
+// const ESTADOS_MATERIAL = [...]; // Removido - ahora se usa configuración dinámica
 
 // Props de entrada para el formulario
 interface MaterialFormProps {
@@ -63,9 +58,31 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tipoMaterial, setTipoMaterial] = useState(material?.tipo || '');
   const [savedMaterial, setSavedMaterial] = useState<any>(null);
+  const [dropdownConfig, setDropdownConfig] = useState<MaterialDropdownConfig | null>(null);
   
   // Modal para mostrar el código QR
   const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  // Cargar configuración de dropdowns
+  useEffect(() => {
+    const loadDropdownConfig = async () => {
+      try {
+        const config = await getMaterialDropdownConfig();
+        setDropdownConfig(config);
+      } catch (error) {
+        console.error('Error cargando configuración de dropdowns:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudo cargar la configuración de formularios',
+          status: 'error',
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    };
+    
+    loadDropdownConfig();
+  }, [toast]);
   
   // Configuración del formulario con React Hook Form
   const { 
@@ -254,14 +271,13 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
             )}
           </FormControl>
           
-          <FormControl isRequired isInvalid={!!errors.estado}>
-            <FormLabel>Estado</FormLabel>
+          <FormControl isRequired isInvalid={!!errors.estado}>            <FormLabel>Estado</FormLabel>
             <Select 
               {...register('estado', { 
                 required: 'Seleccione un estado' 
               })}
             >
-              {ESTADOS_MATERIAL.map(estado => (
+              {dropdownConfig?.estados.map(estado => (
                 <option key={estado.value} value={estado.value}>
                   {estado.label}
                 </option>
@@ -353,22 +369,23 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
                  'Material Varios'}
               </Badge>
             </Heading>
-            
-            {tipoMaterial === 'cuerda' && (
+              {tipoMaterial === 'cuerda' && (
               <CuerdaForm 
                 register={register} 
                 errors={errors} 
                 control={control} 
                 setValue={setValue}
                 watch={watch}
+                tiposCuerda={dropdownConfig?.tiposCuerda}
               />
             )}
-            
-            {tipoMaterial === 'anclaje' && (
+              {tipoMaterial === 'anclaje' && (
               <AnclajeForm 
                 register={register} 
                 errors={errors} 
                 control={control}
+                tiposAnclaje={dropdownConfig?.tiposAnclaje}
+                subcategoriasAnclaje={dropdownConfig?.subcategoriasAnclaje}
               />
             )}
             
@@ -377,6 +394,8 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
                 register={register} 
                 errors={errors} 
                 control={control}
+                categoriasVarios={dropdownConfig?.categoriasVarios}
+                subcategoriasVarios={dropdownConfig?.subcategoriasVarios}
               />
             )}
           </Box>

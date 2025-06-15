@@ -17,6 +17,7 @@ import {
   Text
 } from '@chakra-ui/react';
 import DatePicker from '../common/DatePicker';
+import { DropdownOption } from '../../services/materialDropdownService';
 
 interface CuerdaFormProps {
   register: UseFormRegister<any>;
@@ -24,6 +25,7 @@ interface CuerdaFormProps {
   control: Control<any>;
   watch: UseFormWatch<any>;
   setValue: UseFormSetValue<any>;
+  tiposCuerda?: DropdownOption[];
 }
 
 const CuerdaForm: React.FC<CuerdaFormProps> = ({ 
@@ -31,7 +33,8 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
   errors, 
   control,
   watch,
-  setValue 
+  setValue,
+  tiposCuerda = []
 }) => {
   // Calcular vida útil restante basado en fecha de primer uso y usos
   const fechaPrimerUso = watch('fechaPrimerUso');
@@ -136,8 +139,7 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
             <FormErrorMessage>{errors.usos.message?.toString()}</FormErrorMessage>
           )}
         </FormControl>
-        
-        <FormControl isRequired isInvalid={!!errors.tipoCuerda}>
+          <FormControl isRequired isInvalid={!!errors.tipoCuerda}>
           <FormLabel>Tipo de cuerda</FormLabel>
           <Select
             {...register('tipoCuerda', { 
@@ -145,9 +147,11 @@ const CuerdaForm: React.FC<CuerdaFormProps> = ({
             })}
             placeholder="Seleccione un tipo"
           >
-            <option value="espeleologia">Espeleología</option>
-            <option value="barrancos">Barrancos</option>
-            <option value="mixta">Mixta</option>
+            {tiposCuerda.map(tipo => (
+              <option key={tipo.value} value={tipo.value}>
+                {tipo.label}
+              </option>
+            ))}
           </Select>
           {errors.tipoCuerda && (
             <FormErrorMessage>{errors.tipoCuerda.message?.toString()}</FormErrorMessage>

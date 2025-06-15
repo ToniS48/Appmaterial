@@ -13,37 +13,73 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper
 } from '@chakra-ui/react';
+import { DropdownOption } from '../../services/materialDropdownService';
 
 interface AnclajeFormProps {
   register: UseFormRegister<any>;
   errors: FieldErrors<any>;
   control: Control<any>;
+  tiposAnclaje?: DropdownOption[];
+  subcategoriasAnclaje?: Record<string, DropdownOption[]>;
 }
 
 const AnclajeForm: React.FC<AnclajeFormProps> = ({ 
   register, 
   errors,
-  control 
+  control,
+  tiposAnclaje = [],
+  subcategoriasAnclaje = {}
 }) => {
+  const [tipoAnclaje, setTipoAnclaje] = React.useState('');
+  const [subcategorias, setSubcategorias] = React.useState<DropdownOption[]>([]);
+
+  // Actualizar subcategorías cuando cambia el tipo de anclaje
+  React.useEffect(() => {
+    if (tipoAnclaje && subcategoriasAnclaje[tipoAnclaje]) {
+      setSubcategorias(subcategoriasAnclaje[tipoAnclaje]);
+    } else {
+      setSubcategorias([]);
+    }
+  }, [tipoAnclaje, subcategoriasAnclaje]);
   return (
-    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
-      <FormControl isRequired isInvalid={!!errors.tipoAnclaje}>
+    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>      <FormControl isRequired isInvalid={!!errors.tipoAnclaje}>
         <FormLabel>Tipo de anclaje</FormLabel>
         <Select
           {...register('tipoAnclaje', { 
             required: 'El tipo de anclaje es obligatorio' 
           })}
           placeholder="Seleccione un tipo"
+          onChange={(e) => setTipoAnclaje(e.target.value)}
         >
-          <option value="quimico">Químico</option>
-          <option value="mecanico">Mecánico</option>
-          <option value="as">AS</option>
-          <option value="otro">Otro</option>
+          {tiposAnclaje.map(tipo => (
+            <option key={tipo.value} value={tipo.value}>
+              {tipo.label}
+            </option>
+          ))}
         </Select>
         {errors.tipoAnclaje && (
           <FormErrorMessage>{errors.tipoAnclaje.message?.toString()}</FormErrorMessage>
         )}
       </FormControl>
+      
+      {tipoAnclaje && subcategorias.length > 0 && (
+        <FormControl isInvalid={!!errors.subcategoriaAnclaje}>
+          <FormLabel>Subcategoría</FormLabel>
+          <Select
+            {...register('subcategoriaAnclaje')}
+            placeholder="Seleccione una subcategoría"
+          >
+            {subcategorias.map(subcat => (
+              <option key={subcat.value} value={subcat.value}>
+                {subcat.label}
+              </option>
+            ))}
+          </Select>
+          {errors.subcategoriaAnclaje && (
+            <FormErrorMessage>{errors.subcategoriaAnclaje.message?.toString()}</FormErrorMessage>
+          )}
+        </FormControl>
+      )}
       
       <FormControl isRequired isInvalid={!!errors.cantidad}>
         <FormLabel>Cantidad total</FormLabel>
