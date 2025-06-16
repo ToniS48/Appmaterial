@@ -138,16 +138,8 @@ const MaterialDetallePage: React.FC = () => {
                   <Text fontWeight="bold">Observaciones:</Text>
                   <Text>{material.observaciones}</Text>
                 </Box>
-              </>
-            )}
+              </>            )}
             
-            <Divider />
-            
-            <Box pt={2}>
-              <Button colorScheme="brand" size="sm">
-                Registrar uso
-              </Button>
-            </Box>
           </VStack>
         ) : (
           <Alert status="warning">

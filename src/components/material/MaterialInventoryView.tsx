@@ -175,19 +175,18 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               {material.codigo && (
                 <Text fontSize="xs" color="gray.600" fontFamily="mono">
                   {material.codigo}
-                </Text>
-              )}
+                </Text>              )}
             </VStack>
             <IconButton
               as={RouterLink}
-              to={`/material/${material.id}`}
+              to={`/material/detalle/${material.id}`}
               aria-label="Ver detalle"
               icon={<FiEye />}
               size="sm"
               variant="ghost"
               colorScheme="brand"
             />
-          </Flex>          <Flex gap={2} flexWrap="wrap">
+          </Flex><Flex gap={2} flexWrap="wrap">
             <Badge colorScheme={
               material.tipo === 'cuerda' ? 'blue' :
               material.tipo === 'anclaje' ? 'orange' : 
@@ -336,11 +335,10 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
             {material.cantidadDisponible} unidades
           </Text>
         ) : '-'}
-      </Td>
-      <Td>
+      </Td>      <Td>
         <IconButton
           as={RouterLink}
-          to={`/material/${material.id}`}
+          to={`/material/detalle/${material.id}`}
           aria-label="Ver detalle"
           icon={<FiEye />}
           size="sm"
