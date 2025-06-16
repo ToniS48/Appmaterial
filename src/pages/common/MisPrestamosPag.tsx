@@ -207,10 +207,10 @@ const MisPrestamosPag: React.FC = () => {
       setIsLoading(false);
     }
   };
-
   // Cargar préstamos cuando el componente se monta o cambia el usuario
   useEffect(() => {
-    cargarMisPrestamos();}, [userProfile, toast]);
+    cargarMisPrestamos();
+  }, [userProfile, toast]);
 
   // Agrupar préstamos por actividad
   const agruparPrestamosPorActividad = (prestamos: Prestamo[]) => {
@@ -604,9 +604,10 @@ const MisPrestamosPag: React.FC = () => {
                   ))}
                 </Tbody>
               </Table>
-            </Box>
-          ))
-        )}      </Box>      {/* Modal de devolución avanzada */}
+            </Box>          ))
+        )}      </Box>
+
+      {/* Modal de devolución avanzada */}
       {prestamoSeleccionado && (
         <DevolucionAvanzadaForm
           isOpen={isOpen}
@@ -614,17 +615,14 @@ const MisPrestamosPag: React.FC = () => {
           prestamo={prestamoSeleccionado}
           onSuccess={handleDevolucionSuccess}
         />
-      )}
-
-      {/* Modal de devolución en bulk */}
+      )}      {/* Modal de devolución en bulk */}
       {actividadSeleccionada && (
         <DevolucionBulkForm
           isOpen={isBulkOpen}
           onClose={onBulkClose}
           prestamos={actividadSeleccionada.prestamos}
           actividadNombre={actividadSeleccionada.nombre}
-          onSuccess={handleDevolucionBulkSuccess}
-        />
+          onSuccess={handleDevolucionBulkSuccess}        />
       )}
     </DashboardLayout>
   );

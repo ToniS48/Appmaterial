@@ -41,24 +41,30 @@ const DevolucionMaterialPage: React.FC = () => {
   const { userProfile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-
   useEffect(() => {
     const fetchPrestamos = async () => {
-      if (!userProfile) return;
+      if (!userProfile) {
+        console.log("🔍 DevolucionMaterialPage - No hay userProfile");
+        return;
+      }
       
       try {
+        console.log("🔍 DevolucionMaterialPage - Iniciando carga de préstamos para usuario:", userProfile.uid);
         setLoading(true);
         setError(null);
         
         // Obtener préstamos activos del usuario actual
         const data = await obtenerPrestamosUsuario(userProfile.uid);
+        console.log("🔍 DevolucionMaterialPage - Préstamos obtenidos:", data.length);
+        
         // Filtrar solo los préstamos activos (no devueltos)
         const prestamosActivos = data.filter(prestamo => 
           prestamo.estado !== 'devuelto' && prestamo.estado !== 'cancelado'
         );
+        console.log("🔍 DevolucionMaterialPage - Préstamos activos:", prestamosActivos.length);
         setPrestamos(prestamosActivos);
       } catch (err) {
-        console.error("Error al cargar préstamos:", err);
+        console.error("❌ DevolucionMaterialPage - Error al cargar préstamos:", err);
         setError(messages.prestamos.errorCargar);
       } finally {
         setLoading(false);

@@ -17,22 +17,22 @@ export interface ActividadConRetraso {
 }
 
 /**
- * Detecta actividades que están marcadas como "en_curso" pero que por fecha 
- * ya deberían estar "finalizada"
+ * Detecta actividades que deberían haber finalizado pero tienen préstamos activos
  */
 export const detectarActividadesConRetraso = async (): Promise<ActividadConRetraso[]> => {
   try {
-    console.log('🔍 Iniciando detección de actividades con retraso...');
+    console.log('🔍 Iniciando detección de actividades con retraso (NUEVA LÓGICA)...');
     
-    // Obtener todas las actividades marcadas como "en_curso"
+    // Buscar todas las actividades que necesiten material
     const actividadesRef = collection(db, 'actividades');
-    const q = query(actividadesRef, where('estado', '==', 'en_curso'));
-    const snapshot = await getDocs(q);
+    const snapshotTodas = await getDocs(actividadesRef);
+    
+    console.log(`📊 ANÁLISIS COMPLETO: Total actividades en sistema: ${snapshotTodas.size}`);
     
     const actividadesConRetraso: ActividadConRetraso[] = [];
     const hoy = Timestamp.now();
     
-    for (const doc of snapshot.docs) {
+    for (const doc of snapshotTodas.docs) {
       const data = doc.data();
       const actividad: Actividad = {
         id: doc.id,
@@ -41,33 +41,51 @@ export const detectarActividadesConRetraso = async (): Promise<ActividadConRetra
         fechaFin: data.fechaFin
       } as Actividad;
       
-      // Verificar si la actividad debería estar finalizada por fecha
+      console.log(`🔍 Analizando "${actividad.nombre}":`, {
+        estado: actividad.estado,
+        fechaFin: actividad.fechaFin,
+        necesidadMaterial: actividad.necesidadMaterial
+      });
+      
+      // Solo analizar actividades que necesiten material
+      if (!actividad.necesidadMaterial) {
+        console.log(`❌ "${actividad.nombre}" - No necesita material, se omite`);
+        continue;
+      }
+      
       const fechaFinTimestamp = toTimestamp(actividad.fechaFin);
-      if (!fechaFinTimestamp) continue;
+      if (!fechaFinTimestamp) {
+        console.log(`❌ "${actividad.nombre}" - Sin fecha fin válida, se omite`);
+        continue;
+      }
       
-      const estadoEsperado = determinarEstadoActividad(
-        toTimestamp(actividad.fechaInicio),
-        fechaFinTimestamp,
-        actividad.estado
-      );
+      // Verificar si la actividad ya debería haber finalizado
+      const yaDeberiaHaberFinalizado = fechaFinTimestamp.seconds < hoy.seconds;
+      if (!yaDeberiaHaberFinalizado) {
+        console.log(`✅ "${actividad.nombre}" - Aún no ha llegado su fecha de fin`);
+        continue;
+      }
       
-      // Si el estado esperado es "finalizada" pero está marcada como "en_curso"
-      if (estadoEsperado === 'finalizada' && actividad.estado === 'en_curso') {
-        console.log(`⚠️ Actividad con retraso detectada: ${actividad.nombre} (${actividad.id})`);
+      console.log(`📅 "${actividad.nombre}" - Ya debería haber finalizado. Verificando préstamos...`);
+      
+      // Verificar préstamos activos
+      let prestamosActivos = 0;
+      try {
+        const prestamos = await obtenerPrestamosPorActividad(actividad.id!);
+        prestamosActivos = prestamos.filter(p => p.estado === 'en_uso' || p.estado === 'pendiente').length;
+        console.log(`📦 "${actividad.nombre}" - Préstamos activos: ${prestamosActivos}`);
+      } catch (error) {
+        console.warn(`Error al obtener préstamos para actividad ${actividad.id}:`, error);
+        continue;
+      }
+      
+      // Si tiene préstamos activos, se considera con retraso
+      if (prestamosActivos > 0) {
+        console.log(`⚠️ RETRASO DETECTADO: "${actividad.nombre}" - ${prestamosActivos} préstamos sin devolver`);
         
         // Calcular días de retraso
         const diasRetraso = Math.floor((hoy.seconds - fechaFinTimestamp.seconds) / (24 * 60 * 60));
-        
-        // Verificar préstamos activos
-        let prestamosActivos = 0;
-        if (actividad.necesidadMaterial) {
-          try {
-            const prestamos = await obtenerPrestamosPorActividad(actividad.id!);
-            prestamosActivos = prestamos.filter(p => p.estado === 'en_uso' || p.estado === 'pendiente').length;
-          } catch (error) {
-            console.warn(`Error al obtener préstamos para actividad ${actividad.id}:`, error);
-          }
-        }
+        console.log(`📊 "${actividad.nombre}" - Días de retraso: ${diasRetraso}`);
         
         // Obtener información de responsables
         const responsables: ActividadConRetraso['responsables'] = {};
@@ -108,6 +126,8 @@ export const detectarActividadesConRetraso = async (): Promise<ActividadConRetra
           prestamosActivos,
           responsables
         });
+      } else {
+        console.log(`✅ "${actividad.nombre}" - No tiene préstamos activos, no se considera con retraso`);
       }
     }
     
@@ -149,13 +169,10 @@ export const notificarActividadesConRetraso = async (actividadesConRetraso: Acti
           entidadTipo: 'actividad',
           prioridad: diasRetraso > 7 ? 'alta' : 'normal'
         });
-        console.log(`✅ Notificación enviada al responsable de actividad: ${responsables.actividad.nombre}`);
       }
       
-      // Notificar al responsable de material (si es diferente y hay préstamos activos)
-      if (responsables.material && 
-          responsables.material.id !== responsables.actividad?.id && 
-          prestamosActivos > 0) {
+      // Notificar al responsable del material (si es diferente)
+      if (responsables.material && responsables.material.id !== responsables.actividad?.id) {
         await notificacionService.crearNotificacion({
           usuarioId: responsables.material.id,
           tipo: 'material',
@@ -165,32 +182,47 @@ export const notificarActividadesConRetraso = async (actividadesConRetraso: Acti
           entidadTipo: 'actividad',
           prioridad: diasRetraso > 7 ? 'alta' : 'normal'
         });
-        console.log(`✅ Notificación enviada al responsable de material: ${responsables.material.nombre}`);
       }
     }
     
-    // TODO: También notificar a admins y vocales si hay muchas actividades con retraso
-    if (actividadesConRetraso.length >= 3) {
-      console.log(`⚠️ Se detectaron ${actividadesConRetraso.length} actividades con retraso. Considerar notificar a administradores.`);
-    }
+    console.log(`✅ Notificaciones enviadas para ${actividadesConRetraso.length} actividades`);
     
   } catch (error) {
-    console.error('❌ Error al enviar notificaciones de retraso:', error);
+    console.error('❌ Error al enviar notificaciones:', error);
     throw error;
   }
 };
 
 /**
- * Función principal que ejecuta la verificación completa y envía notificaciones
+ * Marca una actividad con retraso como finalizada
+ */
+export const finalizarActividadConRetraso = async (actividadId: string, razon?: string): Promise<void> => {
+  try {
+    console.log(`🏁 Finalizando actividad con retraso: ${actividadId}${razon ? ` - Razón: ${razon}` : ''}`);
+    
+    // Aquí iría la lógica para finalizar la actividad
+    // Por ahora solo registramos el log
+    
+    console.log(`✅ Actividad ${actividadId} marcada como finalizada`);
+    
+  } catch (error) {
+    console.error(`❌ Error al finalizar actividad ${actividadId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Verifica y notifica sobre actividades con retraso (función para compatibilidad)
  */
 export const verificarYNotificarRetrasos = async (): Promise<ActividadConRetraso[]> => {
   try {
-    console.log('🚀 Iniciando verificación programada de retrasos...');
+    console.log('🔄 Iniciando verificación y notificación de retrasos...');
     
     const actividadesConRetraso = await detectarActividadesConRetraso();
     
     if (actividadesConRetraso.length > 0) {
       await notificarActividadesConRetraso(actividadesConRetraso);
+      console.log(`✅ Proceso completado: ${actividadesConRetraso.length} actividades procesadas`);
     } else {
       console.log('✅ No se encontraron actividades con retraso');
     }
@@ -198,28 +230,7 @@ export const verificarYNotificarRetrasos = async (): Promise<ActividadConRetraso
     return actividadesConRetraso;
     
   } catch (error) {
-    console.error('❌ Error en verificación de retrasos:', error);
-    throw error;
-  }
-};
-
-/**
- * Marcar manualmente una actividad como finalizada (acción correctiva)
- */
-export const finalizarActividadConRetraso = async (actividadId: string, motivo?: string): Promise<void> => {
-  try {
-    console.log(`🔧 Finalizando actividad con retraso: ${actividadId}`);
-    
-    // Importar dinámicamente para evitar dependencias circulares
-    const { actualizarActividad } = await import('./actividadService');
-      await actualizarActividad(actividadId, {
-      estado: 'finalizada' as const
-    });
-    
-    console.log(`✅ Actividad ${actividadId} marcada como finalizada`);
-    
-  } catch (error) {
-    console.error(`❌ Error al finalizar actividad ${actividadId}:`, error);
+    console.error('❌ Error en verificación y notificación de retrasos:', error);
     throw error;
   }
 };

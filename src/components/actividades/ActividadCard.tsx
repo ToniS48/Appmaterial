@@ -327,8 +327,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 Unirme
               </Button>
             )}
-            
-            {onEditar && (
+              {onEditar && actividad.estado !== 'finalizada' && (
               <Button 
                 size={variant === 'simple' ? 'xs' : 'sm'}
                 colorScheme="blue" 

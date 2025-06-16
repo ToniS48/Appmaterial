@@ -2,6 +2,7 @@ import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orde
 import { db } from '../config/firebase';
 import { Prestamo, EstadoPrestamo } from '../types/prestamo';
 import { actualizarCantidadDisponible } from './materialService';
+import { actualizarActividad } from './actividadService';
 
 // Crear un nuevo préstamo
 export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise<Prestamo> => {
@@ -77,19 +78,35 @@ export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise
 // Obtener préstamos por usuario
 export const obtenerPrestamosPorUsuario = async (usuarioId: string): Promise<Prestamo[]> => {
   try {
+    console.log("🔍 prestamoService - Obteniendo préstamos para usuario:", usuarioId);
+    
     const q = query(
       collection(db, 'prestamos'),
-      where('usuarioId', '==', usuarioId),
-      orderBy('fechaPrestamo', 'desc')
+      where('usuarioId', '==', usuarioId)
+      // Removemos orderBy temporalmente para evitar problemas de índice
     );
     
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    const prestamos = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }) as Prestamo);
+    
+    // Ordenamos en el cliente por fechaPrestamo descendente
+    prestamos.sort((a, b) => {
+      const fechaA = a.fechaPrestamo instanceof Date ? a.fechaPrestamo : 
+                     a.fechaPrestamo?.toDate ? a.fechaPrestamo.toDate() : new Date(0);
+      const fechaB = b.fechaPrestamo instanceof Date ? b.fechaPrestamo : 
+                     b.fechaPrestamo?.toDate ? b.fechaPrestamo.toDate() : new Date(0);
+      return fechaB.getTime() - fechaA.getTime();
+    });
+    
+    console.log("🔍 prestamoService - Préstamos encontrados:", prestamos.length);
+    console.log("🔍 prestamoService - Detalle préstamos:", prestamos.map(p => ({ id: p.id, estado: p.estado })));
+    
+    return prestamos;
   } catch (error) {
-    console.error('Error al obtener préstamos por usuario:', error);
+    console.error('❌ prestamoService - Error al obtener préstamos por usuario:', error);
     throw error;
   }
 };
@@ -159,12 +176,21 @@ export const registrarDevolucion = async (prestamoId: string, observaciones?: st
     // 3. ACTUALIZAR CANTIDAD DISPONIBLE DEL MATERIAL (INCREMENTAR)
     console.log('📦 Incrementando cantidad disponible del material...');
     try {
-      const cantidadDevuelta = prestamo.cantidadPrestada || 1;
-      await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta); // Incrementar (cantidad positiva)
+      const cantidadDevuelta = prestamo.cantidadPrestada || 1;      await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta); // Incrementar (cantidad positiva)
       console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);
     } catch (materialError) {
       console.error('⚠️ Error incrementando cantidad disponible:', materialError);
       // No lanzamos error para evitar que falle la devolución
+    }
+    
+    // 4. Verificar si la actividad debe finalizarse automáticamente
+    if (prestamo.actividadId) {
+      try {
+        await verificarYActualizarEstadoActividad(prestamo.actividadId);
+      } catch (verifyError) {
+        console.error('⚠️ Error verificando estado de actividad:', verifyError);
+        // No lanzamos error para no interrumpir la devolución
+      }
     }
     
     console.log('🎉 registrarDevolucion - ÉXITO');
@@ -245,10 +271,19 @@ export const registrarDevolucionConIncidencia = async (
         // Incrementar cantidad disponible normalmente
         await actualizarCantidadDisponible(prestamo.materialId, cantidadDevuelta);
         console.log(`✅ Cantidad disponible incrementada: +${cantidadDevuelta} para material ${prestamo.materialId}`);
-      }
-    } catch (materialError) {
+      }    } catch (materialError) {
       console.error('⚠️ Error actualizando cantidad disponible:', materialError);
       // No lanzamos error para evitar que falle la devolución
+    }
+    
+    // 5. Verificar si la actividad debe finalizarse automáticamente
+    if (prestamo.actividadId) {
+      try {
+        await verificarYActualizarEstadoActividad(prestamo.actividadId);
+      } catch (verifyError) {
+        console.error('⚠️ Error verificando estado de actividad:', verifyError);
+        // No lanzamos error para no interrumpir la devolución
+      }
     }
     
     console.log('🎉 registrarDevolucionConIncidencia - ÉXITO');
@@ -968,7 +1003,7 @@ export const marcarPrestamosVencidosAutomaticamente = async (): Promise<{
   }
 };
 
-// Función para verificar si una actividad debe tener sus préstamos marcados automáticamente
+// Función para verificar si una actividad debe ser marcada como finalizada automáticamente
 export const verificarActividadParaMarcadoAutomatico = async (actividadId: string): Promise<boolean> => {
   try {
     console.log(`🔍 Verificando actividad ${actividadId} para marcado automático...`);
@@ -1113,10 +1148,16 @@ export const devolverTodosLosMaterialesActividad = async (
         console.error(`⚠️ Error actualizando cantidad disponible para material ${prestamo.materialId}:`, materialError);
         errores.push(`Error actualizando stock de ${prestamo.nombreMaterial}: ${materialError}`);
       }
-    }
-
-    // 6. Limpiar cache
+    }    // 6. Limpiar cache
     limpiarCacheVencidos();
+
+    // 7. Verificar si la actividad debe finalizarse automáticamente
+    try {
+      await verificarYActualizarEstadoActividad(actividadId);
+    } catch (verifyError) {
+      console.error('⚠️ Error verificando estado de actividad:', verifyError);
+      // No lanzamos error para no interrumpir el resultado de la devolución bulk
+    }
 
     console.log(`🎉 devolverTodosLosMaterialesActividad - COMPLETADO: ${exitosos} éxitos, ${errores.length} errores`);
     
@@ -1127,6 +1168,162 @@ export const devolverTodosLosMaterialesActividad = async (
 
   } catch (error) {
     console.error('❌ devolverTodosLosMaterialesActividad - ERROR CRÍTICO:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verifica si una actividad debe ser marcada como finalizada después de devolver material
+ * Una actividad se considera que todo está "devuelto" si:
+ * - No tiene materiales asignados, O
+ * - Todos los préstamos de materiales han sido devueltos (estado "devuelto")
+ */
+export const verificarYActualizarEstadoActividad = async (actividadId: string): Promise<void> => {
+  try {
+    console.log(`🔍 verificarYActualizarEstadoActividad - Verificando actividad: ${actividadId}`);
+    
+    // 1. Obtener información de la actividad
+    const { obtenerActividad } = await import('./actividadService');
+    const actividad = await obtenerActividad(actividadId);
+    
+    if (!actividad || actividad.estado === 'finalizada' || actividad.estado === 'cancelada') {
+      console.log(`⏭️ Actividad ${actividadId} ya está finalizada/cancelada o no existe`);
+      return;
+    }
+
+    // 2. Verificar si la fecha de fin ha pasado
+    const ahora = new Date();
+    const fechaFin = actividad.fechaFin instanceof Date ? actividad.fechaFin : 
+                    actividad.fechaFin?.toDate ? actividad.fechaFin.toDate() : null;
+    
+    const fechaFinPasada = fechaFin && ahora > fechaFin;
+
+    // 3. Verificar si todos los materiales han sido devueltos
+    let todosMaterialesDevueltos = true;
+    if (actividad.necesidadMaterial && actividad.materiales?.length > 0) {
+      const prestamosActividad = await obtenerPrestamosPorActividad(actividadId);
+      const prestamosActivos = prestamosActividad.filter(p => 
+        p.estado === 'en_uso' || p.estado === 'pendiente'
+      );
+      todosMaterialesDevueltos = prestamosActivos.length === 0;
+      
+      console.log(`📊 Préstamos activos restantes: ${prestamosActivos.length}`);
+    } else {
+      // Si no necesita material, se considera que todo está "devuelto"
+      console.log(`📝 Actividad sin material - considerada completa`);
+    }
+
+    // 4. Decidir si debe finalizarse
+    const debeFinalizarse = fechaFinPasada || todosMaterialesDevueltos;
+    
+    console.log(`📋 Estado actual: ${actividad.estado}`);
+    console.log(`📅 Fecha fin pasada: ${fechaFinPasada}`);
+    console.log(`📦 Todos materiales devueltos: ${todosMaterialesDevueltos}`);
+    console.log(`🎯 Debe finalizarse: ${debeFinalizarse}`);    // 5. Actualizar estado si es necesario
+    if (debeFinalizarse && !['finalizada', 'cancelada'].includes(actividad.estado)) {
+      console.log(`✅ Finalizando actividad automáticamente: ${actividad.nombre}`);
+      
+      await actualizarActividad(actividadId, {
+        estado: 'finalizada' as const
+      });
+      
+      console.log(`🎉 Actividad ${actividadId} marcada como finalizada automáticamente`);
+    } else {
+      console.log(`⏸️ No es necesario actualizar estado de la actividad`);
+    }
+
+  } catch (error) {
+    console.error(`❌ Error verificando estado de actividad ${actividadId}:`, error);
+    // No lanzar error para no interrumpir el flujo de devolución
+  }
+};
+
+/**
+ * Función para actualizar masivamente los estados de actividades según fechas y devoluciones
+ * Esta función se ejecuta periódicamente para mantener los estados actualizados
+ */
+export const actualizarEstadosActividades = async (): Promise<{ actualizadas: number; errores: string[] }> => {
+  console.log('🔄 actualizarEstadosActividades - INICIANDO revisión masiva de estados');
+    try {
+    const { listarActividades } = await import('./actividadService');
+    
+    // 1. Obtener todas las actividades que no estén canceladas o ya finalizadas
+    const actividades = await listarActividades({}, true); // ignorar cache para datos frescos
+    const actividadesARevisar = actividades.filter((a: any) => 
+      a.estado === 'planificada' || a.estado === 'en_curso'
+    );
+    
+    console.log(`📊 Revisando ${actividadesARevisar.length} actividades`);
+    
+    let actualizadas = 0;
+    const errores: string[] = [];
+    
+    for (const actividad of actividadesARevisar) {
+      try {
+        const ahora = new Date();
+        const fechaFin = actividad.fechaFin instanceof Date ? actividad.fechaFin : 
+                        actividad.fechaFin?.toDate ? actividad.fechaFin.toDate() : null;
+        
+        if (!fechaFin) continue;
+        
+        // 2. Verificar si la fecha de fin ha pasado
+        const fechaFinPasada = ahora > fechaFin;
+        
+        // 3. Si la fecha ha pasado, verificar el estado de materiales
+        if (fechaFinPasada) {
+          let todosMaterialesDevueltos = true;
+          
+          if (actividad.necesidadMaterial && actividad.materiales?.length > 0) {
+            // Verificar préstamos activos
+            const prestamosActividad = await obtenerPrestamosPorActividad(actividad.id!);
+            const prestamosActivos = prestamosActividad.filter(p => 
+              p.estado === 'en_uso' || p.estado === 'pendiente'
+            );
+            todosMaterialesDevueltos = prestamosActivos.length === 0;
+            
+            console.log(`📋 ${actividad.nombre}: ${prestamosActivos.length} préstamos activos`);
+          }
+          
+          // 4. Determinar nuevo estado
+          let nuevoEstado: 'en_curso' | 'finalizada' = 'finalizada';
+          
+          // Si la actividad ha pasado su fecha de fin
+          if (fechaFinPasada) {
+            nuevoEstado = 'finalizada';
+          }
+          // Si está en su periodo pero aún no ha terminado
+          else {
+            const fechaInicio = actividad.fechaInicio instanceof Date ? actividad.fechaInicio : 
+                               actividad.fechaInicio?.toDate ? actividad.fechaInicio.toDate() : null;
+            if (fechaInicio && ahora >= fechaInicio) {
+              nuevoEstado = 'en_curso';
+            }
+          }
+          
+          // 5. Actualizar si es necesario
+          if (actividad.estado !== nuevoEstado) {
+            console.log(`🔄 Actualizando "${actividad.nombre}": ${actividad.estado} → ${nuevoEstado}`);
+            
+            await actualizarActividad(actividad.id!, {
+              estado: nuevoEstado
+            });
+            
+            actualizadas++;
+          }
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error procesando actividad ${actividad.id}:`, error);
+        errores.push(`${actividad.nombre}: ${error}`);
+      }
+    }
+    
+    console.log(`✅ actualizarEstadosActividades - COMPLETADO: ${actualizadas} actualizadas, ${errores.length} errores`);
+    
+    return { actualizadas, errores };
+    
+  } catch (error) {
+    console.error('❌ Error en actualización masiva de estados:', error);
     throw error;
   }
 };

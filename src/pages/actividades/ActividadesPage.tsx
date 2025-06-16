@@ -41,7 +41,6 @@ import { listarActividades, obtenerActividadesProximas, obtenerActividadesClasif
 import { Actividad } from '../../types/actividad';
 import ActividadDetalle from '../../components/actividades/ActividadDetalle';
 import ActividadCard from '../../components/actividades/ActividadCard';
-import ActividadesConRetrasoTab from '../../components/actividades/ActividadesConRetrasoTab';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ActividadesPage: React.FC = () => {
@@ -280,7 +279,6 @@ const ActividadesPage: React.FC = () => {
               <Tab>Próximas</Tab>
               <Tab>Como Responsable</Tab>
               <Tab>Como Participante</Tab>
-              <Tab color="orange.500">Con Retraso</Tab>
             </TabList>
             
             <TabPanels>              {/* Pestaña de Todas las Actividades - Con separación de actividades antiguas */}
@@ -371,13 +369,7 @@ const ActividadesPage: React.FC = () => {
                       <Text>{messages.dashboard.sinActividadesParticipante}</Text>
                     </CardBody>
                   </Card>
-                )}
-              </TabPanel>
-
-              {/* Nueva pestaña de actividades con retraso */}
-              <TabPanel px={0}>
-                <ActividadesConRetrasoTab onActividadUpdated={cargarActividades} />
-              </TabPanel>
+                )}              </TabPanel>
             </TabPanels>
           </Tabs>
         )}

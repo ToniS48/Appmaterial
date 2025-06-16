@@ -128,8 +128,7 @@
           "fieldPath": "responsableActividad",
           "order": "ASCENDING"
         }
-      ]
-    },
+      ]    },
     {
       "collectionGroup": "prestamos",
       "queryScope": "COLLECTION",
@@ -137,6 +136,20 @@
         {
           "fieldPath": "responsableMaterial",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prestamos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "usuarioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaPrestamo",
+          "order": "DESCENDING"
         }
       ]
     }
