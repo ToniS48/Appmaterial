@@ -22,21 +22,20 @@ const VersionDisplay: React.FC<VersionDisplayProps> = ({
   format = 'version-only'
 }) => {
   const versionInfo = useVersionInfo();
-  
-  const getDisplayText = () => {
+    const getDisplayText = () => {
     switch (format) {
       case 'short':
-        return `${versionInfo.displayVersion} (${versionInfo.shortHash})`;
+        return `v${versionInfo.displayVersion} (${versionInfo.shortHash})`;
       case 'with-build':
-        return `${versionInfo.displayVersion}.${versionInfo.buildNumber}`;
+        return `v${versionInfo.displayVersion}.${versionInfo.buildNumber}`;
       case 'version-only':
       default:
-        return versionInfo.displayVersion;
+        return `v${versionInfo.displayVersion}`;
     }
   };
 
   const versionText = getDisplayText();
-  const fullVersionInfo = `Versión: ${versionInfo.version}\nCommit: ${versionInfo.shortHash} (${versionInfo.branchName})\nBuild: ${versionInfo.buildNumber}\nFecha commit: ${versionInfo.commitDate}\nFecha build: ${new Date(versionInfo.buildDate).toLocaleDateString('es-ES')}`;
+  const fullVersionInfo = `Versión: ${versionInfo.displayVersion}\nVersión base: ${versionInfo.version}\nCommit: ${versionInfo.shortHash} (${versionInfo.branchName})\nBuild: ${versionInfo.buildNumber}\nFecha commit: ${versionInfo.commitDate}\nFecha build: ${new Date(versionInfo.buildDate).toLocaleDateString('es-ES')}`;
 
   const VersionComponent = (
     <Box

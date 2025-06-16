@@ -2,6 +2,18 @@
 
 Este documento explica cómo funciona el sistema de versiones implementado en la aplicación.
 
+## ¿Por qué no cambia la versión con los commits?
+
+El sistema maneja **dos tipos de versiones**:
+
+1. **Versión Base** (`0.1.0`): Del `package.json`, se cambia manualmente para releases importantes
+2. **Versión Automática** (`0.1.66`): Se genera automáticamente como `{major}.{minor}.{commits}`
+
+### Ejemplo Actual:
+- **Versión base**: `0.1.0` (del package.json)
+- **Versión automática**: `0.1.66` (0.1 + 66 commits)
+- **Versión mostrada**: `v0.1.66` (la automática)
+
 ## Componentes Creados
 
 ### 1. `VersionDisplay.tsx`
@@ -55,12 +67,14 @@ Se han añadido los siguientes scripts:
 
 ### Variables de Entorno
 El script genera automáticamente estas variables:
-- `REACT_APP_VERSION`
-- `REACT_APP_COMMIT_HASH`
-- `REACT_APP_BUILD_NUMBER`
-- `REACT_APP_COMMIT_DATE`
-- `REACT_APP_BRANCH_NAME`
-- `REACT_APP_BUILD_DATE`
+- `REACT_APP_VERSION`: Versión base del package.json
+- `REACT_APP_AUTO_VERSION`: Versión automática con commits
+- `REACT_APP_DISPLAY_VERSION`: Versión que se muestra en la UI
+- `REACT_APP_COMMIT_HASH`: Hash completo del commit
+- `REACT_APP_BUILD_NUMBER`: Número de commits (build number)
+- `REACT_APP_COMMIT_DATE`: Fecha del commit
+- `REACT_APP_BRANCH_NAME`: Rama actual
+- `REACT_APP_BUILD_DATE`: Fecha del build
 
 ## Uso en la Aplicación
 

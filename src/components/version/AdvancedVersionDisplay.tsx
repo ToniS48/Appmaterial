@@ -52,16 +52,27 @@ const VersionInfoModal: React.FC<VersionInfoModalProps> = ({ isOpen, onClose }) 
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
-          <VStack spacing={4} align="stretch">
-            <Box>
+          <VStack spacing={4} align="stretch">            <Box>
               <HStack justify="space-between" mb={2}>
                 <HStack>
                   <Icon as={FiTag} color="blue.500" />
                   <Text fontWeight="semibold">Versión:</Text>
                 </HStack>
                 <Badge colorScheme="blue" fontSize="sm">
-                  {versionInfo.displayVersion}
+                  v{versionInfo.displayVersion}
                 </Badge>
+              </HStack>
+            </Box>
+
+            <Box>
+              <HStack justify="space-between" mb={2}>
+                <HStack>
+                  <Icon as={FiTag} color="gray.500" />
+                  <Text fontWeight="semibold" fontSize="sm">Base:</Text>
+                </HStack>
+                <Text fontSize="sm" color="gray.600">
+                  v{versionInfo.version}
+                </Text>
               </HStack>
             </Box>
 
@@ -156,16 +167,15 @@ const AdvancedVersionDisplay: React.FC<AdvancedVersionDisplayProps> = ({
 }) => {
   const versionInfo = useVersionInfo();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
-  const getDisplayText = () => {
+    const getDisplayText = () => {
     switch (format) {
       case 'short':
-        return `${versionInfo.displayVersion} (${versionInfo.shortHash})`;
+        return `v${versionInfo.displayVersion} (${versionInfo.shortHash})`;
       case 'with-build':
-        return `${versionInfo.displayVersion}.${versionInfo.buildNumber}`;
+        return `v${versionInfo.displayVersion}.${versionInfo.buildNumber}`;
       case 'version-only':
       default:
-        return versionInfo.displayVersion;
+        return `v${versionInfo.displayVersion}`;
     }
   };
 

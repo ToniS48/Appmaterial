@@ -40,8 +40,15 @@ function generateVersionInfo() {
   const packageJson = require('../package.json');
   const gitInfo = getGitInfo();
   
+  // Generar versión automática basada en commits
+  const baseVersion = packageJson.version; // 0.1.0
+  const majorMinor = baseVersion.split('.').slice(0, 2).join('.'); // 0.1
+  const autoVersion = `${majorMinor}.${gitInfo.commitCount}`; // 0.1.65
+  
   const versionInfo = {
-    version: packageJson.version,
+    version: baseVersion, // Versión original del package.json
+    autoVersion: autoVersion, // Versión automática con build
+    displayVersion: autoVersion, // Versión que se mostrará
     name: packageJson.name,
     ...gitInfo
   };
@@ -49,9 +56,10 @@ function generateVersionInfo() {
   // Crear el archivo de información de versión
   const versionFilePath = path.join(__dirname, '../src/version-info.json');
   fs.writeFileSync(versionFilePath, JSON.stringify(versionInfo, null, 2));
-  
-  // Crear archivo .env.local para variables de entorno
+    // Crear archivo .env.local para variables de entorno
   const envContent = `REACT_APP_VERSION=${versionInfo.version}
+REACT_APP_AUTO_VERSION=${versionInfo.autoVersion}
+REACT_APP_DISPLAY_VERSION=${versionInfo.displayVersion}
 REACT_APP_COMMIT_HASH=${versionInfo.commitHash}
 REACT_APP_BUILD_NUMBER=${versionInfo.commitCount}
 REACT_APP_COMMIT_DATE=${versionInfo.commitDate}
@@ -61,9 +69,9 @@ REACT_APP_BUILD_DATE=${versionInfo.buildDate}
   
   const envFilePath = path.join(__dirname, '../.env.local');
   fs.writeFileSync(envFilePath, envContent);
-  
-  console.log('✅ Información de versión generada:');
-  console.log(`   Versión: ${versionInfo.version}`);
+    console.log('✅ Información de versión generada:');
+  console.log(`   Versión base: ${versionInfo.version}`);
+  console.log(`   Versión auto: ${versionInfo.autoVersion}`);
   console.log(`   Commit: ${versionInfo.commitHash.substring(0, 7)}`);
   console.log(`   Build: ${versionInfo.commitCount}`);
   console.log(`   Rama: ${versionInfo.branchName}`);
