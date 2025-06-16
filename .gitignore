@@ -18,6 +18,10 @@
 .env.development.local
 .env.test.local
 .env.production.local
+
+# archivos generados por el script de versión
+/src/version-info.json
+
 AppMaterial_IA_copia.txt
 paleta.txt
 npm-debug.log*

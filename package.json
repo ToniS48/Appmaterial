@@ -46,14 +46,15 @@
     "xlsx": "^0.18.5",
     "zod": "^3.25.7",
     "zustand": "^5.0.5"
-  },
-  "scripts": {
-    "start": "react-scripts start",
+  },  "scripts": {
+    "prebuild": "node scripts/generate-version.js",
+    "start": "node scripts/generate-version.js && react-scripts start",
     "build": "react-scripts build",
     "build:ci": "CI=false react-scripts build",
     "test": "react-scripts test",
     "test:single": "react-scripts test --watchAll=false --testTimeout=15000",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "version:generate": "node scripts/generate-version.js"
   },
   "eslintConfig": {
     "extends": [

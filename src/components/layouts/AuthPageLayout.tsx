@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Container, Flex, Link, Text, VStack, Image, Center } from '@chakra-ui/react';
 import logoEspemo from '../../assets/images/logoEspemo.png';
+import VersionDisplay from '../version/VersionDisplay';
 
 interface AuthPageLayoutProps {
   children: React.ReactNode;
@@ -18,9 +19,8 @@ const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
   bottomLinkHref,
   bottomLinkLabel,
   termsText
-}) => {
-  return (
-    <Flex minH="100vh" align="center" justify="center" bg="gray.50">
+}) => {  return (
+    <Flex minH="100vh" align="center" justify="center" bg="gray.50" position="relative">
       <Container maxW="lg" p={6}>
         <VStack spacing={6} align="center">
           <Box 
@@ -64,10 +64,20 @@ const AuthPageLayout: React.FC<AuthPageLayoutProps> = ({
           {termsText && (
             <Text fontSize="sm" color="gray.500" className="text-center mb-4">
               {termsText}
-            </Text>
-          )}
+            </Text>          )}
         </VStack>
       </Container>
+      
+      {/* Componente de versión en la esquina inferior derecha */}
+      <VersionDisplay 
+        position="fixed"
+        bottom="16px"
+        right="16px"
+        fontSize="xs"
+        color="gray.400"
+        showTooltip={true}
+        format="version-only"
+      />
     </Flex>
   );
 };
