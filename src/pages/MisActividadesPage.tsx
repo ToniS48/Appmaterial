@@ -37,7 +37,7 @@ import {
   StatNumber,
   StatHelpText
 } from '@chakra-ui/react';
-import { FiPackage, FiCalendar, FiUser, FiUsers, FiShield, FiRefreshCw, FiEdit } from 'react-icons/fi';
+import { FiPackage, FiCalendar, FiUser, FiUsers, FiShield, FiRefreshCw, FiEdit, FiXCircle } from 'react-icons/fi';
 import { RefreshCw, AlertTriangle, Calendar, Package } from 'lucide-react';
 import { AddIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
@@ -312,6 +312,67 @@ const MisActividadesPage: React.FC = () => {
     setSelectedActividadRetraso(actividad);
     onRetrasoOpen();
   };
+
+  // Función para cancelar una actividad
+  const handleCancelarActividad = async (actividad: Actividad) => {
+    // Mostrar confirmación antes de cancelar
+    const confirmar = window.confirm(
+      `¿Estás seguro de que quieres cancelar la actividad "${actividad.nombre}"?\n\n` +
+      'Esta acción:\n' +
+      '• Marcará la actividad como "Cancelada"\n' +
+      '• Devolverá automáticamente todo el material prestado\n' +
+      '• No se puede deshacer\n\n' +
+      '¿Deseas continuar?'
+    );
+
+    if (!confirmar) return;
+
+    try {
+      // Importar la función de cancelar actividad
+      const { cancelarActividad } = await import('../services/actividadService');
+      
+      console.log(`🚫 Cancelando actividad: ${actividad.nombre}`);
+      await cancelarActividad(actividad.id!);
+      
+      // Si tenía material, devolverlo automáticamente
+      if (actividad.necesidadMaterial && actividad.materiales?.length > 0) {
+        try {
+          const { devolverTodosLosMaterialesActividad } = await import('../services/prestamoService');
+          const resultado = await devolverTodosLosMaterialesActividad(
+            actividad.id!, 
+            'Material devuelto automáticamente al cancelar la actividad'
+          );
+          
+          console.log(`📦 Material devuelto automáticamente: ${resultado.exito} éxitos, ${resultado.errores.length} errores`);
+        } catch (devolucionError) {
+          console.warn('⚠️ Error devolviendo material al cancelar actividad:', devolucionError);
+          // No bloquear el proceso de cancelación por errores de devolución
+        }
+      }
+      
+      toast({
+        title: 'Actividad cancelada',
+        description: `La actividad "${actividad.nombre}" ha sido cancelada exitosamente`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // Recargar actividades para reflejar el cambio
+      await recargarActividades();
+      
+    } catch (error) {
+      console.error('Error al cancelar actividad:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cancelar la actividad. Inténtalo de nuevo.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
   // Cargar actividades con retraso cuando se monte el componente o cambie el usuario
   useEffect(() => {
     if (userProfile?.uid) {
@@ -389,27 +450,53 @@ const MisActividadesPage: React.FC = () => {
         mb={6} 
         variant="outline"
         borderLeft="4px solid"
-        borderLeftColor={rolesUsuario.length > 0 ? `${rolesUsuario[0].color}.400` : 'gray.200'}
+        borderLeftColor={
+          actividad.estado === 'cancelada' ? 'red.400' :
+          rolesUsuario.length > 0 ? `${rolesUsuario[0].color}.400` : 'gray.200'
+        }
         _hover={{ 
-          boxShadow: 'md', 
-          transform: 'translateY(-2px)',
+          boxShadow: actividad.estado === 'cancelada' ? 'sm' : 'md', 
+          transform: actividad.estado === 'cancelada' ? 'none' : 'translateY(-2px)',
           transition: 'all 0.2s'
         }}
-        bg="white"
+        bg={actividad.estado === 'cancelada' ? 'gray.50' : 'white'}
+        opacity={actividad.estado === 'cancelada' ? 0.75 : 1}
+        _dark={{
+          bg: actividad.estado === 'cancelada' ? 'gray.800' : 'gray.700'
+        }}
       >
         <CardBody>
           {/* Header con nombre y badges */}
           <Flex justify="space-between" align="start" mb={3}>
-            <Heading size="sm">{actividad.nombre}</Heading>
+            <Heading 
+              size="sm"
+              textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
+              color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
+            >
+              {actividad.nombre}
+            </Heading>
             <Flex mt={1} gap={2} flexWrap="wrap">
+              {/* Badge especial para actividades canceladas */}
+              {actividad.estado === 'cancelada' && (
+                <Badge colorScheme="red" size="sm" variant="solid">
+                  🚫 CANCELADA
+                </Badge>
+              )}
               {rolesUsuario.map((rol, index) => (
-                <Badge key={index} colorScheme={rol.color} size="sm">
+                <Badge 
+                  key={index} 
+                  colorScheme={rol.color} 
+                  size="sm"
+                  opacity={actividad.estado === 'cancelada' ? 0.7 : 1}
+                >
                   {rol.tipo}
                 </Badge>
               ))}
-              <Badge colorScheme={estado.color} size="sm">
-                {estado.label}
-              </Badge>
+              {actividad.estado !== 'cancelada' && (
+                <Badge colorScheme={estado.color} size="sm">
+                  {estado.label}
+                </Badge>
+              )}
             </Flex>
           </Flex>
           
@@ -433,7 +520,7 @@ const MisActividadesPage: React.FC = () => {
           
           {/* Botones de acción al final de la tarjeta */}
           {actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && rolesUsuario.length > 0 && (
-            <Flex justify="flex-end" width="100%" mt={4} gap={2}>
+            <Flex justify="flex-end" width="100%" mt={4} gap={2} flexWrap="wrap">
               {/* Botón Editar para actividades activas */}
               <Button 
                 size={{ base: "sm", md: "md" }}
@@ -443,6 +530,17 @@ const MisActividadesPage: React.FC = () => {
                 width={{ base: "100%", sm: "auto" }}
               >
                 Editar
+              </Button>
+              
+              {/* Botón Cancelar para actividades activas */}
+              <Button 
+                size={{ base: "sm", md: "md" }}
+                colorScheme="orange"
+                leftIcon={<FiXCircle />}
+                onClick={() => handleCancelarActividad(actividad)}
+                width={{ base: "100%", sm: "auto" }}
+              >
+                Cancelar
               </Button>
               
               {/* Botón Devolución de material para actividades vencidas */}

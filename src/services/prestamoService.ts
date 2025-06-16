@@ -1287,23 +1287,39 @@ export const verificarYActualizarEstadoActividad = async (actividadId: string): 
     } else {
       // Si no necesita material, se considera que todo está "devuelto"
       console.log(`📝 Actividad sin material - considerada completa`);
+    }    // 4. Decidir si debe finalizarse basado en el estado actual
+    let debeFinalizarse = false;
+    let nuevoEstado: string | null = null;
+    
+    if (fechaFinPasada) {
+      // Si la fecha fin ha pasado, siempre debe finalizarse
+      debeFinalizarse = true;
+      nuevoEstado = 'finalizada';
+    } else if (todosMaterialesDevueltos && actividad.estado === 'en_curso') {
+      // Solo finalizar por devolución de material si la actividad estaba en curso
+      debeFinalizarse = true;
+      nuevoEstado = 'finalizada';
+    } else if (todosMaterialesDevueltos && actividad.estado === 'planificada') {
+      // Si estaba planificada y se devolvió material, mantener como planificada
+      // (el material se devolvió anticipadamente, pero la actividad sigue programada)
+      console.log(`📝 Actividad planificada con material devuelto - mantener como planificada`);
     }
-
-    // 4. Decidir si debe finalizarse
-    const debeFinalizarse = fechaFinPasada || todosMaterialesDevueltos;
     
     console.log(`📋 Estado actual: ${actividad.estado}`);
     console.log(`📅 Fecha fin pasada: ${fechaFinPasada}`);
     console.log(`📦 Todos materiales devueltos: ${todosMaterialesDevueltos}`);
-    console.log(`🎯 Debe finalizarse: ${debeFinalizarse}`);    // 5. Actualizar estado si es necesario
-    if (debeFinalizarse && !['finalizada', 'cancelada'].includes(actividad.estado)) {
+    console.log(`🎯 Debe finalizarse: ${debeFinalizarse}`);
+    console.log(`🔄 Nuevo estado propuesto: ${nuevoEstado}`);
+
+    // 5. Actualizar estado si es necesario
+    if (debeFinalizarse && nuevoEstado && !['finalizada', 'cancelada'].includes(actividad.estado)) {
       console.log(`✅ Finalizando actividad automáticamente: ${actividad.nombre}`);
       
       await actualizarActividad(actividadId, {
-        estado: 'finalizada' as const
+        estado: nuevoEstado as 'finalizada'
       });
       
-      console.log(`🎉 Actividad ${actividadId} marcada como finalizada automáticamente`);
+      console.log(`🎉 Actividad ${actividadId} marcada como ${nuevoEstado} automáticamente`);
     } else {
       console.log(`⏸️ No es necesario actualizar estado de la actividad`);
     }

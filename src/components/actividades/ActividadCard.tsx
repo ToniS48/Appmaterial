@@ -33,6 +33,7 @@ interface ActividadCardProps {
   onVerDetalles?: () => void;
   onEditar?: () => void;
   onEliminar?: () => void;
+  onCancelar?: () => void; // Nueva prop para cancelar/anular actividad
   onUnirse?: () => void; // Nueva prop para unirse a actividad
   mostrarBotones?: boolean;
   mostrarDescripcion?: boolean;
@@ -44,6 +45,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   onVerDetalles,
   onEditar,
   onEliminar,
+  onCancelar,
   onUnirse,
   mostrarBotones = true,
   mostrarDescripcion = true,
@@ -93,6 +95,12 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
     if (onEliminar) {
       deferCallback(onEliminar);
     }  }, [onEliminar]);
+
+  const handleCancelar = useCallback(() => {
+    if (onCancelar) {
+      deferCallback(onCancelar);
+    }
+  }, [onCancelar]);
 
   const handleUnirse = useCallback(() => {
     if (onUnirse) {
@@ -146,9 +154,10 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
       mb={4} 
       overflow="hidden" 
       variant={variant === 'simple' ? 'outline' : 'elevated'}
-      _hover={{ boxShadow: 'md' }}
+      _hover={{ boxShadow: actividad.estado === 'cancelada' ? 'sm' : 'md' }}
       borderLeft="4px solid"
       borderColor={
+        actividad.estado === 'cancelada' ? "red.400" :
         esResponsable ? "purple.500" : 
         esParticipante ? "blue.400" : 
         "transparent"
@@ -156,6 +165,12 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
       height={variant === 'complete' ? { base: "auto", md: "220px" } : "auto"}
       display="flex"
       flexDirection="column"
+      // Estilos específicos para actividades canceladas
+      opacity={actividad.estado === 'cancelada' ? 0.7 : 1}
+      bg={actividad.estado === 'cancelada' ? 'gray.50' : 'white'}
+      _dark={{
+        bg: actividad.estado === 'cancelada' ? 'gray.800' : 'gray.700'
+      }}
     >
       <CardBody 
         p={variant === 'simple' ? 2 : 4}
@@ -166,10 +181,21 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
       >
         <Flex justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
-            <Heading size={variant === 'simple' ? 'xs' : 'sm'}>
+            <Heading 
+              size={variant === 'simple' ? 'xs' : 'sm'}
+              textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
+              color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
+            >
               {actividad.nombre}
               {actividad.lugar && (
-                <Text as="span" fontWeight="normal" fontSize={variant === 'simple' ? 'xs' : 'sm'} ml={1}>
+                <Text 
+                  as="span" 
+                  fontWeight="normal" 
+                  fontSize={variant === 'simple' ? 'xs' : 'sm'} 
+                  ml={1}
+                  textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
+                  color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
+                >
                   ({actividad.lugar})
                 </Text>
               )}
@@ -214,16 +240,17 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   label="Participante" 
                   color="gray" 
                   size={variant === 'simple' ? 3.5 : 4} 
-                />
-              )}
-                {/* Estado de la actividad como IconBadge */}<IconBadge 
+                />              )}
+
+              {/* Estado de la actividad como IconBadge */}
+              <IconBadge 
                 icon={
                   actividad.estado === 'planificada' ? FiClock :
                   actividad.estado === 'en_curso' ? FiCheckCircle :
                   actividad.estado === 'finalizada' ? FiCheck :
                   FiXCircle
                 }
-                label={estadoDisplay.label} 
+                label={actividad.estado === 'cancelada' ? '🚫 CANCELADA' : estadoDisplay.label} 
                 color={estadoDisplay.color as any}
                 size={variant === 'simple' ? 3.5 : 4}
               />
@@ -269,6 +296,8 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 fontSize={variant === 'simple' ? 'xs' : 'sm'} 
                 noOfLines={2}
                 overflow="hidden"
+                color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
+                opacity={actividad.estado === 'cancelada' ? 0.7 : 1}
               >
                 {actividad.descripcion}
               </Text>
@@ -317,7 +346,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
               >
                 Unirme
               </Button>            )}
-              {onEditar && actividad.estado !== 'finalizada' && (
+              {onEditar && actividad.estado !== 'finalizada' && actividad.estado !== 'cancelada' && (
               <Button 
                 size={variant === 'simple' ? 'xs' : 'sm'}
                 colorScheme="blue" 
@@ -327,6 +356,19 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 w={{ base: "100%", sm: "auto" }}
               >
                 Editar
+              </Button>
+            )}
+            
+            {onCancelar && actividad.estado !== 'finalizada' && actividad.estado !== 'cancelada' && (
+              <Button 
+                size={variant === 'simple' ? 'xs' : 'sm'}
+                colorScheme="orange" 
+                leftIcon={<FiXCircle />}
+                onClick={handleCancelar}
+                mb={{ base: 1, sm: 0 }}
+                w={{ base: "100%", sm: "auto" }}
+              >
+                Cancelar
               </Button>
             )}
             

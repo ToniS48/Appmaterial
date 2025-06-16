@@ -148,12 +148,11 @@ const ActividadesPage: React.FC = () => {
         status: "success",
         duration: 3000,
         isClosable: true,
-      });
-      
-      // Recargar datos para reflejar cambios
+      });      
+      // Recargar actividades para reflejar cambios
       await cargarActividades();
     } catch (error) {
-      console.error("Error al unirse a la actividad:", error);
+      console.error('Error al unirse a la actividad:', error);
       toast({
         title: "Error",
         description: "No se pudo unir a la actividad",
@@ -164,6 +163,82 @@ const ActividadesPage: React.FC = () => {
     }
   };
 
+  // Función para cancelar una actividad (solo para responsables)
+  const handleCancelarActividad = async (actividad: Actividad) => {
+    // Verificar que el usuario sea responsable
+    const esResponsable = 
+      actividad.creadorId === userProfile?.uid || 
+      actividad.responsableActividadId === userProfile?.uid || 
+      actividad.responsableMaterialId === userProfile?.uid;
+
+    if (!esResponsable) {
+      toast({
+        title: "Sin permisos",
+        description: "Solo los responsables pueden cancelar actividades",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Mostrar confirmación antes de cancelar
+    const confirmar = window.confirm(
+      `¿Estás seguro de que quieres cancelar la actividad "${actividad.nombre}"?\n\n` +
+      'Esta acción:\n' +
+      '• Marcará la actividad como "Cancelada"\n' +
+      '• Devolverá automáticamente todo el material prestado\n' +
+      '• No se puede deshacer\n\n' +
+      '¿Deseas continuar?'
+    );
+
+    if (!confirmar) return;
+
+    try {
+      // Importar la función de cancelar actividad
+      const { cancelarActividad } = await import('../../services/actividadService');
+      
+      console.log(`🚫 Cancelando actividad: ${actividad.nombre}`);
+      await cancelarActividad(actividad.id!);
+      
+      // Si tenía material, devolverlo automáticamente
+      if (actividad.necesidadMaterial && actividad.materiales?.length > 0) {
+        try {
+          const { devolverTodosLosMaterialesActividad } = await import('../../services/prestamoService');
+          const resultado = await devolverTodosLosMaterialesActividad(
+            actividad.id!, 
+            'Material devuelto automáticamente al cancelar la actividad'
+          );
+          
+          console.log(`📦 Material devuelto automáticamente: ${resultado.exito} éxitos, ${resultado.errores.length} errores`);
+        } catch (devolucionError) {
+          console.warn('⚠️ Error devolviendo material al cancelar actividad:', devolucionError);
+          // No bloquear el proceso de cancelación por errores de devolución
+        }
+      }
+      
+      toast({
+        title: 'Actividad cancelada',
+        description: `La actividad "${actividad.nombre}" ha sido cancelada exitosamente`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });      
+      // Recargar actividades para reflejar el cambio
+      await cargarActividades();
+      
+    } catch (error) {
+      console.error('Error al cancelar actividad:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cancelar la actividad. Inténtalo de nuevo.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+  
   // Separar actividades actuales de antiguas para la pestaña "Todas"
   const actividadesSeparadas = useMemo(() => {
     const hoy = new Date();
@@ -212,7 +287,8 @@ const ActividadesPage: React.FC = () => {
         key={actividad.id}
         actividad={actividad}
         onVerDetalles={() => handleVerDetalle(actividad)}
-        onEditar={() => navigate(`/activities/edit/${actividad.id}`)}
+        onEditar={esResponsable ? () => navigate(`/activities/edit/${actividad.id}`) : undefined}
+        onCancelar={esResponsable ? () => handleCancelarActividad(actividad) : undefined}
         onUnirse={() => handleUnirseActividad(actividad.id as string)}
         variant="complete"
         mostrarBotones={true}
