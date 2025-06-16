@@ -37,7 +37,7 @@ import {
   StatNumber,
   StatHelpText
 } from '@chakra-ui/react';
-import { FiPackage, FiCalendar, FiUser, FiUsers, FiShield, FiRefreshCw } from 'react-icons/fi';
+import { FiPackage, FiCalendar, FiUser, FiUsers, FiShield, FiRefreshCw, FiEdit } from 'react-icons/fi';
 import { RefreshCw, AlertTriangle, Calendar, Package } from 'lucide-react';
 import { AddIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
@@ -46,12 +46,10 @@ import DashboardLayout from '../components/layouts/DashboardLayout';
 import { Actividad } from '../types/actividad';
 import { obtenerActividadesClasificadas } from '../services/actividadService';
 import { 
-  detectarActividadesConRetraso, 
-  notificarActividadesConRetraso,
+  detectarActividadesConRetraso,   notificarActividadesConRetraso,
   finalizarActividadConRetraso,
   ActividadConRetraso 
 } from '../services/actividadRetrasoService';
-import PrestamoForm from '../components/prestamos/PrestamoForm';
 import { ActividadConRetrasoIndicador } from '../components/actividades/ActividadConRetrasoIndicador';
 import { formatFecha } from '../utils/dateUtils';
 import messages from '../constants/messages';
@@ -64,17 +62,13 @@ const MisActividadesPage: React.FC = () => {
   // Estados separados por tipo de responsabilidad
   const [actividadesRespActividad, setActividadesRespActividad] = useState<Actividad[]>([]);
   const [actividadesRespMaterial, setActividadesRespMaterial] = useState<Actividad[]>([]);
-  const [actividadesParticipante, setActividadesParticipante] = useState<Actividad[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [actividadesParticipante, setActividadesParticipante] = useState<Actividad[]>([]);  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [actividadSeleccionada, setActividadSeleccionada] = useState<Actividad | null>(null);
-  
-  // Estados para actividades con retraso
+    // Estados para actividades con retraso
   const [actividadesConRetraso, setActividadesConRetraso] = useState<ActividadConRetraso[]>([]);
   const [isLoadingRetraso, setIsLoadingRetraso] = useState(false);
   const [selectedActividadRetraso, setSelectedActividadRetraso] = useState<ActividadConRetraso | null>(null);
   
-  const { isOpen: isPrestamoOpen, onOpen: onPrestamoOpen, onClose: onPrestamoClose } = useDisclosure();
   const { isOpen: isRetrasoOpen, onOpen: onRetrasoOpen, onClose: onRetrasoClose } = useDisclosure();
 
   // Cargar actividades del usuario clasificadas
@@ -433,32 +427,39 @@ const MisActividadesPage: React.FC = () => {
           </Flex>
           
           <Text fontSize="sm" mt={2}>Lugar: {actividad.lugar || 'No especificado'}</Text>
-          
-          {actividad.descripcion && (
+            {actividad.descripcion && (
             <Text fontSize="sm" mt={2} noOfLines={2}>{actividad.descripcion}</Text>
           )}
           
           {/* Botones de acción al final de la tarjeta */}
           {actividad.estado !== 'cancelada' && actividad.estado !== 'finalizada' && rolesUsuario.length > 0 && (
-            <Flex justify="flex-end" width="100%" mt={4}>
+            <Flex justify="flex-end" width="100%" mt={4} gap={2}>
+              {/* Botón Editar para actividades activas */}
               <Button 
                 size={{ base: "sm", md: "md" }}
-                colorScheme={isActividadVencida(actividad) ? "red" : "purple"} 
-                leftIcon={<FiPackage />}
-                onClick={() => {
-                  if (isActividadVencida(actividad)) {
-                    // Para actividades vencidas, navegar a la página de devolución
-                    navigate('/devolucion-material');
-                  } else {
-                    // Para actividades activas, abrir el modal de gestión de material
-                    setActividadSeleccionada(actividad);
-                    onPrestamoOpen();
-                  }
-                }}
+                colorScheme="blue"
+                leftIcon={<FiEdit />}
+                onClick={() => navigate(`/activities/edit/${actividad.id}`)}
                 width={{ base: "100%", sm: "auto" }}
               >
-                {isActividadVencida(actividad) ? "Devolución de material" : "Gestionar material"}
+                Editar
               </Button>
+              
+              {/* Botón Devolución de material para actividades vencidas */}
+              {isActividadVencida(actividad) && (
+                <Button 
+                  size={{ base: "sm", md: "md" }}
+                  colorScheme="red"
+                  leftIcon={<FiPackage />}
+                  onClick={() => {
+                    // Para actividades vencidas, navegar a la página de devolución
+                    navigate('/devolucion-material');
+                  }}
+                  width={{ base: "100%", sm: "auto" }}
+                >
+                  Devolución de material
+                </Button>
+              )}
             </Flex>
           )}
         </CardBody>
@@ -757,28 +758,8 @@ const MisActividadesPage: React.FC = () => {
                 </TabPanel>
               </TabPanels>
             </Tabs>
-          )}
-        </Box>
+          )}        </Box>
       </Flex>
-        {/* Modal para gestión de material/préstamo */}
-      <Modal isOpen={isPrestamoOpen} onClose={onPrestamoClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Gestión de Material</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>            {actividadSeleccionada && (
-              <PrestamoForm
-                preselectedActividadId={actividadSeleccionada.id}
-                onSuccess={() => {
-                  onPrestamoClose();
-                  recargarActividades();
-                }}
-                onCancel={onPrestamoClose}
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
 
       {/* Modal de detalle de actividad con retraso */}
       <Modal isOpen={isRetrasoOpen} onClose={onRetrasoClose} size="xl">

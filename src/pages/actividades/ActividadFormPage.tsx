@@ -7,6 +7,7 @@ import {
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiArrowRight, FiSave, FiFileText, FiUsers, FiPackage, FiLink, FiCheck, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Timestamp } from 'firebase/firestore';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { ActividadInfoForm } from '../../components/actividades/ActividadInfoForm';
 import ParticipantesEditor from '../../components/actividades/ParticipantesEditor';
@@ -137,8 +138,45 @@ export default function ActividadFormPage() {
     if (watchedMateriales && Array.isArray(watchedMateriales)) {
       console.log("🔄 ActividadFormPage - Sincronizando materiales desde formulario hacia hook:", watchedMateriales);
       updateMaterial(watchedMateriales);
+    }  }, [watchedMateriales, updateMaterial]);
+
+  // Función helper para convertir fechas de Timestamp a Date
+  const convertTimestampToDate = (timestamp: any): Date | undefined => {
+    if (!timestamp) return undefined;
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp instanceof Timestamp) return timestamp.toDate();
+    if (typeof timestamp === 'object' && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
     }
-  }, [watchedMateriales, updateMaterial]);
+    return timestamp;
+  };
+
+  // 🔧 CORRECCIÓN CRÍTICA: Sincronizar datos cargados con React Hook Form para actividades existentes
+  useEffect(() => {
+    // Solo sincronizar cuando:
+    // 1. Estamos editando una actividad existente (id existe)
+    // 2. Ya terminó de cargar (loading === false)
+    // 3. Hay datos cargados (formData no está vacío)
+    // 4. El formulario no está "sucio" (sin cambios locales que podrían perderse)
+    if (id && !loading && formData && Object.keys(formData).length > 1 && !methods.formState.isDirty) {
+      console.log('🔄 ActividadFormPage - Sincronizando datos cargados con React Hook Form:', formData);
+      
+      // Convertir Timestamps de Firebase a objetos Date para React Hook Form
+      const formDataForReset = {
+        ...formData,
+        fechaInicio: convertTimestampToDate(formData.fechaInicio),
+        fechaFin: convertTimestampToDate(formData.fechaFin),
+        fechaCreacion: convertTimestampToDate(formData.fechaCreacion),
+        fechaActualizacion: convertTimestampToDate(formData.fechaActualizacion)
+      };
+      
+      // Resetear el formulario con los datos cargados de la actividad
+      methods.reset(formDataForReset);
+      
+      // Marcar que hemos cargado los datos para evitar bucles infinitos
+      setHasRecoveredDraft(true);
+    }
+  }, [id, loading, formData, methods, methods.formState.isDirty]);
 
   // Función para avanzar a la siguiente pestaña
   const nextTab = () => {

@@ -207,15 +207,12 @@ const ActividadesPage: React.FC = () => {
       actividad.responsableActividadId === userProfile?.uid || 
       actividad.responsableMaterialId === userProfile?.uid;
       // Determinar si el usuario es participante pero no responsable
-    const esParticipante = !esResponsable;
-
-    return (
+    const esParticipante = !esResponsable;    return (
       <ActividadCard 
         key={actividad.id}
         actividad={actividad}
         onVerDetalles={() => handleVerDetalle(actividad)}
         onEditar={() => navigate(`/activities/edit/${actividad.id}`)}
-        onGestionarMaterial={() => navigate(`/activities/${actividad.id}/material`)}
         onUnirse={() => handleUnirseActividad(actividad.id as string)}
         variant="complete"
         mostrarBotones={true}

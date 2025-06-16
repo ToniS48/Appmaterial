@@ -12,7 +12,6 @@ import ActividadesPage from '../pages/actividades/ActividadesPage';
 import CalendarioPage from '../pages/actividades/CalendarioPage';
 import ActividadPage from '../pages/actividades/ActividadPage';
 import ActividadFormPage from '../pages/actividades/ActividadFormPage';
-import ActividadMaterialPage from '../pages/actividades/ActividadMaterialPage';
 import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';
 import GestionMaterialPage from '../pages/material/GestionMaterialPage';
 import ProfilePage from '../pages/usuario/ProfilePage';
@@ -106,14 +105,7 @@ const AppRoutes: React.FC = () => {
             <ActividadFormPage />
           </ProtectedRoute>
         }
-      />
-      <Route 
-        path="/activities/:id/material" 
-        element={
-          <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-            <ActividadMaterialPage />          </ProtectedRoute>        }
-      />
-      <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}><MaterialInventoryPage /></ProtectedRoute>} />
+      />      <Route path="/material/inventario" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}><MaterialInventoryPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}><ProfilePage /></ProtectedRoute>} />
       <Route 
         path="/notificaciones" 
@@ -168,14 +160,7 @@ const AppRoutes: React.FC = () => {
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <ActividadFormPage />
         </ProtectedRoute>
-      } />
-
-      {/* RUTAS DINÁMICAS */}
-      <Route path="/activities/:id/material" element={
-        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <ActividadMaterialPage />
-        </ProtectedRoute>
-      } />
+      } />      {/* RUTAS DINÁMICAS */}
       <Route path="/activities/:id" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <ActividadPage />

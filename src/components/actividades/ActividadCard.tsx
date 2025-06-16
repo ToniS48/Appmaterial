@@ -33,7 +33,6 @@ interface ActividadCardProps {
   onVerDetalles?: () => void;
   onEditar?: () => void;
   onEliminar?: () => void;
-  onGestionarMaterial?: () => void;
   onUnirse?: () => void; // Nueva prop para unirse a actividad
   mostrarBotones?: boolean;
   mostrarDescripcion?: boolean;
@@ -45,7 +44,6 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   onVerDetalles,
   onEditar,
   onEliminar,
-  onGestionarMaterial,
   onUnirse,
   mostrarBotones = true,
   mostrarDescripcion = true,
@@ -94,14 +92,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   const handleEliminar = useCallback(() => {
     if (onEliminar) {
       deferCallback(onEliminar);
-    }
-  }, [onEliminar]);
-
-  const handleGestionarMaterial = useCallback(() => {
-    if (onGestionarMaterial) {
-      deferCallback(onGestionarMaterial);
-    }
-  }, [onGestionarMaterial]);
+    }  }, [onEliminar]);
 
   const handleUnirse = useCallback(() => {
     if (onUnirse) {
@@ -325,8 +316,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 w={{ base: "100%", sm: "auto" }}
               >
                 Unirme
-              </Button>
-            )}
+              </Button>            )}
               {onEditar && actividad.estado !== 'finalizada' && (
               <Button 
                 size={variant === 'simple' ? 'xs' : 'sm'}
@@ -337,20 +327,6 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 w={{ base: "100%", sm: "auto" }}
               >
                 Editar
-              </Button>
-            )}
-            
-            {/* Botón para gestionar material: solo mostrar si es participante o responsable */}
-            {actividadActiva && onGestionarMaterial && (esResponsable || esParticipante) && (
-              <Button 
-                size={variant === 'simple' ? 'xs' : 'sm'} 
-                colorScheme="purple" 
-                leftIcon={<FiPackage />}
-                onClick={handleGestionarMaterial}
-                mb={{ base: 1, sm: 0 }}
-                w={{ base: "100%", sm: "auto" }}
-              >
-                Gestionar material
               </Button>
             )}
             
