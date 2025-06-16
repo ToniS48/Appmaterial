@@ -5,7 +5,8 @@
 import { 
   crearNotificacion as crearNotificacionFunc,
   enviarNotificacionMasiva,
-  enviarRecordatorioDevolucion
+  enviarRecordatorioDevolucion,
+  enviarNotificacionDevolucion
 } from '../notificacionService';
 import { Notificacion, TipoNotificacion } from '../../types/notificacion';
 
@@ -164,6 +165,16 @@ export class NotificacionService {
       entidadId: actividad.id,
       entidadTipo: 'actividad'
     });
+  }
+
+  /**
+   * Notificar cuando se devuelve material
+   */
+  async notificarDevolucion(
+    prestamo: any,
+    incidencia?: { tipo?: string; gravedad?: string; descripcion: string }
+  ): Promise<void> {
+    return enviarNotificacionDevolucion(prestamo, incidencia);
   }
 }
 

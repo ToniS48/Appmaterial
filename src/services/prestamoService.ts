@@ -192,8 +192,16 @@ export const registrarDevolucion = async (prestamoId: string, observaciones?: st
         // No lanzamos error para no interrumpir la devolución
       }
     }
+      console.log('🎉 registrarDevolucion - ÉXITO');
     
-    console.log('🎉 registrarDevolucion - ÉXITO');
+    // 5. Enviar notificaciones de devolución
+    try {
+      const { enviarNotificacionDevolucion } = await import('./notificacionService');
+      await enviarNotificacionDevolucion(prestamo);
+    } catch (notificationError) {
+      console.error('⚠️ Error al enviar notificaciones de devolución:', notificationError);
+      // No lanzamos error para no interrumpir el proceso de devolución
+    }
     
     // Limpiar cache de vencidos al registrar devolución
     limpiarCacheVencidos();
@@ -285,8 +293,17 @@ export const registrarDevolucionConIncidencia = async (
         // No lanzamos error para no interrumpir la devolución
       }
     }
+      console.log('🎉 registrarDevolucionConIncidencia - ÉXITO');
     
-    console.log('🎉 registrarDevolucionConIncidencia - ÉXITO');
+    // 6. Enviar notificaciones de devolución
+    try {
+      const { enviarNotificacionDevolucion } = await import('./notificacionService');
+      await enviarNotificacionDevolucion(prestamo, incidencia);
+    } catch (notificationError) {
+      console.error('⚠️ Error al enviar notificaciones de devolución:', notificationError);
+      // No lanzamos error para no interrumpir el proceso de devolución
+    }
+    
   } catch (error) {
     console.error('❌ registrarDevolucionConIncidencia - ERROR:', error);
     throw error;
@@ -1147,11 +1164,70 @@ export const devolverTodosLosMaterialesActividad = async (
       } catch (materialError) {
         console.error(`⚠️ Error actualizando cantidad disponible para material ${prestamo.materialId}:`, materialError);
         errores.push(`Error actualizando stock de ${prestamo.nombreMaterial}: ${materialError}`);
-      }
-    }    // 6. Limpiar cache
+      }    }    // 6. Limpiar cache
     limpiarCacheVencidos();
 
-    // 7. Verificar si la actividad debe finalizarse automáticamente
+    // 7. Enviar notificaciones de devolución en bulk (solo si hubo éxitos)
+    if (exitosos > 0) {
+      try {
+        const { enviarNotificacionMasiva } = await import('./notificacionService');
+        const { listarUsuarios } = await import('./usuarioService');
+        const { obtenerActividad } = await import('./actividadService');
+        
+        // Obtener información de la actividad para la notificación
+        let actividad = null;
+        try {
+          actividad = await obtenerActividad(actividadId);
+        } catch (error) {
+          console.warn('No se pudo obtener información de la actividad para notificaciones:', error);
+        }
+        
+        // Obtener usuarios para notificar
+        const usuarios = await listarUsuarios();
+        const usuariosANotificar: string[] = [];
+        
+        // Notificar al responsable de la actividad
+        if (actividad?.responsableActividadId) {
+          usuariosANotificar.push(actividad.responsableActividadId);
+        }
+        
+        // Notificar al responsable del material (si es diferente)
+        if (actividad?.responsableMaterialId && 
+            actividad.responsableMaterialId !== actividad.responsableActividadId) {
+          usuariosANotificar.push(actividad.responsableMaterialId);
+        }
+        
+        // Notificar a administradores y vocales
+        const adminsYVocales = usuarios.filter(u => u.rol === 'admin' || u.rol === 'vocal');
+        adminsYVocales.forEach(usuario => {
+          if (!usuariosANotificar.includes(usuario.uid)) {
+            usuariosANotificar.push(usuario.uid);
+          }
+        });
+        
+        if (usuariosANotificar.length > 0) {
+          const actividadNombre = actividad?.nombre || 'Actividad desconocida';
+          const mensaje = `Devolución en lote completada: ${exitosos} material(es) devuelto(s) de la actividad "${actividadNombre}"`;
+          const enlace = actividad ? `/activities/${actividad.id}` : '/material';
+          
+          await enviarNotificacionMasiva(
+            usuariosANotificar,
+            'devolucion',
+            mensaje,
+            actividadId,
+            'actividad',
+            enlace
+          );
+          
+          console.log(`✅ Notificaciones de devolución en bulk enviadas a ${usuariosANotificar.length} usuarios`);
+        }
+      } catch (notificationError) {
+        console.error('⚠️ Error al enviar notificaciones de devolución en bulk:', notificationError);
+        // No afecta el resultado de la devolución
+      }
+    }
+
+    // 8. Verificar si la actividad debe finalizarse automáticamente
     try {
       await verificarYActualizarEstadoActividad(actividadId);
     } catch (verifyError) {

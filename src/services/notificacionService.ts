@@ -198,4 +198,100 @@ export const enviarRecordatorioDevolucion = async (
   }
 };
 
+// Enviar notificación cuando se devuelve material
+export const enviarNotificacionDevolucion = async (
+  prestamo: any,
+  incidencia?: { tipo?: string; gravedad?: string; descripcion: string }
+): Promise<void> => {
+  try {
+    console.log('📧 Enviando notificaciones de devolución para préstamo:', prestamo.id);
+    
+    // Obtener información adicional si está disponible
+    let actividad = null;
+    let usuarios: any[] = [];
+    
+    try {
+      const { listarUsuarios } = await import('./usuarioService');
+      usuarios = await listarUsuarios();
+    } catch (error) {
+      console.warn('No se pudieron obtener usuarios para notificaciones:', error);
+    }
+    
+    try {
+      if (prestamo.actividadId) {
+        const { obtenerActividad } = await import('./actividadService');
+        actividad = await obtenerActividad(prestamo.actividadId);
+      }
+    } catch (error) {
+      console.warn('No se pudo obtener información de la actividad:', error);
+    }
+    
+    // Construir mensaje base
+    const materialInfo = `Material "${prestamo.nombreMaterial}"`;
+    const actividadInfo = actividad ? ` de la actividad "${actividad.nombre}"` : '';
+    const incidenciaInfo = incidencia ? ` con ${incidencia.tipo === 'perdida' ? 'pérdida' : 'incidencia'}` : '';
+    
+    const mensajeBase = `${materialInfo}${actividadInfo} ha sido devuelto${incidenciaInfo}`;
+    
+    const usuariosANotificar: string[] = [];
+    
+    // 1. Notificar al responsable de la actividad (si existe y es diferente del usuario que devolvió)
+    if (actividad?.responsableActividadId && actividad.responsableActividadId !== prestamo.usuarioId) {
+      usuariosANotificar.push(actividad.responsableActividadId);
+    }
+    
+    // 2. Notificar al responsable del material (si existe y es diferente del usuario que devolvió)
+    if (actividad?.responsableMaterialId && 
+        actividad.responsableMaterialId !== prestamo.usuarioId &&
+        actividad.responsableMaterialId !== actividad.responsableActividadId) {
+      usuariosANotificar.push(actividad.responsableMaterialId);
+    }
+    
+    // 3. Notificar a administradores y vocales
+    const adminsYVocales = usuarios.filter(u => u.rol === 'admin' || u.rol === 'vocal');
+    adminsYVocales.forEach(usuario => {
+      if (!usuariosANotificar.includes(usuario.uid) && usuario.uid !== prestamo.usuarioId) {
+        usuariosANotificar.push(usuario.uid);
+      }
+    });
+    
+    // Enviar notificaciones si hay destinatarios
+    if (usuariosANotificar.length > 0) {
+      let mensaje = mensajeBase;
+      
+      // Añadir información adicional para administradores
+      if (incidencia) {
+        mensaje += `\n\nDetalles de la incidencia:\n`;
+        mensaje += `Tipo: ${incidencia.tipo || 'No especificado'}\n`;
+        if (incidencia.gravedad) {
+          mensaje += `Gravedad: ${incidencia.gravedad}\n`;
+        }
+        mensaje += `Descripción: ${incidencia.descripcion}`;
+      }
+      
+      // Información del usuario que devolvió
+      mensaje += `\n\nDevuelto por: ${prestamo.nombreUsuario || 'Usuario desconocido'}`;
+      
+      const enlace = actividad ? `/activities/${actividad.id}` : '/material';
+      
+      await enviarNotificacionMasiva(
+        usuariosANotificar,
+        incidencia ? 'incidencia' : 'devolucion',
+        mensaje,
+        prestamo.id,
+        'prestamo',
+        enlace
+      );
+      
+      console.log(`✅ Notificaciones de devolución enviadas a ${usuariosANotificar.length} usuarios`);
+    } else {
+      console.log('ℹ️ No hay usuarios para notificar sobre la devolución');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error al enviar notificaciones de devolución:', error);
+    // No lanzamos error para no interrumpir el proceso de devolución
+  }
+};
+
 export {};

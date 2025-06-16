@@ -216,20 +216,19 @@ export const messages = {
     enviarMasivaError: 'Error al enviar notificaciones masivas',
     nueva: 'Nueva',
     notificacionNoEncontrada: 'No se encontraron notificaciones con los filtros seleccionados',
-    mostrarLeidas: 'Mostrar leídas',
-    ocultarLeidas: 'Ocultar leídas',
+    mostrarLeidas: 'Mostrar leídas',    ocultarLeidas: 'Ocultar leídas',
+    // Formato de fechas
     formatoFecha: {
-      hoy: 'Hoy, {hora}',
-      ayer: 'Ayer, {hora}'
+      hoy: 'Hoy a las {hora}',
+      ayer: 'Ayer a las {hora}',
+      otrosDias: 'dd/MM/yyyy HH:mm'
     },
-    tipos: {
-      material: 'Material',
-      actividad: 'Actividad',
-      prestamo: 'Préstamo',
-      devolucion: 'Devolución',
-      incidencia: 'Incidencia',
-      recordatorio: 'Recordatorio',
-      sistema: 'Sistema'
+    // Notificaciones de devolución
+    devolucion: {
+      materialDevuelto: 'Material devuelto',
+      devolucionBulk: 'Devolución en lote completada',
+      conIncidencia: 'Material devuelto con incidencia',
+      notificacionEnviada: 'Notificación de devolución enviada'
     }
   },
   
