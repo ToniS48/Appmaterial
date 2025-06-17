@@ -3,6 +3,7 @@ import { Button, FormControl, FormLabel, Input, FormErrorMessage, Stack, useToas
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext'; 
 import { registrarUsuario } from '../../services/usuarioService';
+import { EstadoAprobacion, EstadoActividad } from '../../types/usuarioHistorial';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -56,16 +57,15 @@ const RegisterForm: React.FC = () => {
         const apellidos = nameParts.slice(1).join(' ');
         
         // Actualmente solo se registra en consola pero no realiza el registro en Firebase
-        console.log('Registro de usuario:', formData);
-        
-        // Llamar al servicio de registro
+        console.log('Registro de usuario:', formData);        // Llamar al servicio de registro
         await registrarUsuario({
           email: formData.email,
           password: formData.password,
           nombre,
           apellidos,
           rol: 'invitado', // Cambiado de 'usuario' a 'invitado'
-          activo: true   // Usuario activo por defecto
+          estadoAprobacion: EstadoAprobacion.PENDIENTE,  // Nuevo usuario requiere aprobación
+          estadoActividad: EstadoActividad.INACTIVO     // Sin actividad hasta primera participación
         });
         
         toast({

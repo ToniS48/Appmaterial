@@ -38,6 +38,7 @@ import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
 import { obtenerEstadisticasActividades } from '../../services/actividadService';
 import { queryCache, CACHE_KEYS } from '../../utils/queryCache';
+import { getEstadoActivoLegacy } from '../../utils/migracionUsuarios';
 
 interface EstadisticasData {
   usuarios: {
@@ -100,7 +101,7 @@ const GenericEstadisticas: React.FC<GenericEstadisticasProps> = ({ userRole, pag
         () => usuarioRepo.find(), 
         60000
       );
-      const usuariosActivos = usuarios.filter(u => u.activo).length;
+      const usuariosActivos = usuarios.filter(u => getEstadoActivoLegacy(u)).length;
       const usuariosSocios = usuarios.filter(u => u.rol === 'socio').length;
 
       // Estadísticas de préstamos
@@ -136,7 +137,7 @@ const GenericEstadisticas: React.FC<GenericEstadisticasProps> = ({ userRole, pag
 
       let usuariosStats;
       if (userRole === 'admin') {
-        const usuariosInactivos = usuarios.filter(u => !u.activo).length;
+        const usuariosInactivos = usuarios.filter(u => !getEstadoActivoLegacy(u)).length;
         const fechaInicioMes = new Date();
         fechaInicioMes.setDate(1);        const nuevosEsteMes = usuarios.filter(u => {
           if (!u.fechaCreacion) return false;

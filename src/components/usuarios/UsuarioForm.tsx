@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
 import { actualizarUsuario, crearUsuario } from '../../services/usuarioService';
 import { RolUsuario, Usuario } from '../../types/usuario';
+import { EstadoAprobacion, EstadoActividad } from '../../types/usuarioHistorial';
 
 // Interfaz extendida para el formulario
 interface UsuarioFormData {
@@ -28,7 +29,8 @@ interface UsuarioFormData {
   nombre: string;
   apellidos: string;
   rol: RolUsuario;
-  activo: boolean;
+  estadoAprobacion: EstadoAprobacion;
+  estadoActividad: EstadoActividad;
   telefono?: string;
   telefonosEmergencia?: string; // En el formulario lo manejamos como string para facilidad de uso
   password?: string;
@@ -43,7 +45,8 @@ const usuarioToFormData = (usuario: Usuario): UsuarioFormData => {
     nombre: usuario.nombre,
     apellidos: usuario.apellidos,
     rol: usuario.rol,
-    activo: usuario.activo,
+    estadoAprobacion: usuario.estadoAprobacion,
+    estadoActividad: usuario.estadoActividad,
     telefono: usuario.telefono,
     // Convertir array a string separado por comas para el formulario
     telefonosEmergencia: usuario.telefonosEmergencia?.join(', '),
@@ -68,8 +71,7 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
   const { userProfile } = useAuth(); // Usa userProfile en lugar de currentUser
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Configuración del formulario con React Hook Form
+    // Configuración del formulario con React Hook Form
   const { 
     register, 
     handleSubmit, 
@@ -82,7 +84,8 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
       apellidos: '',
       email: '',
       rol: 'socio' as RolUsuario,
-      activo: true,
+      estadoAprobacion: EstadoAprobacion.PENDIENTE,
+      estadoActividad: EstadoActividad.ACTIVO,
       telefono: '',
       telefonosEmergencia: ''
     }
@@ -136,15 +139,15 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
           });
           return;
         }
-        
-        // Ahora TypeScript sabe que password no puede ser undefined
+          // Ahora TypeScript sabe que password no puede ser undefined
         resultado = await crearUsuario({
           nombre: userData.nombre,
           apellidos: userData.apellidos,
           email: userData.email,
           password: userData.password,
           rol: userData.rol,
-          activo: userData.activo,
+          estadoAprobacion: userData.estadoAprobacion,
+          estadoActividad: userData.estadoActividad,
           telefono: userData.telefono,
           telefonosEmergencia: userData.telefonosEmergencia,
           observaciones: userData.observaciones
@@ -271,18 +274,29 @@ const UsuarioForm: React.FC<UsuarioFormProps> = ({
           {errors.rol && (
             <FormErrorMessage>{errors.rol.message?.toString()}</FormErrorMessage>
           )}
+        </FormControl>        
+        <FormControl isRequired isInvalid={!!errors.estadoAprobacion}>
+          <FormLabel>Estado de Aprobación</FormLabel>
+          <Select {...register('estadoAprobacion')}>
+            <option value={EstadoAprobacion.PENDIENTE}>Pendiente</option>
+            <option value={EstadoAprobacion.APROBADO}>Aprobado</option>
+            <option value={EstadoAprobacion.RECHAZADO}>Rechazado</option>
+          </Select>
+          {errors.estadoAprobacion && (
+            <FormErrorMessage>{errors.estadoAprobacion.message?.toString()}</FormErrorMessage>
+          )}
         </FormControl>
-        
-        <FormControl display="flex" alignItems="center">
-          <FormLabel htmlFor="activo" mb="0">
-            Usuario activo
-          </FormLabel>
-          <Switch 
-            id="activo"
-            {...register('activo')}
-            defaultChecked={usuario ? usuario.activo : true}
-            colorScheme="brand" 
-          />
+
+        <FormControl isRequired isInvalid={!!errors.estadoActividad}>
+          <FormLabel>Estado de Actividad</FormLabel>
+          <Select {...register('estadoActividad')}>
+            <option value={EstadoActividad.ACTIVO}>Activo</option>
+            <option value={EstadoActividad.INACTIVO}>Inactivo</option>
+            <option value={EstadoActividad.SUSPENDIDO}>Suspendido</option>
+          </Select>
+          {errors.estadoActividad && (
+            <FormErrorMessage>{errors.estadoActividad.message?.toString()}</FormErrorMessage>
+          )}
         </FormControl>
       </SimpleGrid>
       

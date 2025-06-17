@@ -45,6 +45,7 @@ import { listarUsuarios, eliminarUsuario } from '../../services/usuarioService';
 import UsuarioForm from '../../components/usuarios/UsuarioForm';
 import { Usuario, RolUsuario } from '../../types/usuario';
 import { useAuth } from '../../contexts/AuthContext';
+import { getEstadoActivoLegacy } from '../../utils/migracionUsuarios';
 
 // Definimos los permisos basados en roles
 const PERMISOS_POR_ROL: Record<RolUsuario, {
@@ -336,10 +337,9 @@ const GestionUsuariosPage: React.FC = () => {
                       <Badge colorScheme={getRolBadgeColor(usuario.rol)}>
                         {usuario.rol}
                       </Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={usuario.activo ? "green" : "red"}>
-                        {usuario.activo ? "Activo" : "Inactivo"}
+                    </Td>                    <Td>
+                      <Badge colorScheme={getEstadoActivoLegacy(usuario) ? "green" : "red"}>
+                        {getEstadoActivoLegacy(usuario) ? "Activo" : "Inactivo"}
                       </Badge>
                     </Td>
                     <Td>

@@ -16,6 +16,7 @@ import { Usuario } from '../types/usuario';
 import { toast } from 'react-toastify';
 import { handleFirebaseError } from '../utils/errorHandling';
 import messages from '../constants/messages';
+import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 
 // Interfaz simplificada para el contexto
 interface AuthContextType {
@@ -113,9 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUserProfile = async (user: User) => {
     try {
       const userProfileData = await obtenerOCrearUsuario(user.uid, user.email || '');
-      
-      // Verificar si el usuario está activo
-      if (!userProfileData.activo) {
+        // Verificar si el usuario está activo (usando lógica de migración)
+      if (!getEstadoActivoLegacy(userProfileData)) {
         console.log('Usuario inactivo, cerrando sesión');
         await signOut(auth);
         toast.error(messages.auth.session.accountDisabled);

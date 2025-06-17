@@ -4,9 +4,14 @@
  */
 import { BaseRepository, QueryOptions } from './BaseRepository';
 import { Usuario, RolUsuario } from '../types/usuario';
+import { EstadoAprobacion, EstadoActividad } from '../types/usuarioHistorial';
+import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 
 export interface UsuarioQueryOptions extends QueryOptions {
   rol?: RolUsuario;
+  estadoAprobacion?: EstadoAprobacion;
+  estadoActividad?: EstadoActividad;
+  // Mantener temporalmente para migración gradual
   activo?: boolean;
   pendienteVerificacion?: boolean;
   searchText?: string;
@@ -53,15 +58,28 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
         operator: '==',
         value: options.rol
       });
+    }    // Filtro por estado de aprobación
+    if (options.estadoAprobacion) {
+      queryOptions.where!.push({
+        field: 'estadoAprobacion',
+        operator: '==',
+        value: options.estadoAprobacion
+      });
     }
 
-    // Filtro por estado activo
-    if (options.activo !== undefined) {
+    // Filtro por estado de actividad
+    if (options.estadoActividad) {
       queryOptions.where!.push({
-        field: 'activo',
+        field: 'estadoActividad',
         operator: '==',
-        value: options.activo
+        value: options.estadoActividad
       });
+    }
+
+    // Filtro por estado activo legacy (solo para compatibilidad temporal)
+    if (options.activo !== undefined) {
+      // No podemos filtrar directamente en la consulta, necesitamos filtrar en memoria
+      console.warn('Usando filtro legacy "activo". Considere migrar a estadoAprobacion/estadoActividad');
     }
 
     // Filtro por verificación pendiente
@@ -83,14 +101,22 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
     // Aplicar filtros WHERE adicionales
     if (options.where) {
       queryOptions.where!.push(...options.where);
-    }
+    }    const usuarios = await this.find(queryOptions);
 
-    const usuarios = await this.find(queryOptions);
+    // Aplicar filtros adicionales en memoria
+    let usuariosFiltrados = usuarios;
+
+    // Filtro por estado activo legacy (temporal)
+    if (options.activo !== undefined) {
+      usuariosFiltrados = usuariosFiltrados.filter(usuario => 
+        getEstadoActivoLegacy(usuario) === options.activo
+      );
+    }
 
     // Filtrar por texto de búsqueda si se proporciona
     if (options.searchText) {
       const searchLower = options.searchText.toLowerCase();
-      return usuarios.filter(usuario => 
+      usuariosFiltrados = usuariosFiltrados.filter(usuario => 
         usuario.nombre.toLowerCase().includes(searchLower) ||
         usuario.apellidos.toLowerCase().includes(searchLower) ||
         usuario.email.toLowerCase().includes(searchLower) ||
@@ -98,7 +124,7 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
       );
     }
 
-    return usuarios;
+    return usuariosFiltrados;
   }
 
   /**
@@ -175,23 +201,22 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
 
     return usuarios.length > 0;
   }
-
   /**
-   * Activar un usuario
+   * Activar un usuario (aprobar y activar)
    */
   async activar(usuarioId: string): Promise<Usuario> {
     return this.update(usuarioId, {
-      activo: true,
+      estadoAprobacion: EstadoAprobacion.APROBADO,
+      estadoActividad: EstadoActividad.ACTIVO,
       pendienteVerificacion: false
     });
   }
-
   /**
    * Desactivar un usuario
    */
   async desactivar(usuarioId: string): Promise<Usuario> {
     return this.update(usuarioId, {
-      activo: false
+      estadoActividad: EstadoActividad.INACTIVO
     });
   }
 
@@ -203,13 +228,13 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
       rol: nuevoRol
     });
   }
-
   /**
    * Marcar como eliminado (soft delete)
    */
   async marcarComoEliminado(usuarioId: string): Promise<Usuario> {
     return this.update(usuarioId, {
-      activo: false,
+      estadoAprobacion: EstadoAprobacion.RECHAZADO,
+      estadoActividad: EstadoActividad.INACTIVO,
       eliminado: true,
       fechaEliminacion: new Date() as any
     });
@@ -250,12 +275,10 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
     const roles: RolUsuario[] = ['invitado', 'socio', 'vocal', 'admin'];
     roles.forEach(rol => {
       estadisticas.porRol[rol] = 0;
-    });
-
-    // Calcular estadísticas
+    });    // Calcular estadísticas
     todosUsuarios.forEach(usuario => {
-      // Estados generales
-      if (usuario.activo) {
+      // Estados generales (usando lógica de migración)
+      if (getEstadoActivoLegacy(usuario)) {
         estadisticas.activos++;
       } else {
         estadisticas.inactivos++;
@@ -309,13 +332,12 @@ export class UsuarioRepository extends BaseRepository<Usuario> {
 
     return resultados;
   }
-
   /**
    * Verificar permisos de un usuario
    */
   async hasPermission(usuarioId: string, permission: 'admin' | 'vocal' | 'socio'): Promise<boolean> {
     const usuario = await this.findById(usuarioId);
-    if (!usuario || !usuario.activo) return false;
+    if (!usuario || !getEstadoActivoLegacy(usuario)) return false;
 
     switch (permission) {
       case 'admin':

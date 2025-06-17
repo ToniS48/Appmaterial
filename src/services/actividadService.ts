@@ -8,6 +8,7 @@ import { actividadCache } from './actividadCache';
 import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from './prestamoService';
 import { enviarNotificacionMasiva } from './notificacionService';
 import { listarUsuarios, obtenerUsuarioPorId } from './usuarioService';
+import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 import { obtenerMaterial } from './materialService';
 import messages from '../constants/messages';
 import { determinarEstadoActividad } from '../utils/dateUtils';
@@ -712,10 +713,9 @@ async function enviarNotificacionesNuevaActividad(actividad: Actividad): Promise
 // Obtener estadísticas de usuarios
 export const obtenerEstadisticasUsuarios = async () => {
   try {
-    const usuarios = await listarUsuarios();
-    return {
-      activos: usuarios.filter(u => u.activo).length,
-      inactivos: usuarios.filter(u => !u.activo).length,
+    const usuarios = await listarUsuarios();    return {
+      activos: usuarios.filter(u => getEstadoActivoLegacy(u)).length,
+      inactivos: usuarios.filter(u => !getEstadoActivoLegacy(u)).length,
       pendientes: usuarios.filter(u => u.pendienteVerificacion === true).length,
     };
   } catch (error) {

@@ -7,20 +7,28 @@ import '@testing-library/jest-dom';
 // Configurar Jest para timeouts más rápidos
 jest.setTimeout(10000);
 
-// Mock básico para window.matchMedia (mejorado)
+// Mock mejorado para window.matchMedia (compatible con framer-motion)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => {
     const mockMediaQueryList = {
-      matches: query === '(prefers-color-scheme: light)',
+      matches: query === '(prefers-color-scheme: light)' || query === '(prefers-reduced-motion: reduce)',
       media: query,
       onchange: null,
-      addListener: jest.fn(), // Función mock para addListener
-      removeListener: jest.fn(), // Función mock para removeListener
+      // Métodos deprecated pero necesarios para framer-motion
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      // Métodos modernos
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
       dispatchEvent: jest.fn(),
     };
+    
+    // Asegurar que addListener siempre exista y sea una función
+    if (typeof mockMediaQueryList.addListener !== 'function') {
+      mockMediaQueryList.addListener = jest.fn();
+    }
+    
     return mockMediaQueryList;
   }),
 });
@@ -83,10 +91,26 @@ document.addEventListener = jest.fn((event, handler, options) => {
   return originalAddEventListener.call(document, event, handler, options);
 });
 
-// Mock para getComputedStyle
+// Mock para getComputedStyle (mejorado para Chakra UI)
 Object.defineProperty(window, 'getComputedStyle', {
   value: jest.fn(() => ({
+    overflow: 'visible',
+    overflowX: 'visible', 
+    overflowY: 'visible',
     getPropertyValue: jest.fn(() => 'light'),
+    fontSize: '16px',
+    fontFamily: 'Arial',
+    lineHeight: '1.5',
+    color: 'rgb(0, 0, 0)',
+    backgroundColor: 'rgb(255, 255, 255)',
+    border: 'none',
+    margin: '0px',
+    padding: '0px',
+    width: 'auto',
+    height: 'auto',
+    position: 'static',
+    display: 'block',
+    visibility: 'visible',
   })),
 });
 

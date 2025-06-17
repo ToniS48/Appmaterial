@@ -36,7 +36,8 @@ import {
   FiEye,
   FiGrid,
   FiHome,
-  FiMessageCircle
+  FiMessageCircle,
+  FiTrendingUp
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -115,12 +116,18 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
     },
   ], [dashboardPath]);
 
-  const panelControl: NavItem[] = useMemo(() => [
-    // Gestión de usuarios - específico por rol
+  const panelControl: NavItem[] = useMemo(() => [    // Gestión de usuarios - específico por rol
     { 
       label: 'Usuarios', 
       to: '/admin/usuarios',
       icon: FiUsers,
+      roles: ['admin'] 
+    },
+    // Seguimiento de usuarios - solo para admin
+    { 
+      label: 'Seguimiento Usuarios', 
+      to: '/admin/usuarios/seguimiento',
+      icon: FiTrendingUp,
       roles: ['admin'] 
     },
     { 
@@ -129,11 +136,24 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiUsers,
       roles: ['vocal'] 
     },
-    // Material - solo para admin y vocal
+    // Seguimiento de usuarios - solo para vocal
+    { 
+      label: 'Seguimiento Usuarios', 
+      to: '/vocal/usuarios/seguimiento',
+      icon: FiTrendingUp,
+      roles: ['vocal'] 
+    },// Material - solo para admin y vocal
     { 
       label: 'Material', 
       to: '/material', 
       icon: FiBox,
+      roles: ['admin', 'vocal'] 
+    },
+    // Seguimiento Material - solo para admin y vocal
+    { 
+      label: 'Seguimiento Anual', 
+      to: '/material/seguimiento', 
+      icon: FiTrendingUp,
       roles: ['admin', 'vocal'] 
     },
     // Administración de préstamos - solo para admin y vocal

@@ -32,6 +32,7 @@ import { Actividad } from '../../types/actividad';
 import { Usuario } from '../../types/usuario';
 import { Material } from '../../types/material';
 import { Timestamp } from 'firebase/firestore';
+import { agregarActivoLegacyLista } from '../../utils/migracionUsuarios';
 import ActividadSelector from '../actividades/ActividadSelector';
 import { setupSchedulerOptimizer } from '../../utils/reactSchedulerOptimizer';
 
@@ -121,10 +122,10 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
   // Cargar datos necesarios al montar el componente
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        // Cargar usuarios activos
+      try {        // Cargar usuarios activos
         const usuariosData = await listarUsuarios();
-        setUsuarios(usuariosData.filter(u => u.activo));
+        const usuariosConActivo = agregarActivoLegacyLista(usuariosData);
+        setUsuarios(usuariosConActivo.filter(u => u.activo));
         
         // Cargar materiales disponibles
         const materialesData = await listarMateriales({ estado: 'disponible' });

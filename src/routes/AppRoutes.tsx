@@ -30,6 +30,8 @@ import EstadisticasAdminPage from '../pages/admin/EstadisticasAdminPage';
 import EstadisticasVocalPage from '../pages/vocal/EstadisticasVocalPage';
 import MensajeriaPage from '../pages/MensajeriaPage';
 import MensajeriaTesting from '../components/testing/MensajeriaTesting';
+import MaterialSeguimientoPage from '../pages/material/MaterialSeguimientoPage';
+import UsuarioSeguimientoPage from '../pages/usuarios/UsuarioSeguimientoPage';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -65,9 +67,9 @@ const AppRoutes: React.FC = () => {
       } />
       
 
-      {/* IMPORTANTE: Colocar primero las rutas específicas antes de la ruta genérica /:role */}
-        {/* Rutas específicas para administrador */}
+      {/* IMPORTANTE: Colocar primero las rutas específicas antes de la ruta genérica /:role */}        {/* Rutas específicas para administrador */}
       <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><GestionUsuariosPage /></ProtectedRoute>} />
+      <Route path="/admin/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['admin']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
@@ -75,6 +77,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/estadisticas" element={<ProtectedRoute allowedRoles={['admin']}><EstadisticasAdminPage /></ProtectedRoute>} />
         {/* Rutas específicas para vocal */}
       <Route path="/vocal/usuarios" element={<ProtectedRoute allowedRoles={['vocal']}><GestionUsuariosPage /></ProtectedRoute>} />
+      <Route path="/vocal/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
       <Route path="/vocal/prestamos" element={<ProtectedRoute allowedRoles={['vocal']}><PrestamosVocalPage /></ProtectedRoute>} />
       <Route path="/vocal/reportes" element={<ProtectedRoute allowedRoles={['vocal']}><ReportesAdminPage /></ProtectedRoute>} />
       <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
@@ -179,6 +182,11 @@ const AppRoutes: React.FC = () => {
       <Route path="/material" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal']}>
           <GestionMaterialPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/material/seguimiento" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal']}>
+          <MaterialSeguimientoPage />
         </ProtectedRoute>
       } />
       <Route path="/material/detalle/:id" element={

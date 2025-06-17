@@ -362,7 +362,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
             {onCancelar && actividad.estado !== 'finalizada' && actividad.estado !== 'cancelada' && (
               <Button 
                 size={variant === 'simple' ? 'xs' : 'sm'}
-                colorScheme="orange" 
+                colorScheme="red" 
                 leftIcon={<FiXCircle />}
                 onClick={handleCancelar}
                 mb={{ base: 1, sm: 0 }}

@@ -19,6 +19,8 @@ import {
 } from 'firebase/auth';
 import { db, auth } from '../config/firebase';
 import { Usuario, RolUsuario } from '../types/usuario';
+import { EstadoAprobacion, EstadoActividad } from '../types/usuarioHistorial';
+import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 import { handleFirebaseError } from '../utils/errorHandling';
 import { checkEmailAvailability } from '../utils/validationUtils';
 import messages from '../constants/messages';
@@ -31,7 +33,8 @@ export const registrarUsuario = async (userData: {
   nombre: string;
   apellidos: string;
   rol: RolUsuario;
-  activo: boolean;
+  estadoAprobacion: EstadoAprobacion;
+  estadoActividad: EstadoActividad;
 }): Promise<void> => {
   try {
     // Verificar disponibilidad de email
@@ -51,14 +54,14 @@ export const registrarUsuario = async (userData: {
     
     try {
       // Crear documento de usuario en Firestore
-      const usuarioRef = doc(db, 'usuarios', user.uid);
-      const userDataFirestore: Usuario = {
+      const usuarioRef = doc(db, 'usuarios', user.uid);      const userDataFirestore: Usuario = {
         uid: user.uid,
         email: userData.email,
         nombre: userData.nombre,
         apellidos: userData.apellidos,
         rol: userData.rol,
-        activo: userData.activo,
+        estadoAprobacion: userData.estadoAprobacion,
+        estadoActividad: userData.estadoActividad,
         pendienteVerificacion: true,
         eliminado: false,
         fechaCreacion: Timestamp.now(),
@@ -140,14 +143,14 @@ export const obtenerOCrearUsuario = async (uid: string, email: string): Promise<
       // Si no existe el perfil, crear uno básico
       console.log('Creando perfil básico para usuario:', uid);
       const ahora = Timestamp.now();
-      
-      const nuevoUsuario: Usuario = {
+        const nuevoUsuario: Usuario = {
         uid,
         email,
         nombre: email.split('@')[0],
         apellidos: '',
         rol: 'invitado' as RolUsuario,
-        activo: true,
+        estadoAprobacion: EstadoAprobacion.PENDIENTE,
+        estadoActividad: EstadoActividad.INACTIVO,
         pendienteVerificacion: true,
         eliminado: false,
         fechaCreacion: ahora,
@@ -213,7 +216,8 @@ export const crearUsuario = async (userData: {
   email: string;
   password: string;
   rol: RolUsuario;
-  activo: boolean;
+  estadoAprobacion: EstadoAprobacion;
+  estadoActividad: EstadoActividad;
   telefono?: string;
   telefonosEmergencia?: string[];
   observaciones?: string;
@@ -247,14 +251,14 @@ export const crearUsuario = async (userData: {
     
     // Crear documento de usuario en Firestore
     const usuarioRef = doc(db, 'usuarios', user.uid);
-    
-    const nuevoUsuario: Usuario = {
+      const nuevoUsuario: Usuario = {
       uid: user.uid,
       email: userData.email,
       nombre: userData.nombre,
       apellidos: userData.apellidos,
       rol: userData.rol,
-      activo: true,
+      estadoAprobacion: userData.estadoAprobacion,
+      estadoActividad: userData.estadoActividad,
       pendienteVerificacion: true,
       eliminado: false,
       fechaCreacion: Timestamp.now(),
@@ -338,10 +342,9 @@ export const obtenerEstadisticasUsuarios = async (): Promise<{
   pendientes: number;
 }> => {
   try {
-    const usuarios = await listarUsuarios();
-    return {
-      activos: usuarios.filter(u => u.activo).length,
-      inactivos: usuarios.filter(u => !u.activo).length,
+    const usuarios = await listarUsuarios();    return {
+      activos: usuarios.filter(u => getEstadoActivoLegacy(u)).length,
+      inactivos: usuarios.filter(u => !getEstadoActivoLegacy(u)).length,
       pendientes: usuarios.filter(u => u.pendienteVerificacion).length,
     };
   } catch (error) {
