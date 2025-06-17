@@ -13,10 +13,10 @@ import {
 import { auth } from '../config/firebase';
 import { obtenerOCrearUsuario, actualizarUltimoAcceso } from '../services/usuarioService';
 import { Usuario } from '../types/usuario';
+import { EstadoActividad } from '../types/usuarioHistorial';
 import { toast } from 'react-toastify';
 import { handleFirebaseError } from '../utils/errorHandling';
 import messages from '../constants/messages';
-import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 
 // Interfaz simplificada para el contexto
 interface AuthContextType {
@@ -109,17 +109,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   };
-
   // Función para cargar el perfil del usuario
   const loadUserProfile = async (user: User) => {
     try {
       const userProfileData = await obtenerOCrearUsuario(user.uid, user.email || '');
-        // Verificar si el usuario está activo (usando lógica de migración)
-      if (!getEstadoActivoLegacy(userProfileData)) {
-        console.log('Usuario inactivo, cerrando sesión');
+      
+      // Verificar si el usuario está eliminado
+      if (userProfileData.eliminado === true) {
+        console.log('Usuario eliminado, cerrando sesión');
         await signOut(auth);
-        toast.error(messages.auth.session.accountDisabled);
+        toast.error('Esta cuenta ha sido eliminada. Contacta con un administrador.');
         return;
+      }
+      
+      // Verificar si el usuario está suspendido
+      if (userProfileData.estadoActividad === 'suspendido') {
+        console.log('Usuario suspendido, cerrando sesión');
+        await signOut(auth);
+        toast.error('Tu cuenta ha sido suspendida. Contacta con un administrador.');
+        return;
+      }
+      
+      // Permitir acceso pero mostrar advertencias según el estado
+      if (userProfileData.estadoAprobacion === 'pendiente') {
+        toast.warning('Tu cuenta está pendiente de aprobación. Algunas funcionalidades pueden estar limitadas.');
+      } else if (userProfileData.estadoAprobacion === 'rechazado') {
+        toast.warning('Tu cuenta ha sido rechazada. Contacta con un administrador.');
       }
       
       // Actualizar último acceso
