@@ -71,12 +71,11 @@ const PrestamoForm: React.FC<PrestamoFormProps> = ({
   preselectedMaterialId,
   preselectedUsuarioId,
   preselectedActividadId
-}) => {
-  // OPTIMIZACIONES DE RENDIMIENTO
+}) => {  // OPTIMIZACIONES DE RENDIMIENTO
   // =============================
   useEffect(() => {
     const cleanup = setupSchedulerOptimizer();
-    return cleanup;
+    return cleanup || (() => {}); // Fallback a función vacía si es null
   }, []);
 
   // Estados y contextos

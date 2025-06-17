@@ -150,11 +150,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return; // Evitar reconfiguración del listener
     }
     
-    console.log('Configurando listener de autenticación...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Configurando listener de autenticación...');
+    }
     setIsAuthListenerConfigured(true);
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.email}` : 'Sin usuario');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.email}` : 'Sin usuario');
+      }
       
       if (user) {
         setCurrentUser(user);
@@ -168,7 +172,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const publicRoutes = ['/login', '/register', '/'];
         
         if (!publicRoutes.includes(currentPath)) {
-          console.log('Usuario no autenticado en ruta protegida, redirigiendo...');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Usuario no autenticado en ruta protegida, redirigiendo...');
+          }
           window.location.href = '/login';
         }
       }
@@ -181,12 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthListenerConfigured(false);
     };
   }, [isAuthListenerConfigured]);
-
   // Reemplazar el useEffect de reconexión por uno que maneje el estado de conexión
   useEffect(() => {
     const handleConnectionChange = () => {
-      // Solo mostrar mensaje cuando recuperamos la conexión
-      if (navigator.onLine) {
+      // Solo mostrar mensaje cuando recuperamos la conexión en desarrollo
+      if (navigator.onLine && process.env.NODE_ENV === 'development') {
         console.log("Conexión a Internet restaurada, Firebase Auth sincronizará automáticamente");
         
         // No necesitamos hacer nada aquí explícitamente
@@ -196,11 +201,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Si el usuario sigue sin estar autenticado después de recuperar la conexión,
         // podríamos mostrar un mensaje para que inicie sesión manualmente
         setTimeout(() => {
-          if (!currentUser) {
+          if (!currentUser && process.env.NODE_ENV === 'development') {
             console.log('La reconexión automática no restauró la sesión, puede que necesite iniciar sesión nuevamente');
           }
         }, 3000); // Dar tiempo a Firebase para intentar reconectar
-      } else {
+      } else if (!navigator.onLine && process.env.NODE_ENV === 'development') {
         console.log("Conexión a Internet perdida");
       }
     };

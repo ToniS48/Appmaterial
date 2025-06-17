@@ -191,11 +191,10 @@ const GestionMaterialPage: React.FC = () => {
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const { isOpen: isExportOpen, onOpen: onExportOpen, onClose: onExportClose } = useDisclosure();
   const { isOpen: isImportOpen, onOpen: onImportOpen, onClose: onImportClose } = useDisclosure();
-  
-  // Setup scheduler optimizer
+    // Setup scheduler optimizer
   useEffect(() => {
     const cleanup = setupSchedulerOptimizer();
-    return cleanup;
+    return cleanup || (() => {}); // Fallback a función vacía si es null
   }, []);
   
   // Handlers optimizados para evitar violaciones del scheduler

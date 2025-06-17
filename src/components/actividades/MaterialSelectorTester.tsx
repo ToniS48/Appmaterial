@@ -62,11 +62,11 @@ const MaterialSelectorTester: React.FC = () => {
       performanceMonitor.stop();
     };
   }, [isMonitoring]);
-  
-  // Aplicar optimizaciones según el estado del switch
+    // Aplicar optimizaciones según el estado del switch
   useLayoutEffect(() => {
     if (activeOptimizations) {
-      cleanup = setupSchedulerOptimizer();
+      const schedulerCleanup = setupSchedulerOptimizer();
+      cleanup = schedulerCleanup || (() => {}); // Fallback a función vacía si es null
       
       toast({
         title: "Optimizaciones activadas",

@@ -2,15 +2,18 @@ import React, { forwardRef } from 'react';
 import { Input, useColorModeValue } from '@chakra-ui/react';
 import ReactDatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import "../../styles/datepicker.css";
 import { es } from 'date-fns/locale';
 
 // Componente CustomInput que recibe la referencia
-const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, ...props }, ref) => {
+const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChange, bgColor, isInvalid, ...props }, ref) => {
   const defaultBg = useColorModeValue("white", "gray.700");
   const defaultBorderColor = useColorModeValue("gray.200", "gray.600");
+  const focusBorderColor = useColorModeValue("brand.400", "brand.300");
+  const errorBorderColor = useColorModeValue("red.500", "red.300");
   
   const bg = bgColor || defaultBg;
-  const borderColor = defaultBorderColor;
+  const borderColor = isInvalid ? errorBorderColor : defaultBorderColor;
   
   return (
     <Input
@@ -20,6 +23,17 @@ const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, onChang
       ref={ref}
       bg={bg}
       borderColor={borderColor}
+      focusBorderColor={focusBorderColor}
+      placeholder="Seleccionar fecha..."
+      cursor="pointer"
+      readOnly
+      _hover={{
+        borderColor: isInvalid ? errorBorderColor : focusBorderColor,
+      }}
+      _focus={{
+        borderColor: focusBorderColor,
+        boxShadow: `0 0 0 1px ${focusBorderColor}`,
+      }}
       {...props}
     />
   );
@@ -53,11 +67,15 @@ interface DatePickerProps {
   name?: string;
   control?: any;
   bgColor?: string;
+  isInvalid?: boolean;
+  placeholder?: string;
+  minDate?: Date;
+  maxDate?: Date;
   [key: string]: any;
 }
 
 const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>((props, ref) => {
-  const { selectedDate, onChange, bgColor, ...rest } = props;
+  const { selectedDate, onChange, bgColor, isInvalid, placeholder, minDate, maxDate, ...rest } = props;
   
   // Convertir a objeto Date válido
   const safeDate = ensureDate(selectedDate);
@@ -81,11 +99,15 @@ const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>((props, ref) =>
       showMonthDropdown
       showYearDropdown
       dropdownMode="select"
+      minDate={minDate}
+      maxDate={maxDate}
+      placeholderText={placeholder || "Seleccionar fecha..."}
       {...restProps}
       customInput={
         <CustomInput 
           ref={ref}
           bgColor={bgColor}
+          isInvalid={isInvalid}
         />
       }
     />

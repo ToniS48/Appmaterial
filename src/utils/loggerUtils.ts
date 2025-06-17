@@ -19,6 +19,8 @@ class Logger {
   private handlers: LogHandler[] = [];
   private minLevel: LogLevel = LogLevel.INFO;
   private context?: string;
+  private rateLimiter: Map<string, number> = new Map();
+  private readonly RATE_LIMIT_WINDOW = 5000; // 5 segundos
   
   constructor(context?: string) {
     this.context = context;
@@ -28,7 +30,9 @@ class Logger {
     
     // En producción, usar un nivel de log más restrictivo
     if (process.env.NODE_ENV === 'production') {
-      this.minLevel = LogLevel.WARN;
+      this.minLevel = LogLevel.ERROR; // Solo errores en producción
+    } else {
+      this.minLevel = LogLevel.WARN; // Advertencias y errores en desarrollo
     }
   }
   
@@ -54,10 +58,28 @@ class Logger {
   }
   
   /**
+   * Rate limiting para evitar spam de logs
+   */
+  private shouldLog(message: string): boolean {
+    const now = Date.now();
+    const lastLog = this.rateLimiter.get(message);
+    
+    if (!lastLog || (now - lastLog) > this.RATE_LIMIT_WINDOW) {
+      this.rateLimiter.set(message, now);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
    * Log de nivel debug
    */
   debug(message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, message, data);
+    // Solo logs de debug en desarrollo y si no se está spammeando
+    if (process.env.NODE_ENV === 'development' && this.shouldLog(message)) {
+      this.log(LogLevel.DEBUG, message, data);
+    }
   }
   
   /**

@@ -75,10 +75,9 @@ export default function ActividadFormPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [completedTabs, setCompletedTabs] = useState<number[]>([]);
-  const totalTabs = 4; // Número total de pestañas
-    // Optimizar el scheduler de React al cargar el componente
+  const totalTabs = 4; // Número total de pestañas  // Optimizar el scheduler de React al cargar el componente (simplificado)
   useLayoutEffect(() => {
-    // Configurar el optimizador y guardar la función de limpieza
+    // Configurar el optimizador de forma simplificada
     const cleanupScheduler = setupSchedulerOptimizer();
     
     return () => {
@@ -231,13 +230,12 @@ export default function ActividadFormPage() {
       await new Promise<void>((resolve) => {
         setTimeout(async () => {
           try {
-            if (activeTabIndex === 0) {
-              // Pestaña de información - Validamos antes de avanzar
+            if (activeTabIndex === 0) {              // Pestaña de información - Validamos antes de avanzar
               const isValid = await validateFirstTabSilent(data);
                 if (isValid) {
                 optimizedFormUpdate(updateInfo, data);
                 setCompletedTabs(prev => Array.from(new Set([...prev, 0])));
-                nextTab();              } else {
+                nextTab();} else {
                 setFirstTabErrors(data);
               }
             } else if (activeTabIndex === 1) {
@@ -551,33 +549,29 @@ export default function ActividadFormPage() {
         console.log('⚠️ setFirstTabErrors - Toast ya activo, no mostrando duplicado');
       }
     });
-  };
-
-  // Añadir validación para el cambio de pestañas (versión optimizada)
+  };  // Añadir validación para el cambio de pestañas (usando hook optimizado)
   const handleTabChange = async (newIndex: number) => {
-    // Crear una versión optimizada de la función de cambio de pestaña
-    const optimizedSetTab = optimizeTabChange(setActiveTabIndex);
-    
     // Solo validar si avanzamos, no si retrocedemos
     if (newIndex > activeTabIndex) {
       try {
         // Capturar los datos actuales del formulario
         const formData = methods.getValues();
         
-        // Validación específica por pestaña usando la versión optimizada
+        // Validación específica por pestaña
         if (activeTabIndex === 0) {
           // Usar la versión asíncrona optimizada de la validación
           const isValid = await validateFirstTabSilent(formData);
           
           if (isValid) {
-            await optimizedSetTab(newIndex);
+            // Usar la función optimizada del hook
+            optimizedTabChange(setActiveTabIndex, newIndex);
           } else {
             // Establecer errores sin bloquear la UI
             setFirstTabErrors(formData);
           }
         } else {
           // Para otras pestañas, hacemos el cambio directamente
-          await optimizedSetTab(newIndex);
+          optimizedTabChange(setActiveTabIndex, newIndex);
         }
       } catch (error) {
         console.error("Error durante el cambio de pestaña:", error);
@@ -585,8 +579,8 @@ export default function ActividadFormPage() {
         setActiveTabIndex(newIndex);
       }
     } else {
-      // Si retrocedemos, permitir sin validación usando la versión optimizada
-      await optimizedSetTab(newIndex);
+      // Si retrocedemos, permitir sin validación
+      optimizedTabChange(setActiveTabIndex, newIndex);
     }
   };
     // Estado para manejar autoguardado y recuperación de borrador

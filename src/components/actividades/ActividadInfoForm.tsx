@@ -223,8 +223,7 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           <Controller
             name="fechaInicio"
             control={control}
-            rules={{ required: true }}
-            render={({ field }) => (              <DatePicker
+            rules={{ required: true }}            render={({ field }) => (              <DatePicker
                 selectedDate={field.value}
                 onChange={(date: Date | null) => {
                   field.onChange(date);
@@ -233,6 +232,8 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                     validateFechaInicio(date, true);
                   }
                 }}
+                isInvalid={!!errors.fechaInicio}
+                placeholder="Seleccionar fecha de inicio..."
               />
             )}
           />          {errors.fechaInicio && (
@@ -245,8 +246,7 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           <Controller
             name="fechaFin"
             control={control}
-            rules={{ required: true }}
-            render={({ field }) => (              <DatePicker
+            rules={{ required: true }}            render={({ field }) => (              <DatePicker
                 selectedDate={field.value}
                                 onChange={(date: Date | null) => {
                   field.onChange(date);
@@ -255,6 +255,9 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
                     validateFechaFin(date, true);
                   }
                 }}
+                isInvalid={!!errors.fechaFin}
+                placeholder="Seleccionar fecha de finalización..."
+                minDate={fechaInicio} // La fecha fin no puede ser anterior a la fecha de inicio
               />
             )}
           />          {errors.fechaFin && (
