@@ -6,7 +6,10 @@ import { Timestamp } from 'firebase/firestore';
 export enum TipoEventoMaterial {
   ADQUISICION = 'adquisicion',
   PRIMERA_REVISION = 'primera_revision',
+  REVISION = 'revision', // Agregar para compatibilidad
   REVISION_PERIODICA = 'revision_periodica',
+  MANTENIMIENTO = 'mantenimiento', // Agregar para compatibilidad
+  INCIDENCIA = 'incidencia', // Agregar para compatibilidad
   INCIDENCIA_MENOR = 'incidencia_menor',
   INCIDENCIA_MAYOR = 'incidencia_mayor',
   REPARACION = 'reparacion',

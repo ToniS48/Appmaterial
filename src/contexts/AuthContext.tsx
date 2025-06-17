@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isAuthListenerConfigured, setIsAuthListenerConfigured] = useState<boolean>(false);
 
   // Configurar persistencia al cargar el componente
   useEffect(() => {
@@ -143,10 +144,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error al cargar perfil:', error);
     }
-  };
-  // Efecto para manejar cambios de autenticación
+  };  // Efecto para manejar cambios de autenticación (optimizado para evitar reconfiguración)
   useEffect(() => {
+    if (isAuthListenerConfigured) {
+      return; // Evitar reconfiguración del listener
+    }
+    
     console.log('Configurando listener de autenticación...');
+    setIsAuthListenerConfigured(true);
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.email}` : 'Sin usuario');
@@ -171,8 +176,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
     
-    return unsubscribe;
-  }, []);
+    return () => {
+      unsubscribe();
+      setIsAuthListenerConfigured(false);
+    };
+  }, [isAuthListenerConfigured]);
 
   // Reemplazar el useEffect de reconexión por uno que maneje el estado de conexión
   useEffect(() => {

@@ -55,6 +55,9 @@ export abstract class BaseRepository<T extends BaseEntity> {
   protected enableCache: boolean;
   protected cacheTTL: number;
   private cache = new Map<string, { data: T; timestamp: number }>();
+  private queryCache = new Map<string, { data: T[]; timestamp: number }>();
+  private pendingQueries = new Map<string, Promise<T[]>>();
+  private debounceTime = 300;
 
   constructor(config: RepositoryConfig) {
     this.collectionName = config.collectionName;
@@ -271,59 +274,99 @@ export abstract class BaseRepository<T extends BaseEntity> {
       throw error;
     }
   }
-
   /**
-   * Buscar entidades con opciones de consulta
-   */  async find(options: QueryOptions = {}): Promise<T[]> {
+   * Buscar entidades con opciones de consulta (optimizado con cache y deduplicación)
+   */
+  async find(options: QueryOptions = {}): Promise<T[]> {
     try {
-      // Solo log importante: inicio de consulta
-      console.log(`🔍 ${this.collectionName} - Find:`, { 
-        where: options.where?.length || 0, 
-        orderBy: options.orderBy?.length || 0, 
-        limit: options.limit 
-      });
+      const queryKey = this.generateQueryKey(options);
       
-      let q: Query = this.getCollectionRef();
-
-      // Aplicar filtros WHERE
-      if (options.where) {
-        options.where.forEach(filter => {
-          q = query(q, where(filter.field, filter.operator, filter.value));
-        });
+      // Verificar cache primero
+      if (this.enableCache) {
+        const cached = this.queryCache.get(queryKey);
+        if (cached && this.isCacheValid(cached.timestamp)) {
+          console.log(`💨 ${this.collectionName} - Cache hit for query`);
+          return cached.data;
+        }
       }
 
-      // Aplicar ordenamiento
-      if (options.orderBy) {
-        options.orderBy.forEach(order => {
-          q = query(q, orderBy(order.field, order.direction));
-        });
+      // Verificar si hay una consulta pendiente para evitar duplicados
+      if (this.pendingQueries.has(queryKey)) {
+        console.log(`⏳ ${this.collectionName} - Waiting for pending query`);
+        return await this.pendingQueries.get(queryKey)!;
       }
 
-      // Aplicar límite
-      if (options.limit) {
-        q = query(q, firestoreLimit(options.limit));
-      }
+      // Crear nueva consulta y almacenar la promesa
+      const queryPromise = this.executeQuery(options, queryKey);
+      this.pendingQueries.set(queryKey, queryPromise);
 
-      const querySnapshot = await getDocs(q);
-      
-      const results = querySnapshot.docs
-        .map(doc => {
-          const transformed = this.transformFromFirestore(doc);
-          return transformed;
-        })
-        .filter((entity): entity is T => entity !== null);
-      
-      // Solo log del resultado final
-      console.log(`✅ ${this.collectionName} - Found ${results.length} items`);
-      
-      return results;
+      try {
+        const result = await queryPromise;
+        
+        // Guardar en cache si está habilitado
+        if (this.enableCache) {
+          this.queryCache.set(queryKey, { data: result, timestamp: Date.now() });
+          this.cleanExpiredCache();
+        }
+        
+        return result;
+      } finally {
+        // Limpiar consulta pendiente
+        this.pendingQueries.delete(queryKey);
+      }
     } catch (error) {
-      console.error(`❌ [DEBUG] ${this.collectionName} - Error en find:`, error);
-      logger.error(`Error buscando entidades en ${this.collectionName}`, error);
-      handleFirebaseError(error, `Error al buscar entidades en ${this.collectionName}`);
-      throw error;
+      console.error(`❌ ${this.collectionName} - Find error:`, error);
+      throw handleFirebaseError(error, `Error al buscar en ${this.collectionName}`);
     }
   }
+
+  /**
+   * Ejecuta la consulta real a Firebase
+   */
+  private async executeQuery(options: QueryOptions, queryKey: string): Promise<T[]> {
+    // Solo log importante: inicio de consulta
+    console.log(`🔍 ${this.collectionName} - Find:`, { 
+      where: options.where?.length || 0, 
+      orderBy: options.orderBy?.length || 0, 
+      limit: options.limit 
+    });
+    
+    let q: Query = this.getCollectionRef();
+
+    // Aplicar filtros WHERE
+    if (options.where) {
+      options.where.forEach(filter => {
+        q = query(q, where(filter.field, filter.operator, filter.value));
+      });
+    }
+
+    // Aplicar ordenamiento
+    if (options.orderBy) {
+      options.orderBy.forEach(order => {
+        q = query(q, orderBy(order.field, order.direction));
+      });
+    }
+
+    // Aplicar límite
+    if (options.limit) {
+      q = query(q, firestoreLimit(options.limit));
+    }
+
+    const querySnapshot = await getDocs(q);
+    
+    const results = querySnapshot.docs
+      .map(doc => {
+        const transformed = this.transformFromFirestore(doc);
+        return transformed;
+      })
+      .filter((entity): entity is T => entity !== null);
+    
+    // Solo log del resultado final    console.log(`✅ ${this.collectionName} - Found ${results.length} items`);
+    
+    return results;
+  }
+
+  // ...existing code...
 
   /**
    * Buscar una sola entidad
@@ -423,5 +466,41 @@ export abstract class BaseRepository<T extends BaseEntity> {
   clearCache(): void {
     this.invalidateCache();
     logger.info(`Caché limpiado para ${this.collectionName}`);
+  }
+
+  /**
+   * Genera una clave única para la consulta
+   */
+  private generateQueryKey(options: QueryOptions): string {
+    return JSON.stringify({
+      collection: this.collectionName,
+      where: options.where || [],
+      orderBy: options.orderBy || [],
+      limit: options.limit
+    });
+  }
+
+  /**
+   * Verifica si el cache es válido
+   */
+  private isCacheValid(timestamp: number): boolean {
+    return Date.now() - timestamp < this.cacheTTL;
+  }
+  /**
+   * Limpia cache expirado
+   */
+  private cleanExpiredCache(): void {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+    
+    this.queryCache.forEach((value, key) => {
+      if (now - value.timestamp >= this.cacheTTL) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    keysToDelete.forEach(key => {
+      this.queryCache.delete(key);
+    });
   }
 }

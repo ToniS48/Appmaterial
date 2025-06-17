@@ -1075,19 +1075,39 @@ export const verificarActividadParaMarcadoAutomatico = async (actividadId: strin
   }
 };
 
-// Función para configurar verificación automática periódica
+// Variables para controlar la verificación automática (optimización)
+let verificacionAutomaticaActiva = false;
+let intervalId: NodeJS.Timeout | null = null;
+let ultimaEjecucion = 0;
+const INTERVALO_MINIMO_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+// Función para configurar verificación automática periódica (optimizada)
 export const configurarVerificacionAutomatica = (): (() => void) => {
   console.log('🔧 Configurando verificación automática de préstamos vencidos...');
   
-  // Ejecutar inmediatamente
-  marcarPrestamosVencidosAutomaticamente().catch(error => {
-    console.error('❌ Error en verificación automática inicial:', error);
-  });
+  // Evitar múltiples configuraciones activas
+  if (verificacionAutomaticaActiva) {
+    console.log('⚠️ Verificación automática ya está activa, saltando configuración');
+    return () => {
+      console.log('🔄 Función de cancelación para verificación ya activa');
+    };
+  }
   
-  // Configurar intervalo para ejecutar cada 24 horas
-  const intervalo = setInterval(async () => {
+  verificacionAutomaticaActiva = true;
+  
+  // Función para ejecutar verificación con control de frecuencia
+  const ejecutarVerificacion = async () => {
+    const ahora = Date.now();
+    
+    // Control de frecuencia mínima (evitar ejecuciones muy seguidas)
+    if (ultimaEjecucion && (ahora - ultimaEjecucion) < INTERVALO_MINIMO_MS) {
+      console.log('⏰ Saltando verificación: ejecutada recientemente');
+      return;
+    }
+    
     try {
       console.log('⏰ Ejecutando verificación automática programada...');
+      ultimaEjecucion = ahora;
       const resultado = await marcarPrestamosVencidosAutomaticamente();
       
       if (resultado.marcados > 0) {
@@ -1097,12 +1117,30 @@ export const configurarVerificacionAutomatica = (): (() => void) => {
     } catch (error) {
       console.error('❌ Error en verificación automática programada:', error);
     }
-  }, 24 * 60 * 60 * 1000); // 24 horas
+  };
+  
+  // Ejecutar inmediatamente solo si no se ha ejecutado recientemente
+  const tiempoDesdeUltima = Date.now() - ultimaEjecucion;
+  if (tiempoDesdeUltima >= INTERVALO_MINIMO_MS) {
+    ejecutarVerificacion().catch(error => {
+      console.error('❌ Error en verificación automática inicial:', error);
+    });
+  } else {
+    console.log('⏰ Saltando ejecución inicial: ejecutada recientemente');
+  }
+  
+  // Configurar intervalo para ejecutar cada 24 horas
+  intervalId = setInterval(ejecutarVerificacion, INTERVALO_MINIMO_MS);
   
   // Retornar función para cancelar el intervalo
   return () => {
     console.log('🛑 Cancelando verificación automática...');
-    clearInterval(intervalo);
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+    verificacionAutomaticaActiva = false;
+    console.log('✅ Verificación automática cancelada y limpiada');
   };
 };
 

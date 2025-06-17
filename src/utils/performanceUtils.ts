@@ -88,3 +88,84 @@ export const safeLog = (message: string, data?: any): void => {
     // Ignorar errores de logging para evitar cascadas de errores
   }
 };
+
+/**
+ * Procesa arrays grandes en chunks para evitar bloquear el hilo principal
+ */
+export const processDataInChunks = async <T, R>(
+  data: T[],
+  processor: (chunk: T[]) => Promise<R[]> | R[],
+  chunkSize: number = 100,
+  yieldInterval: number = 0
+): Promise<R[]> => {
+  const results: R[] = [];
+  
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize);
+    const chunkResults = await processor(chunk);
+    results.push(...chunkResults);
+    
+    // Yield al scheduler para no bloquear el hilo principal
+    if (yieldInterval >= 0) {
+      await new Promise(resolve => setTimeout(resolve, yieldInterval));
+    }
+  }
+  
+  return results;
+};
+
+/**
+ * Procesa datos de forma síncrona en chunks con yields
+ */
+export const processDataSync = async <T>(
+  data: T[],
+  processor: (item: T, index: number) => void,
+  chunkSize: number = 50
+): Promise<void> => {
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize);
+    
+    chunk.forEach((item, localIndex) => {
+      processor(item, i + localIndex);
+    });
+    
+    // Yield al scheduler
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+};
+
+/**
+ * Cache simple con TTL
+ */
+export class SimpleCache<T> {
+  private cache = new Map<string, { data: T; timestamp: number }>();
+  private ttl: number;
+
+  constructor(ttlMs: number = 10 * 60 * 1000) { // 10 minutos por defecto
+    this.ttl = ttlMs;
+  }
+
+  set(key: string, data: T): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  get(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  size(): number {
+    return this.cache.size;
+  }
+}

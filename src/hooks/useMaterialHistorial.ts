@@ -1,8 +1,9 @@
 /**
  * Hook para el registro automático de eventos en el historial de materiales
  * Se integra con las operaciones de material para crear un seguimiento transparente
+ * Optimizado para evitar recreaciones innecesarias
  */
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { materialHistorialService } from '../services/domain/MaterialHistorialService';
 import { Material } from '../types/material';
@@ -28,11 +29,20 @@ interface RegistroEventoParams {
 
 export const useMaterialHistorial = () => {
   const { currentUser, userProfile } = useAuth();
+
+  // Memoizar datos del usuario para evitar recreaciones innecesarias
+  const userData = useMemo(() => ({
+    userId: currentUser?.uid,
+    userEmail: currentUser?.email,
+    userName: userProfile?.nombre || currentUser?.email || 'Usuario',
+    isAuthenticated: !!(currentUser && userProfile)
+  }), [currentUser?.uid, currentUser?.email, userProfile?.nombre]);
+
   /**
-   * Registrar un evento de material
+   * Registrar un evento de material (optimizado con memoización)
    */
   const registrarEvento = useCallback(async (params: RegistroEventoParams) => {
-    if (!currentUser || !userProfile) {
+    if (!userData.isAuthenticated) {
       console.warn('No se puede registrar evento: usuario no autenticado');
       return null;
     }
@@ -51,13 +61,13 @@ export const useMaterialHistorial = () => {
         gravedad: params.gravedad,
         actividadId: params.actividadId,
         nombreActividad: params.nombreActividad,
-        usuarioResponsable: currentUser.uid,
-        nombreUsuarioResponsable: userProfile.nombre || currentUser.email || 'Usuario',
+        usuarioResponsable: userData.userId!,
+        nombreUsuarioResponsable: userData.userName,
         observaciones: params.observaciones,
         evidenciaFotos: params.evidenciaFotos || [],
         documentosAdjuntos: params.documentosAdjuntos || [],
-        registradoPor: currentUser.uid,
-        nombreRegistrador: userProfile.nombre || currentUser.email || 'Usuario'
+        registradoPor: userData.userId!,
+        nombreRegistrador: userData.userName
       };
 
       const eventoId = await materialHistorialService.registrarEvento(evento);
@@ -67,7 +77,7 @@ export const useMaterialHistorial = () => {
       console.error('Error al registrar evento en historial:', error);
       return null;
     }
-  }, [currentUser, userProfile]);
+  }, [userData]);
 
   /**
    * Registrar adquisición de material nuevo
