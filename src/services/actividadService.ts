@@ -108,6 +108,9 @@ export const actualizarActividad = async (id: string, actividadData: Partial<Act
       await crearPrestamosParaActividad(actividadActualizada);
     }
     
+    // Invalidar caché después de actualizar
+    invalidarCacheActividades();
+    
     return actividadActualizada;
   } catch (error) {
     handleFirebaseError(error, messages.actividades.service.errors.actualizar);
@@ -272,15 +275,14 @@ export const obtenerActividadesProximas = async (limit: number = 10, options?: {
       where('fechaInicio', '>=', now),
       orderBy('fechaInicio', 'asc')
     );
-    
-    const actividadesSnapshot = await getDocs(actividadQuery);
+      const actividadesSnapshot = await getDocs(actividadQuery);
     const actividades = actividadesSnapshot.docs
       .map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Actividad))
-      // Filtrar actividades canceladas en el cliente
-      .filter(actividad => actividad.estado !== 'cancelada')
+      // Filtrar actividades canceladas y finalizadas en el cliente
+      .filter(actividad => !['cancelada', 'finalizada'].includes(actividad.estado))
       .slice(0, limit);
     
     // Guardar en caché
@@ -787,6 +789,9 @@ export const finalizarActividad = async (id: string): Promise<Actividad> => {
         );
       }
     }
+    
+    // Invalidar caché después de finalizar
+    invalidarCacheActividades();
     
     // Recuperar el documento actualizado
     if (!actividadSnapshot.exists()) {

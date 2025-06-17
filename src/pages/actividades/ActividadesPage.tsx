@@ -238,8 +238,7 @@ const ActividadesPage: React.FC = () => {
       });
     }
   };
-  
-  // Separar actividades actuales de antiguas para la pestaña "Todas"
+    // Separar actividades actuales de antiguas para la pestaña "Todas"
   const actividadesSeparadas = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0); // Resetear a medianoche para comparación de fechas
@@ -254,10 +253,16 @@ const ActividadesPage: React.FC = () => {
       
       fechaActividad.setHours(0, 0, 0, 0); // Resetear a medianoche para comparación
       
-      if (fechaActividad >= hoy) {
-        actuales.push(actividad);
-      } else {
+      // Una actividad va a "Actividades Realizadas" si:
+      // 1. Su estado es 'finalizada' O 'cancelada', O
+      // 2. Su fecha de inicio es anterior a hoy Y no está en estado 'planificada' o 'en_curso'
+      const esRealizada = actividad.estado === 'finalizada' || actividad.estado === 'cancelada';
+      const esPasadaYNoActiva = fechaActividad < hoy && !['planificada', 'en_curso'].includes(actividad.estado);
+      
+      if (esRealizada || esPasadaYNoActiva) {
         antiguas.push(actividad);
+      } else {
+        actuales.push(actividad);
       }
     });
     
