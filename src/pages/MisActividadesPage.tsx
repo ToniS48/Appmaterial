@@ -45,6 +45,7 @@ import { useAuth } from '../contexts/AuthContext';
 import DashboardLayout from '../components/layouts/DashboardLayout';
 import { Actividad } from '../types/actividad';
 import { obtenerActividadesClasificadas } from '../services/actividadService';
+import { formatLocationForCard } from '../utils/locationUtils';
 import { 
   detectarActividadesConRetraso,   notificarActividadesConRetraso,
   finalizarActividadConRetraso,
@@ -513,7 +514,9 @@ const MisActividadesPage: React.FC = () => {
             </Text>
           </Flex>
           
-          <Text fontSize="sm" mt={2}>Lugar: {actividad.lugar || 'No especificado'}</Text>
+          <Text fontSize="sm" mt={2} title={actividad.lugar || 'No especificado'}>
+            Lugar: {formatLocationForCard(actividad.lugar || 'No especificado')}
+          </Text>
             {actividad.descripcion && (
             <Text fontSize="sm" mt={2} noOfLines={2}>{actividad.descripcion}</Text>
           )}

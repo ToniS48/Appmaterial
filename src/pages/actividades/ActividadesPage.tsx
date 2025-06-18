@@ -42,6 +42,7 @@ import { Actividad } from '../../types/actividad';
 import ActividadDetalle from '../../components/actividades/ActividadDetalle';
 import ActividadCard from '../../components/actividades/ActividadCard';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatLocationForCard } from '../../utils/locationUtils';
 
 const ActividadesPage: React.FC = () => {
   // Estados
@@ -460,10 +461,9 @@ const ActividadesPage: React.FC = () => {
           <ModalHeader>
             {selectedActividad ? (
               <>
-                {selectedActividad.nombre}
-                {selectedActividad.lugar && (
-                  <Text as="span" fontWeight="normal" fontSize="md" ml={1}>
-                    ({selectedActividad.lugar})
+                {selectedActividad.nombre}                {selectedActividad.lugar && (
+                  <Text as="span" fontWeight="normal" fontSize="md" ml={1} title={selectedActividad.lugar}>
+                    ({formatLocationForCard(selectedActividad.lugar)})
                   </Text>
                 )}
                 <Text fontSize="sm" color="gray.600" fontWeight="normal" mt={1}>

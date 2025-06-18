@@ -52,9 +52,59 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState(currentLocation);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [mapUrl, setMapUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);  const [mapUrl, setMapUrl] = useState('');
   const toast = useToast();
+  /**
+   * Genera un nombre corto y amigable para mostrar en las tarjetas de actividades
+   * A partir del resultado completo de Nominatim
+   * 
+   * OBJETIVO: Evitar textos muy largos como "Montanejos, El Alto Mijares, Castellón, Comunidad Valenciana, 12448, España"
+   * RESULTADO: Textos concisos como "Montanejos, Castellón"
+   */
+  const generateShortLocationName = (nominatimResult: any): string => {
+    // Extraer información relevante del resultado de Nominatim
+    const { display_name, address } = nominatimResult;
+    
+    if (!address) {
+      // Si no hay información de dirección estructurada, usar una versión simplificada del display_name
+      const parts = display_name.split(',').map((part: string) => part.trim());
+      // Tomar solo las 2 primeras partes para evitar texto muy largo
+      return parts.slice(0, 2).join(', ');
+    }
+
+    // Construir nombre corto basado en la información de dirección estructurada
+    const {
+      village,       // Pueblo/aldea
+      town,          // Ciudad pequeña
+      city,          // Ciudad
+      municipality,  // Municipio
+      county,        // Comarca/condado (ej: "El Alto Mijares")
+      state,         // Provincia/estado (ej: "Castellón")
+      country        // País
+    } = address;
+
+    // Priorizar información más específica a menos específica
+    const location = village || town || city || municipality;
+    
+    // Para España, preferir la provincia (state) sobre la comarca (county)
+    // ya que es más reconocible: "Castellón" vs "El Alto Mijares"
+    const region = state || county;
+    
+    if (location && region) {
+      // Formato: "Pueblo, Provincia" (ej: "Montanejos, Castellón")
+      return `${location}, ${region}`;
+    } else if (location) {
+      // Solo el lugar si no hay región
+      return location;
+    } else if (region) {
+      // Solo la región si no hay lugar específico
+      return region;
+    } else {
+      // Fallback: usar las 2 primeras partes del display_name
+      const parts = display_name.split(',').map((part: string) => part.trim());
+      return parts.slice(0, 2).join(', ');
+    }
+  };
 
   // Sincronizar con la ubicación actual
   useEffect(() => {
@@ -84,11 +134,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
       }
 
       const data = await response.json();
-      
-      if (data && data.length > 0) {
+        if (data && data.length > 0) {
         const result = data[0];
+        const shortAddress = generateShortLocationName(result);
         const location: Location = {
-          address: result.display_name || query,
+          address: shortAddress,
           lat: parseFloat(result.lat),
           lon: parseFloat(result.lon)
         };

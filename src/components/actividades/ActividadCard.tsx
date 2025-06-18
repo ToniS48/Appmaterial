@@ -20,6 +20,7 @@ import { Actividad } from '../../types/actividad';
 import { ActividadConRetrasoIndicador } from './ActividadConRetrasoIndicador';
 import WeatherCard from '../weather/WeatherCard';
 import { useWeather } from '../../hooks/useWeather';
+import { formatLocationForCard } from '../../utils/locationUtils';
 
 // OPTIMIZACIÓN DE RENDIMIENTO
 const deferCallback = (callback: () => void) => {
@@ -209,8 +210,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
               size={variant === 'simple' ? 'xs' : 'sm'}
               textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
               color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
-            >
-              {actividad.nombre}
+            >              {actividad.nombre}
               {actividad.lugar && (
                 <Text 
                   as="span" 
@@ -219,8 +219,9 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   ml={1}
                   textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
                   color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
+                  title={actividad.lugar} // Mostrar texto completo en tooltip
                 >
-                  ({actividad.lugar})
+                  ({formatLocationForCard(actividad.lugar)})
                 </Text>
               )}
             </Heading>
