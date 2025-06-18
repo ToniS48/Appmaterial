@@ -197,28 +197,30 @@ class WeatherService {
     coordinates: { lat: number; lon: number },
     days: number
   ): Promise<WeatherForecast | null> {
-    try {
-      // Construir URL para Open-Meteo API
+    try {      // Construir URL para Open-Meteo API
+      // La API de Open-Meteo devuelve automáticamente hasta 16 días de pronóstico
+      // Corregidos los nombres de parámetros según la documentación oficial
       const params = new URLSearchParams({
         latitude: coordinates.lat.toString(),
         longitude: coordinates.lon.toString(),
-        daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,relativehumidity_2m_max,windspeed_10m_max',
-        current: 'temperature_2m,relativehumidity_2m,windspeed_10m,weathercode',
-        timezone: 'auto',
-        forecast_days: Math.min(days, 16).toString() // Open-Meteo permite hasta 16 días
+        daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,windspeed_10m_max',
+        current: 'temperature_2m,relative_humidity_2m,windspeed_10m,weathercode',
+        timezone: 'auto'
       });
 
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?${params.toString()}`
-      );
+      const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+      console.log('🌦️ Petición a Open-Meteo:', url);
+
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`Error en API Open-Meteo: ${response.status}`);
+        const errorText = await response.text();
+        console.error('🌦️ Error en API Open-Meteo:', response.status, errorText);
+        throw new Error(`Error en API Open-Meteo: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-
-      // Procesar datos
+      console.log('🌦️ Respuesta de Open-Meteo exitosa:', data);      // Procesar datos
       const forecast: WeatherForecast = {
         location: {
           lat: coordinates.lat,
@@ -229,6 +231,7 @@ class WeatherService {
         daily: this.mapDailyWeatherData(data.daily, days)
       };
 
+      console.log('🌦️ Pronóstico procesado exitosamente:', forecast);
       return forecast;
 
     } catch (error) {
@@ -252,7 +255,7 @@ class WeatherService {
       },
       description,
       icon: this.getWeatherIcon(data.weathercode),
-      humidity: data.relativehumidity_2m || 0,
+      humidity: data.relative_humidity_2m || 0,
       windSpeed: data.windspeed_10m || 0,
       precipitation: 0, // Los datos actuales no incluyen precipitación
       condition
@@ -277,7 +280,7 @@ class WeatherService {
         },
         description,
         icon: this.getWeatherIcon(data.weathercode[i]),
-        humidity: data.relativehumidity_2m_max[i] || 0,
+        humidity: 0, // Sin datos de humedad diaria en esta petición simplificada
         windSpeed: data.windspeed_10m_max[i] || 0,
         precipitation: data.precipitation_sum[i] || 0,
         condition
@@ -766,6 +769,46 @@ class WeatherService {
     if (['43', '44', '45', '46'].includes(codigo)) return 'snow';
     if (['51', '52', '53', '54'].includes(codigo)) return 'thunderstorm';
     return 'unknown';
+  }
+
+  /**
+   * Obtiene el pronóstico de 7 días para una actividad (para vista compacta en tarjetas)
+   */
+  async get7DayForecastForActivity(
+    activityStartDate: Date | Timestamp,
+    location?: string
+  ): Promise<WeatherData[]> {
+    if (!this.isEnabled()) {
+      return [];
+    }
+
+    try {
+      const startDate = activityStartDate instanceof Timestamp 
+        ? activityStartDate.toDate() 
+        : activityStartDate;
+
+      // Calcular días desde hoy hasta la fecha de la actividad
+      const today = new Date();
+      const daysUntilActivity = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Si la actividad es muy lejana, no mostrar pronóstico
+      if (daysUntilActivity > 15) {
+        return [];
+      }
+
+      // Obtener pronóstico completo
+      const forecast = await this.getWeatherForecast(location, 7);
+      if (!forecast || !forecast.daily) {
+        return [];
+      }
+
+      // Retornar los próximos 7 días
+      return forecast.daily.slice(0, 7);
+
+    } catch (error) {
+      console.error('Error obteniendo pronóstico de 7 días:', error);
+      return [];
+    }
   }
 }
 

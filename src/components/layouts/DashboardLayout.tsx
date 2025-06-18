@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import AppHeader from './AppHeader';
+import WeatherDebugPanel from '../debug/WeatherDebugPanel';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       >
         {children}
       </Box>
+
+      {/* Panel temporal de debug del clima - solo en desarrollo */}
+      {process.env.NODE_ENV === 'development' && <WeatherDebugPanel />}
     </Flex>
   );
 };

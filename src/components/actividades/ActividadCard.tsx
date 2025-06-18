@@ -18,8 +18,8 @@ import IconBadge from '../common/IconBadge';
 import { useAuth } from '../../contexts/AuthContext';
 import { Actividad } from '../../types/actividad';
 import { ActividadConRetrasoIndicador } from './ActividadConRetrasoIndicador';
-import WeatherCard from '../weather/WeatherCard';
-import { useWeather } from '../../hooks/useWeather';
+import WeatherCompactPreview from '../weather/WeatherCompactPreview';
+import { use7DayWeather } from '../../hooks/use7DayWeather';
 import { formatLocationForCard } from '../../utils/locationUtils';
 
 // OPTIMIZACIÓN DE RENDIMIENTO
@@ -69,13 +69,8 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
       // Solo mostrar para actividades en los próximos 15 días
     return diasHastaActividad >= -1 && diasHastaActividad <= 15;
   }, [actividad.estado, actividad.fechaInicio]);
-
-  const { weatherData, loading: weatherLoading } = useWeather(
-    shouldShowWeather ? actividad : null,
-    { 
-      enabled: shouldShowWeather,
-      location: actividad.lugar 
-    }
+  const { weatherData, loading: weatherLoading } = use7DayWeather(
+    shouldShowWeather ? actividad : null
   );
 
   // Memoizar computaciones costosas para evitar re-renders innecesarios
@@ -187,7 +182,7 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
         esParticipante ? "blue.400" : 
         "transparent"
       }
-      height={variant === 'complete' ? { base: "auto", md: "220px" } : "auto"}
+      height={variant === 'complete' ? { base: "auto", md: "240px" } : "auto"}
       display="flex"
       flexDirection="column"
       // Estilos específicos para actividades canceladas
@@ -203,14 +198,16 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
         flexDirection="column"
         justifyContent="space-between"
         height="100%"
-      >
-        <Flex justifyContent="space-between" alignItems="center" mb={2}>
-          <Box>
+      >        {/* Estructura principal: contenido a la izquierda, pronóstico a la derecha */}
+        <Flex justifyContent="space-between" alignItems="flex-start" mb={2}>
+          {/* Contenido principal: título, fecha y badges */}
+          <Box flex="1" mr={3}>
             <Heading 
               size={variant === 'simple' ? 'xs' : 'sm'}
               textDecoration={actividad.estado === 'cancelada' ? 'line-through' : 'none'}
               color={actividad.estado === 'cancelada' ? 'gray.500' : 'inherit'}
-            >              {actividad.nombre}
+            >
+              {actividad.nombre}
               {actividad.lugar && (
                 <Text 
                   as="span" 
@@ -227,14 +224,15 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
             </Heading>
             
             {/* Fecha justo debajo del nombre */}
-            <Flex align="center" mt={1} mb={1}>
+            <Flex align="center" mt={1} mb={2}>
               <FiCalendar style={{ marginRight: '8px' }} size={variant === 'simple' ? 12 : 14} />
               <Text fontSize={variant === 'simple' ? 'xs' : 'sm'} color="gray.600">
                 {fechaFormateada}
               </Text>
             </Flex>
             
-            <Flex mt={1} gap={2} wrap="wrap">
+            {/* IconBadges */}
+            <Flex gap={2} wrap="wrap">
               {esCreador && (
                 <IconBadge 
                   icon={FiStar} 
@@ -250,7 +248,8 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   color="blue" 
                   size={variant === 'simple' ? 3.5 : 4} 
                 />
-              )}              {esResponsableMaterial && !esCreador && !esResponsableActividad && (
+              )}
+              {esResponsableMaterial && !esCreador && !esResponsableActividad && (
                 <IconBadge 
                   icon={FiPackage} 
                   label="R. Material" 
@@ -265,7 +264,8 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                   label="Participante" 
                   color="gray" 
                   size={variant === 'simple' ? 3.5 : 4} 
-                />              )}
+                />
+              )}
 
               {/* Estado de la actividad como IconBadge */}
               <IconBadge 
@@ -280,12 +280,13 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 size={variant === 'simple' ? 3.5 : 4}
               />
               
-              {/* Indicador de retraso - nuevo */}
+              {/* Indicador de retraso */}
               <ActividadConRetrasoIndicador 
                 actividad={actividad} 
                 showDetails={false}
               />
-                {/* Dificultad si existe */}
+              
+              {/* Dificultad si existe */}
               {actividad.dificultad && (
                 <IconBadge 
                   icon={FiAlertCircle} 
@@ -299,7 +300,24 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 />
               )}
             </Flex>
-          </Box>
+          </Box>          {/* Pronóstico meteorológico en columna derecha */}
+          {shouldShowWeather && weatherData.length > 0 && !weatherLoading && (
+            <Box 
+              flexShrink={0} 
+              w="auto"
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="flex-start"
+              minH="70px"
+              maxH="70px"
+            >
+              <WeatherCompactPreview 
+                weatherData={weatherData}
+                maxDays={7}
+              />
+            </Box>
+          )}
         </Flex>
         
         {variant === 'complete' && <Divider my={2} />}
@@ -332,21 +350,10 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 color="gray.400"
                 fontStyle="italic"
               >
-                Sin descripción
-              </Text>            )}
+                Sin descripción              </Text>            )}
           </Box>
         )}
         
-        {/* Información meteorológica - solo para actividades futuras */}
-        {shouldShowWeather && weatherData.length > 0 && !weatherLoading && (
-          <Box mt={2}>
-            <WeatherCard 
-              weatherData={weatherData} 
-              compact={true}
-              showDates={false}
-            />
-          </Box>
-        )}
         {mostrarBotones && (
           <Flex 
             mt={3} 

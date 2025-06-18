@@ -10,6 +10,9 @@ import AppRoutes from './routes';
 import { iniciarTareasProgramadas } from './services/programacionService';
 import { useVerificacionAutomaticaPrestamos } from './hooks/useVerificacionAutomaticaPrestamos';
 import ErrorBoundary from './components/common/ErrorBoundary';
+// Importar el servicio meteorológico para inicializarlo
+import { weatherService } from './services/weatherService';
+import { obtenerConfiguracionMeteorologica } from './services/configuracionService';
 
 // DebugHelper removido - problema MaterialSelector resuelto
 
@@ -33,6 +36,27 @@ function App() {
   useEffect(() => {
     // Iniciar tareas programadas cuando la app se monte
     iniciarTareasProgramadas();
+    
+    // Inicializar servicio meteorológico
+    const initWeatherService = async () => {
+      try {
+        console.log('🌤️ Inicializando servicio meteorológico...');
+        const weatherConfig = await obtenerConfiguracionMeteorologica();
+        await weatherService.configure(weatherConfig);
+        
+        if (weatherService.isEnabled()) {
+          console.log('✅ Servicio meteorológico habilitado');
+          // Exponer en window para debugging
+          (window as any).weatherService = weatherService;
+        } else {
+          console.log('⚠️ Servicio meteorológico deshabilitado - ir a Configuración → Clima para habilitarlo');
+        }
+      } catch (error) {
+        console.error('❌ Error inicializando servicio meteorológico:', error);
+      }
+    };
+    
+    initWeatherService();
     
     // Verificar estado inicial de autenticación
     const checkInitialAuth = () => {
