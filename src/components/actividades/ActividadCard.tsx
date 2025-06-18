@@ -18,6 +18,8 @@ import IconBadge from '../common/IconBadge';
 import { useAuth } from '../../contexts/AuthContext';
 import { Actividad } from '../../types/actividad';
 import { ActividadConRetrasoIndicador } from './ActividadConRetrasoIndicador';
+import WeatherCard from '../weather/WeatherCard';
+import { useWeather } from '../../hooks/useWeather';
 
 // OPTIMIZACIÓN DE RENDIMIENTO
 const deferCallback = (callback: () => void) => {
@@ -52,6 +54,28 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   variant = 'complete'
 }) => {
   const { userProfile } = useAuth();
+
+  // Hook para datos meteorológicos - solo para actividades futuras activas
+  const shouldShowWeather = useMemo(() => {
+    if (actividad.estado === 'cancelada' || actividad.estado === 'finalizada') return false;
+    
+    const fechaActividad = actividad.fechaInicio instanceof Date 
+      ? actividad.fechaInicio 
+      : actividad.fechaInicio.toDate();
+    
+    const hoy = new Date();
+    const diasHastaActividad = Math.ceil((fechaActividad.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+      // Solo mostrar para actividades en los próximos 15 días
+    return diasHastaActividad >= -1 && diasHastaActividad <= 15;
+  }, [actividad.estado, actividad.fechaInicio]);
+
+  const { weatherData, loading: weatherLoading } = useWeather(
+    shouldShowWeather ? actividad : null,
+    { 
+      enabled: shouldShowWeather,
+      location: actividad.lugar 
+    }
+  );
 
   // Memoizar computaciones costosas para evitar re-renders innecesarios
   const userPermissions = useMemo(() => {
@@ -308,11 +332,20 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
                 fontStyle="italic"
               >
                 Sin descripción
-              </Text>
-            )}
+              </Text>            )}
           </Box>
         )}
         
+        {/* Información meteorológica - solo para actividades futuras */}
+        {shouldShowWeather && weatherData.length > 0 && !weatherLoading && (
+          <Box mt={2}>
+            <WeatherCard 
+              weatherData={weatherData} 
+              compact={true}
+              showDates={false}
+            />
+          </Box>
+        )}
         {mostrarBotones && (
           <Flex 
             mt={3} 

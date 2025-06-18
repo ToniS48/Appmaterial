@@ -20,12 +20,13 @@ const ActividadForm: React.FC<ActividadFormProps> = ({
   mostrarBotones = true
 }) => {
   const { currentUser } = useAuth();
-
   // Asegurar que defaultValues contiene todos los campos requeridos
   const methods = useForm({
     defaultValues: {
       nombre: '',
       lugar: '',
+      ubicacionLat: 0, // Coordenadas para el clima
+      ubicacionLon: 0, // Coordenadas para el clima
       fechaInicio: new Date(),
       fechaFin: new Date(Date.now() + 86400000), // Un día después por defecto
       tipo: [],

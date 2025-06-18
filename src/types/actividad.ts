@@ -27,8 +27,9 @@ export interface Actividad {
   descripcion: string;
   // Estandarizar el tipo para facilitar la manipulación interna
   fechaInicio: Date | Timestamp;
-  fechaFin: Date | Timestamp;
-  lugar: string;
+  fechaFin: Date | Timestamp;  lugar: string;
+  ubicacionLat?: number; // Latitud para el clima (opcional)
+  ubicacionLon?: number; // Longitud para el clima (opcional)
   responsableActividadId: string;
   responsableMaterialId?: string;
   participanteIds: string[];

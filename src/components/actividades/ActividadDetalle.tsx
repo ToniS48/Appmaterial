@@ -23,6 +23,8 @@ import {
 import IconBadge from '../common/IconBadge';
 import { Actividad } from '../../types/actividad';
 import { Usuario } from '../../types/usuario';
+import WeatherCard from '../weather/WeatherCard';
+import { useWeather } from '../../hooks/useWeather';
 
 interface ActividadDetalleProps {
   actividad: Actividad;
@@ -32,8 +34,15 @@ interface ActividadDetalleProps {
 
 const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose, onActividadUpdated }) => {
   const [addedToCalendar, setAddedToCalendar] = useState<boolean>(false);
-  const toast = useToast();  const { userProfile } = useAuth();
+  const toast = useToast();  
+  const { userProfile } = useAuth();
   const [participantes, setParticipantes] = useState<Usuario[]>([]);
+
+  // Hook para datos meteorológicos
+  const { weatherData, loading: weatherLoading, error: weatherError } = useWeather(actividad, {
+    enabled: actividad.estado !== 'finalizada' && actividad.estado !== 'cancelada',
+    location: actividad.lugar
+  });
 
   // Añadir useEffect para verificar si ya se ha añadido al calendario
   useEffect(() => {
@@ -167,12 +176,21 @@ const ActividadDetalle: React.FC<ActividadDetalleProps> = ({ actividad, onClose,
       </Flex>
       
       <Divider my={3} />
-      
-      <Box mb={3}>
+        <Box mb={3}>
         <Text fontWeight="bold" mb={1}>Descripción:</Text>
         <Text>{actividad.descripcion}</Text>
       </Box>
       
+      {/* Información meteorológica */}
+      {weatherData.length > 0 && !weatherLoading && !weatherError && (
+        <Box mb={4}>
+          <WeatherCard 
+            weatherData={weatherData} 
+            compact={false}
+            showDates={true}
+          />
+        </Box>
+      )}
       {/* En la sección que muestra los participantes */}
       <Box mt={4}>
         <Heading size="sm" mb={2}>Participantes</Heading>

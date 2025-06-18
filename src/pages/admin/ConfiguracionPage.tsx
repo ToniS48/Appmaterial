@@ -27,6 +27,7 @@ import {
 import { DeleteIcon } from '@chakra-ui/icons'; // Añadir esta importación
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import MaterialDropdownManagerFunctional from '../../components/admin/MaterialDropdownManagerFunctional';
+import WeatherConfiguration from '../../components/admin/WeatherConfiguration';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import messages from '../../constants/messages';
@@ -193,12 +194,12 @@ const ConfiguracionPage: React.FC = () => {
             </Text>
           </CardBody>
         </Card>
-        
-        <Tabs colorScheme="brand" isLazy>          <TabList mb={4}>
+          <Tabs colorScheme="brand" isLazy>          <TabList mb={4}>
             <Tab>General</Tab>
             <Tab>Notificaciones</Tab>
             <Tab>Seguridad</Tab>
             <Tab>Formularios Material</Tab>
+            <Tab>Clima</Tab>
           </TabList>
           
           <TabPanels>
@@ -437,10 +438,13 @@ const ConfiguracionPage: React.FC = () => {
                   <Text color="gray.600" mb={6}>
                     Gestiona las opciones disponibles en los formularios de nuevo material. 
                     Los cambios se aplicarán inmediatamente a todos los formularios de material.
-                  </Text>
-                  <MaterialDropdownManagerFunctional />
+                  </Text>                  <MaterialDropdownManagerFunctional />
                 </CardBody>
               </Card>
+            </TabPanel>
+
+            <TabPanel>
+              <WeatherConfiguration />
             </TabPanel>
           </TabPanels>
         </Tabs>

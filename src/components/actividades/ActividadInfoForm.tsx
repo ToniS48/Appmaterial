@@ -1,10 +1,12 @@
-import React, { useMemo, useCallback, useRef } from 'react';
-import {
-  FormControl, FormLabel, FormErrorMessage, Input,
-  SimpleGrid, Textarea, Box, Button, Wrap, WrapItem
+import React, { useMemo, useCallback, useRef, useState } from 'react';
+import {  FormControl, FormLabel, FormErrorMessage, Input,
+  SimpleGrid, Textarea, Box, Button, Wrap, WrapItem,
+  HStack, IconButton, Tooltip, InputGroup, InputRightElement, Text
 } from '@chakra-ui/react';
 import { Controller, useFormContext, FieldError } from 'react-hook-form';
+import { FiMapPin } from 'react-icons/fi';
 import DatePicker from '../common/DatePicker';
+import LocationSelector from '../common/LocationSelector';
 import { useActividadInfoValidation } from '../../hooks/useActividadInfoValidation';
 import { TIPOS_ACTIVIDAD, SUBTIPOS_ACTIVIDAD, DIFICULTADES_ACTIVIDAD } from '../../constants/actividadOptions';
 import { TipoActividad, SubtipoActividad } from '../../types/actividad';
@@ -41,6 +43,9 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
     validateFechaFin,
     handleFieldTouched 
   } = useActividadInfoValidation();
+
+  // Estado para el modal de selección de ubicación
+  const [isLocationSelectorOpen, setIsLocationSelectorOpen] = useState(false);
   
   // Combinar errores del formulario y del hook de validación
   const errors = {
@@ -53,6 +58,7 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
   // Observar fechas y tipos seleccionados para validación cruzada
   const fechaInicio = watch('fechaInicio');
   const fechaFin = watch('fechaFin');
+  const lugar = watch('lugar') || '';
   const tiposSeleccionados = watch('tipo') || [];
   const subtiposSeleccionados = watch('subtipo') || [];
   const dificultadSeleccionada = watch('dificultad') || 'media';
@@ -185,6 +191,35 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
   const subtipoOptions = useMemo(() => SUBTIPOS_ACTIVIDAD, []);
   const dificultadOptions = useMemo(() => DIFICULTADES_ACTIVIDAD, []);
 
+  // Funciones para manejar la selección de ubicación
+  const handleOpenLocationSelector = useCallback(() => {
+    setIsLocationSelectorOpen(true);
+  }, []);
+
+  const handleCloseLocationSelector = useCallback(() => {
+    setIsLocationSelectorOpen(false);
+  }, []);
+
+  const handleLocationSelect = useCallback((location: {
+    address: string;
+    lat: number;
+    lon: number;
+  }) => {
+    // Actualizar el campo lugar con la dirección seleccionada
+    setValue('lugar', location.address);
+    
+    // Guardar las coordenadas en campos ocultos para uso del clima
+    setValue('ubicacionLat', location.lat);
+    setValue('ubicacionLon', location.lon);
+    
+    // Validar el campo lugar
+    handleFieldTouched('lugar');
+    validateLugar(location.address, true);
+    
+    // Cerrar el modal
+    setIsLocationSelectorOpen(false);
+  }, [setValue, handleFieldTouched, validateLugar]);
+
   return (
     <Box>      <FormControl isRequired isInvalid={!!errors.nombre} mb={4}>
         <FormLabel>Nombre de la actividad</FormLabel>
@@ -200,19 +235,46 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
         />        {errors.nombre && (
           <FormErrorMessage>{getErrorMessage(errors.nombre)}</FormErrorMessage>
         )}
-      </FormControl>
-
-      <FormControl isRequired isInvalid={!!errors.lugar} mb={4}>
-        <FormLabel>Lugar</FormLabel>
-        <Input          {...register('lugar', {
-                        required: true,
-            onBlur: (e) => {
-              handleFieldTouched('lugar');
-              validateLugar(e.target.value, true);
-            }
-          })}
-          placeholder="Ejemplo: Montanejos, Castellón"
-        />        {errors.lugar && (
+      </FormControl>      <FormControl isRequired isInvalid={!!errors.lugar} mb={4}>
+        <FormLabel>
+          <HStack>
+            <Text>Lugar</Text>
+            <Tooltip label="Seleccionar ubicación en el mapa" hasArrow>
+              <IconButton
+                aria-label="Seleccionar ubicación en el mapa"
+                icon={<FiMapPin />}
+                size="sm"
+                variant="ghost"
+                colorScheme="blue"
+                onClick={handleOpenLocationSelector}
+              />
+            </Tooltip>
+          </HStack>
+        </FormLabel>
+        <InputGroup>
+          <Input            {...register('lugar', {
+                          required: true,
+              onBlur: (e) => {
+                handleFieldTouched('lugar');
+                validateLugar(e.target.value, true);
+              }
+            })}
+            placeholder="Ejemplo: Montanejos, Castellón"
+          />
+          <InputRightElement>
+            <Tooltip label="Seleccionar ubicación en el mapa" hasArrow>
+              <IconButton
+                aria-label="Seleccionar ubicación en el mapa"
+                icon={<FiMapPin />}
+                size="sm"                variant="ghost"
+                colorScheme="blue"
+                onClick={handleOpenLocationSelector}
+                h="1.75rem"
+              />
+            </Tooltip>
+          </InputRightElement>
+        </InputGroup>
+        {errors.lugar && (
           <FormErrorMessage>{getErrorMessage(errors.lugar)}</FormErrorMessage>
         )}
       </FormControl>
@@ -349,6 +411,47 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           rows={3}
         />
       </FormControl>
+
+      {/* Botón para abrir el selector de ubicación */}
+      <HStack spacing={4} mb={4}>
+        <FormControl isInvalid={!!errors.lugar}>
+          <FormLabel>Lugar</FormLabel>
+          <InputGroup>
+            <Controller
+              name="lugar"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Buscar ubicación..."
+                  onFocus={handleOpenLocationSelector} // Abrir selector al enfocar
+                />
+              )}
+            />
+            <InputRightElement>
+              <Tooltip label="Seleccionar ubicación en el mapa">
+                <IconButton
+                  aria-label="Seleccionar ubicación"
+                  icon={<FiMapPin />}
+                  onClick={handleOpenLocationSelector}
+                  variant="outline"
+                  colorScheme="teal"
+                  size="sm"
+                />
+              </Tooltip>
+            </InputRightElement>
+          </InputGroup>
+          {errors.lugar && (
+            <FormErrorMessage>{getErrorMessage(errors.lugar)}</FormErrorMessage>
+          )}
+        </FormControl>
+      </HStack>      {/* Selector de ubicación (modal) */}
+      <LocationSelector
+        isOpen={isLocationSelectorOpen}
+        onClose={handleCloseLocationSelector}
+        onLocationSelect={handleLocationSelect}
+        currentLocation={lugar}
+      />
     </Box>
   );
 };
