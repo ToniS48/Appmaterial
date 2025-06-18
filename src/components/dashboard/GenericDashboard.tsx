@@ -108,67 +108,53 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
         }
       });
 
-      console.log('✅ Estadísticas cargadas con cache:', queryCache.getStats());
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Estadísticas cargadas con cache:', queryCache.getStats());
+      }
     } catch (err) {
       console.error('❌ Error cargando estadísticas:', err);
-      setError('Error al cargar las estadísticas del sistema');} finally {
+      setError('Error al cargar las estadísticas del sistema');
+    } finally {
       setLoading(false);
     }
-  }, [usuarioRepository, prestamoRepository, materialRepository]);
+  }, []); // ✅ CORRECCIÓN: Dependencias vacías para evitar bucles
 
-  // Cargar estadísticas al montar el componente
+  // Cargar estadísticas al montar el componente UNA SOLA VEZ
   useEffect(() => {
     cargarEstadisticas();
-  }, [cargarEstadisticas]);// Función para procesar estadísticas dinámicamente
-  const processStatValue = (card: DashboardCard): { value?: string | number; label?: string } => {
+  }, []); // ✅ CORRECCIÓN: Dependencias vacías  // Función para procesar estadísticas dinámicamente (memoizada para evitar recálculos)
+  const processStatValue = useCallback((card: DashboardCard): { value?: string | number; label?: string } => {
     // Si no tiene statValue o statLabel configurados, no mostrar estadísticas
     if (!card.statValue && card.statValue !== 0) return {};
     if (!card.statLabel) return {};
-
-    console.log(`Procesando estadística para ${card.title}:`, {
-      statLabel: card.statLabel,
-      estadisticas
-    });
 
     // Casos especiales basados en el contenido del statLabel
     if (card.statLabel.includes('material disponible')) {
       const porcentaje = estadisticas.materiales.total > 0 
         ? Math.round((estadisticas.materiales.disponible / estadisticas.materiales.total) * 100) 
         : 0;
-      const result = { value: `${porcentaje}%`, label: card.statLabel };
-      console.log(`Material disponible calculado:`, result);
-      return result;
+      return { value: `${porcentaje}%`, label: card.statLabel };
     }
     
     if (card.statLabel.includes('préstamos activos')) {
-      const result = { value: estadisticas.prestamos.activos, label: card.statLabel };
-      console.log(`Préstamos activos:`, result);
-      return result;
+      return { value: estadisticas.prestamos.activos, label: card.statLabel };
     }
     
     if (card.statLabel.includes('usuarios en sistema')) {
-      const result = { value: estadisticas.usuarios.total, label: card.statLabel };
-      console.log(`Usuarios en sistema:`, result);
-      return result;
+      return { value: estadisticas.usuarios.total, label: card.statLabel };
     }
-      if (card.statLabel.includes('notificaciones pendientes')) {
-      // Por ahora usamos un valor placeholder - esto debería conectarse con un servicio de notificaciones real
-      const result = { value: 0, label: card.statLabel };
-      console.log(`Notificaciones pendientes:`, result);
-      return result;
+    
+    if (card.statLabel.includes('notificaciones pendientes')) {
+      return { value: 0, label: card.statLabel };
     }
-      if (card.statLabel.includes('reportes generados')) {
-      // Por ahora usamos un valor placeholder - esto debería conectarse con un servicio de reportes real
-      const result = { value: 0, label: card.statLabel };
-      console.log(`Reportes generados:`, result);
-      return result;
+    
+    if (card.statLabel.includes('reportes generados')) {
+      return { value: 0, label: card.statLabel };
     }
 
     // Valor por defecto
-    const result = { value: card.statValue, label: card.statLabel };
-    console.log(`Valor por defecto:`, result);
-    return result;
-  };
+    return { value: card.statValue, label: card.statLabel };
+  }, [estadisticas]);
 
   // Filtrar cards según el rol
   const filteredCards = cards.filter(card => 

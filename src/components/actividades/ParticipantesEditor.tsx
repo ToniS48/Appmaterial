@@ -311,16 +311,11 @@ const UsuarioRow = React.memo<UsuarioRowProps>(({
 });
 
 // Componente principal con forwardRef
-const ParticipantesEditor = React.forwardRef((
-  { data, onSave, onResponsablesChange, onCancel, mostrarBotones = true, actividadId }: ParticipantesEditorProps, 
+const ParticipantesEditor = React.forwardRef((  { data, onSave, onResponsablesChange, onCancel, mostrarBotones = true, actividadId }: ParticipantesEditorProps, 
   ref: React.Ref<{ submitForm: () => boolean }>
-) => {  const { currentUser, userProfile } = useAuth();
-    
-  // Debug logging al inicio del componente
-  console.log("🔧 ParticipantesEditor - Montando componente");
-  console.log("🔧 ParticipantesEditor - Props data:", data);
-  console.log("🔧 ParticipantesEditor - actividadId:", actividadId);
-    
+) => {  
+  const { currentUser, userProfile } = useAuth();
+  
   // Estados principales
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   

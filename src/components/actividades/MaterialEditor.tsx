@@ -170,11 +170,11 @@ const MaterialEditor = forwardRef<
   const openQRScanner = useCallback(() => {
     setIsQROpen(true);
   }, []);
-
   // Función de envío del formulario
   const onSubmit = (formData: any) => {
-    console.log('Materiales seleccionados:', formData.materiales);
+    console.log('MaterialEditor onSubmit - Materiales seleccionados:', formData.materiales);
     const materialesValidados = validarMateriales(formData.materiales || []);
+    console.log('MaterialEditor onSubmit - Materiales validados:', materialesValidados);
     onSave(materialesValidados);
   };
 
@@ -182,14 +182,14 @@ const MaterialEditor = forwardRef<
   useImperativeHandle(ref, () => ({
     submitForm: () => {
       console.log('MaterialEditor - submitForm llamado, isInsideForm:', isInsideForm);
-      
-      if (isInsideForm && parentControl) {
+        if (isInsideForm && parentControl) {
         // Cuando está dentro de un formulario padre, obtener datos directamente del control padre
         const currentMateriales = watch('materiales') || [];
-        console.log('MaterialEditor - Materiales del control padre:', currentMateriales);
+        console.log('MaterialEditor submitForm - Materiales del control padre:', currentMateriales);
         
         const materialesValidados = validarMateriales(currentMateriales);
-        console.log('MaterialEditor - Materiales validados desde padre:', materialesValidados);
+        console.log('MaterialEditor submitForm - Materiales validados desde padre:', materialesValidados);
+        console.log('MaterialEditor submitForm - Ejecutando onSave con materiales validados');
         onSave(materialesValidados);
         return;
       }

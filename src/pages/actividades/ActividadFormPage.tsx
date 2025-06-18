@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { 
   Box, Tabs, TabList, Tab, TabPanels, TabPanel, Container, 
@@ -117,27 +117,63 @@ export default function ActividadFormPage() {
       );
     }    return content;
   };
-
   // Llamar al hook en el nivel superior
   const { validate } = useZodValidation(actividadBaseSchema);
   
+  // 🔧 CORRECCIÓN CRÍTICA: Usar useMemo para estabilizar defaultValues y evitar re-creaciones
+  const stableDefaultValues = useMemo(() => {
+    // Solo usar valores iniciales estables, no formData que cambia constantemente
+    return {
+      nombre: '',
+      lugar: '',
+      descripcion: '',
+      tipo: [],
+      subtipo: [],
+      participanteIds: [],
+      materiales: [],
+      enlaces: [],
+      enlacesWikiloc: [],
+      enlacesTopografias: [],
+      enlacesDrive: [],
+      enlacesWeb: [],
+      comentarios: []
+    };
+  }, []);
+  
   const methods = useForm<Actividad>({
-    defaultValues: formData,
-    mode: 'onSubmit', // Cambiar a onSubmit para que no valide automáticamente
+    defaultValues: stableDefaultValues,
+    mode: 'onSubmit',
     reValidateMode: "onSubmit",
   });
 
-  const { handleSubmit, watch } = methods;
-
-  // 🔧 CORRECCIÓN: Sincronizar cambios de materiales desde react-hook-form hacia useActividadForm
+  const { handleSubmit, watch } = methods;  // 🔧 CORRECCIÓN: Sincronización controlada para evitar bucles
   const watchedMateriales = watch('materiales');
   
+  // Usar ref para rastrear la última sincronización y evitar bucles
+  const lastSyncedMateriales = useRef<any[]>([]);
+  
   useEffect(() => {
-    // Solo sincronizar si hay cambios reales en materiales
+    // Solo sincronizar si hay cambios reales y evitar bucles
     if (watchedMateriales && Array.isArray(watchedMateriales)) {
-      console.log("🔄 ActividadFormPage - Sincronizando materiales desde formulario hacia hook:", watchedMateriales);
-      updateMaterial(watchedMateriales);
-    }  }, [watchedMateriales, updateMaterial]);
+      // Comparar si realmente hay cambios
+      const materialesStringified = JSON.stringify(watchedMateriales);
+      const lastStringified = JSON.stringify(lastSyncedMateriales.current);
+      
+      if (materialesStringified !== lastStringified) {
+        console.log("🔄 ActividadFormPage - Sincronizando materiales (cambio detectado):", watchedMateriales);
+        
+        // Actualizar ref inmediatamente para evitar bucles
+        lastSyncedMateriales.current = watchedMateriales;
+        
+        // Usar setTimeout para evitar conflictos
+        const timeoutId = setTimeout(() => {
+          updateMaterial(watchedMateriales);
+        }, 50);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [watchedMateriales, updateMaterial]);
 
   // Función helper para convertir fechas de Timestamp a Date
   const convertTimestampToDate = (timestamp: any): Date | undefined => {
@@ -149,16 +185,14 @@ export default function ActividadFormPage() {
     }
     return timestamp;
   };
-
+  // 🔧 CORRECCIÓN: Usar ref para evitar bucles infinitos en reset de formulario
+  const hasDataBeenLoaded = useRef(false);
+  
   // 🔧 CORRECCIÓN CRÍTICA: Sincronizar datos cargados con React Hook Form para actividades existentes
   useEffect(() => {
-    // Solo sincronizar cuando:
-    // 1. Estamos editando una actividad existente (id existe)
-    // 2. Ya terminó de cargar (loading === false)
-    // 3. Hay datos cargados (formData no está vacío)
-    // 4. El formulario no está "sucio" (sin cambios locales que podrían perderse)
-    if (id && !loading && formData && Object.keys(formData).length > 1 && !methods.formState.isDirty) {
-      console.log('🔄 ActividadFormPage - Sincronizando datos cargados con React Hook Form:', formData);
+    // Solo sincronizar una vez cuando se cargan los datos
+    if (id && !loading && formData && Object.keys(formData).length > 1 && !hasDataBeenLoaded.current) {
+      console.log('🔄 ActividadFormPage - Cargando datos en React Hook Form (primera vez):', formData);
       
       // Convertir Timestamps de Firebase a objetos Date para React Hook Form
       const formDataForReset = {
@@ -173,9 +207,10 @@ export default function ActividadFormPage() {
       methods.reset(formDataForReset);
       
       // Marcar que hemos cargado los datos para evitar bucles infinitos
+      hasDataBeenLoaded.current = true;
       setHasRecoveredDraft(true);
     }
-  }, [id, loading, formData, methods, methods.formState.isDirty]);
+  }, [id, loading, formData, methods]);
 
   // Función para avanzar a la siguiente pestaña
   const nextTab = () => {
@@ -256,11 +291,13 @@ export default function ActividadFormPage() {
                 }
               } else {
                 console.error("ActividadFormPage - participantesEditorRef.current es null");
-              }
-            } else if (activeTabIndex === 2) {              // Actualizar materiales de forma optimizada
-              if (data.materiales) {
-                optimizedFormUpdate(updateMaterial, data.materiales);
-              }
+              }            } else if (activeTabIndex === 2) {
+              // Obtener materiales directamente del formulario React Hook Form
+              const materialesActuales = methods.getValues('materiales') || [];
+              console.log("ActividadFormPage - Materiales del formulario:", materialesActuales);
+              
+              // Actualizar materiales de forma optimizada
+              optimizedFormUpdate(updateMaterial, materialesActuales);
               
               // Marcar esta pestaña como completada
               setCompletedTabs(prev => Array.from(new Set([...prev, 2])));              
@@ -360,8 +397,11 @@ export default function ActividadFormPage() {
     try {
       console.log("ActividadFormPage handleMaterialUpdate - Recibidos materiales:", materiales);
       
-      // Actualizar los materiales
+      // Actualizar los materiales en useActividadForm
       updateMaterial(materiales);
+      
+      // También actualizar en React Hook Form para mantener sincronización
+      methods.setValue('materiales', materiales, { shouldDirty: true });
       
       // Si hay materiales seleccionados y no hay responsable de material asignado, asignar automáticamente
       if (materiales.length > 0 && !formData.responsableMaterialId) {

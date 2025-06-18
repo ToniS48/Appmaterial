@@ -43,7 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isAuthListenerConfigured, setIsAuthListenerConfigured] = useState<boolean>(false);
 
   // Configurar persistencia al cargar el componente
   useEffect(() => {
@@ -144,21 +143,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error al cargar perfil:', error);
     }
-  };  // Efecto para manejar cambios de autenticación (optimizado para evitar reconfiguración)
+  };  // Efecto para manejar cambios de autenticación (CORREGIDO para evitar bucles)
   useEffect(() => {
-    if (isAuthListenerConfigured) {
-      return; // Evitar reconfiguración del listener
-    }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Configurando listener de autenticación...');
-    }
-    setIsAuthListenerConfigured(true);
+    console.log('Configurando listener de autenticación...');
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.email}` : 'Sin usuario');
-      }
+      console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.email}` : 'Sin usuario');
       
       if (user) {
         setCurrentUser(user);
@@ -172,9 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const publicRoutes = ['/login', '/register', '/'];
         
         if (!publicRoutes.includes(currentPath)) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Usuario no autenticado en ruta protegida, redirigiendo...');
-          }
+          console.log('Usuario no autenticado en ruta protegida, redirigiendo...');
           window.location.href = '/login';
         }
       }
@@ -184,9 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return () => {
       unsubscribe();
-      setIsAuthListenerConfigured(false);
     };
-  }, [isAuthListenerConfigured]);
+  }, []); // ✅ CORRECCIÓN: Solo ejecutar una vez al montar
   // Reemplazar el useEffect de reconexión por uno que maneje el estado de conexión
   useEffect(() => {
     const handleConnectionChange = () => {
@@ -217,8 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('online', handleConnectionChange);
       window.removeEventListener('offline', handleConnectionChange);
     };
-  }, [currentUser]);
-  // Exponer variables para debugging en desarrollo
+  }, [currentUser]);  // Exponer variables para debugging en desarrollo (solo cuando hay cambios reales)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       (window as any).authDebug = {
@@ -239,14 +225,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // También exponer variables individuales para compatibilidad
       (window as any).currentUser = currentUser;
       (window as any).userProfile = userProfile;
-      
-      console.log('Debug: Variables de auth expuestas globalmente:', {
-        currentUser: currentUser?.email || 'No usuario',
-        userProfile: userProfile?.rol || 'No perfil',
-        loading
-      });
     }
-  }, [currentUser, userProfile, loading]);
+  }, [currentUser, userProfile, loading, login, logout, resetPassword, refreshUserProfile]);
 
   const value = {
     currentUser,
