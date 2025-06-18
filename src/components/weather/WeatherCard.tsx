@@ -12,7 +12,7 @@ import {
   Icon
 } from '@chakra-ui/react';
 import { 
-  FiDroplets, 
+  FiDroplet, 
   FiWind, 
   FiThermometer,
   FiCloud,
@@ -76,6 +76,10 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
   const bgColor = useColorModeValue('blue.50', 'blue.900');
   const borderColor = useColorModeValue('blue.200', 'blue.700');
   const textColor = useColorModeValue('gray.700', 'gray.200');
+  
+  // Pre-calcular valores de color para evitar hooks en callbacks
+  const dayCardBg = useColorModeValue('white', 'gray.800');
+  const dayCardBorder = useColorModeValue('gray.200', 'gray.600');
 
   if (!weatherData || weatherData.length === 0) {
     return null;
@@ -103,9 +107,8 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
           <WeatherIcon condition={firstDay.condition} size={16} />
           <Text fontSize="xs" color={textColor} fontWeight="medium">
             {Math.round(firstDay.temperature.min)}°-{Math.round(firstDay.temperature.max)}°C
-          </Text>
-          {firstDay.precipitation && firstDay.precipitation > 0 && (
-            <Icon as={FiDroplets} color="blue.500" boxSize={3} />
+          </Text>          {firstDay.precipitation && firstDay.precipitation > 0 && (
+            <Icon as={FiDroplet} color="blue.500" boxSize={3} />
           )}
         </Flex>
       </Tooltip>
@@ -130,14 +133,13 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
       </Flex>
 
       <VStack spacing={3} align="stretch">
-        {weatherData.map((day, index) => (
-          <Box
+        {weatherData.map((day, index) => (            <Box
             key={day.date}
             p={3}
             borderRadius="md"
-            bg={useColorModeValue('white', 'gray.800')}
+            bg={dayCardBg}
             border="1px"
-            borderColor={useColorModeValue('gray.200', 'gray.600')}
+            borderColor={dayCardBorder}
           >
             <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
               {/* Fecha y condición */}
@@ -172,10 +174,9 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
 
               {/* Detalles adicionales */}
               <HStack spacing={3} flexWrap="wrap">
-                {/* Humedad */}
-                <Tooltip label="Humedad">
+                {/* Humedad */}                <Tooltip label="Humedad">
                   <Flex align="center" gap={1}>
-                    <Icon as={FiDroplets} color="blue.400" boxSize={3} />
+                    <Icon as={FiDroplet} color="blue.400" boxSize={3} />
                     <Text fontSize="xs" color={textColor}>
                       {day.humidity}%
                     </Text>
