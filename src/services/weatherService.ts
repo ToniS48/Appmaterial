@@ -95,11 +95,10 @@ class WeatherService {
   getConfig(): OpenMeteoConfig {
     return { ...this.config };
   }
-
   /**
    * Obtiene coordenadas a partir del nombre de una ubicación usando Nominatim (gratuito)
    */
-  private async getCoordinatesFromLocation(location: string): Promise<{ lat: number; lon: number } | null> {
+  async getCoordinatesFromLocation(location: string): Promise<{ lat: number; lon: number } | null> {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`
