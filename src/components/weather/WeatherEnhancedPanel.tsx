@@ -30,13 +30,91 @@ interface WeatherEnhancedPanelProps {
 const WeatherEnhancedPanel: React.FC<WeatherEnhancedPanelProps> = ({
   actividad,
   initialWeatherData
-}) => {
-  const [weatherData, setWeatherData] = useState<WeatherData[]>(initialWeatherData);
-  const [selectedDays, setSelectedDays] = useState<number>(5);
+}) => {  // Función para filtrar días relevantes para la actividad
+  const filterRelevantWeatherDays = (weatherData: WeatherData[]) => {
+    if (!actividad.fechaInicio || !actividad.fechaFin || !weatherData.length) {
+      return weatherData;
+    }
+
+    let startDate: Date;
+    let endDate: Date;
+    
+    // Manejar tanto Date como Timestamp de Firebase
+    if (actividad.fechaInicio instanceof Date) {
+      startDate = new Date(actividad.fechaInicio);
+    } else {
+      startDate = actividad.fechaInicio.toDate();
+    }
+    
+    if (actividad.fechaFin instanceof Date) {
+      endDate = new Date(actividad.fechaFin);
+    } else {
+      endDate = actividad.fechaFin.toDate();
+    }
+
+    // Calcular rango relevante: 3 días antes del inicio hasta el final de la actividad
+    const rangeStart = new Date(startDate);
+    rangeStart.setDate(rangeStart.getDate() - 3); // 3 días antes del inicio
+    
+    const rangeEnd = new Date(endDate);
+    rangeEnd.setHours(23, 59, 59, 999); // Final del último día
+
+    // Filtrar datos meteorológicos que estén en el rango relevante
+    const filteredData = weatherData.filter(day => {
+      const dayDate = new Date(day.date);
+      return dayDate >= rangeStart && dayDate <= rangeEnd;
+    });
+
+    console.log('🗓️ Filtro meteorológico:', {
+      actividadInicio: startDate.toISOString().split('T')[0],
+      actividadFin: endDate.toISOString().split('T')[0],
+      rangoInicio: rangeStart.toISOString().split('T')[0],
+      rangoFin: rangeEnd.toISOString().split('T')[0],
+      diasOriginales: weatherData.length,
+      diasFiltrados: filteredData.length
+    });
+
+    return filteredData;
+  };
+
+  // Calcular días óptimos para la actividad (ahora solo para la API, no para el filtro)
+  const calculateOptimalDays = () => {
+    if (!actividad.fechaInicio || !actividad.fechaFin) return 5;
+    
+    let startDate: Date;
+    let endDate: Date;
+    
+    // Manejar tanto Date como Timestamp de Firebase
+    if (actividad.fechaInicio instanceof Date) {
+      startDate = new Date(actividad.fechaInicio);
+    } else {
+      startDate = actividad.fechaInicio.toDate();
+    }
+    
+    if (actividad.fechaFin instanceof Date) {
+      endDate = new Date(actividad.fechaFin);
+    } else {
+      endDate = actividad.fechaFin.toDate();
+    }
+    
+    // Calcular días de duración de la actividad
+    const activityDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Solicitar días de actividad + 3 anteriores + 2 buffer, máximo 10
+    return Math.min(activityDays + 5, 10);
+  };
+  
+  const [rawWeatherData, setRawWeatherData] = useState<WeatherData[]>(initialWeatherData);
+  // Datos filtrados para mostrar
+  const weatherData = filterRelevantWeatherDays(rawWeatherData);
+  const [selectedDays, setSelectedDays] = useState<number>(calculateOptimalDays());
   const [preferredSource, setPreferredSource] = useState<'auto' | 'aemet' | 'open-meteo'>('auto');
-  const [loading, setLoading] = useState(false);  const [error, setError] = useState<string | null>(null);  const [isAemetAvailable, setIsAemetAvailable] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAemetAvailable, setIsAemetAvailable] = useState(false);
   const [actualSource, setActualSource] = useState<string>('');
-  const [showAdvanced, setShowAdvanced] = useState(false);  const [historicalRain, setHistoricalRain] = useState<number | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [historicalRain, setHistoricalRain] = useState<number | null>(null);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   // Función para obtener precipitación histórica de los 7 días anteriores
@@ -172,11 +250,9 @@ const WeatherEnhancedPanel: React.FC<WeatherEnhancedPanelProps> = ({
       }
 
       // Aplicar configuración temporal
-      await weatherService.configure(tempConfig);
-
-      // Obtener datos
+      await weatherService.configure(tempConfig);      // Obtener datos
       const forecast = await weatherService.getWeatherForecast(location, selectedDays);      if (forecast && forecast.daily) {
-        setWeatherData(forecast.daily);
+        setRawWeatherData(forecast.daily);
         
         // Determinar fuente real utilizada basándose en la configuración y ubicación
         if (preferredSource === 'auto') {
@@ -264,9 +340,18 @@ const WeatherEnhancedPanel: React.FC<WeatherEnhancedPanelProps> = ({
                 colorScheme={showAdvanced ? "blue" : "gray"}
                 onClick={() => setShowAdvanced(!showAdvanced)}
               />
-            </Tooltip>
-          </HStack>
+            </Tooltip>          </HStack>
         </HStack>
+
+        {/* Indicador de rango de días mostrados */}
+        {weatherData.length > 0 && (
+          <Box bg="blue.50" p={2} borderRadius="md" mb={3}>
+            <Text fontSize="xs" color="blue.700">
+              📅 Mostrando: <strong>3 días antes</strong> + <strong>días de la actividad</strong> 
+              {weatherData.length > 0 && ` (${weatherData.length} días total)`}
+            </Text>
+          </Box>
+        )}
 
         {/* Panel de configuración avanzada */}
         {showAdvanced && (
@@ -298,23 +383,21 @@ const WeatherEnhancedPanel: React.FC<WeatherEnhancedPanelProps> = ({
               )}
             </VStack>
           </Box>
-        )}
-
-        {/* Controles de configuración */}
-        <HStack spacing={3} mb={3}>
+        )}        {/* Controles de configuración */}
+        <HStack spacing={3} mb={3} wrap="wrap">
           <Box>
             <Text fontSize="xs" color="gray.500" mb={1}>Días de pronóstico</Text>
             <Select
               size="sm"
               value={selectedDays}
               onChange={(e) => setSelectedDays(Number(e.target.value))}
-              width="120px"
+              width="110px"
             >
               <option value={3}>3 días</option>
               <option value={5}>5 días</option>
               <option value={7}>7 días</option>
+              {/* Solo mostrar opciones largas en pantallas grandes */}
               <option value={10}>10 días</option>
-              <option value={15}>15 días</option>
             </Select>
           </Box>
 
@@ -387,12 +470,21 @@ const WeatherEnhancedPanel: React.FC<WeatherEnhancedPanelProps> = ({
         <Alert status="error" size="sm">
           <AlertIcon />
           <Text fontSize="sm">{error}</Text>
-        </Alert>
-      ) : (
+        </Alert>      ) : (
         <WeatherCard 
           weatherData={weatherData} 
           compact={false}
           showDates={true}
+          activityStartDate={
+            actividad.fechaInicio instanceof Date 
+              ? actividad.fechaInicio 
+              : actividad.fechaInicio?.toDate()
+          }
+          activityEndDate={
+            actividad.fechaFin instanceof Date 
+              ? actividad.fechaFin 
+              : actividad.fechaFin?.toDate()
+          }
         />
       )}      {/* Información adicional y estadísticas */}
       {weatherData.length > 0 && !loading && !error && (

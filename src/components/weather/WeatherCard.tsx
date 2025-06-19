@@ -28,6 +28,8 @@ interface WeatherCardProps {
   weatherData: WeatherData[];
   compact?: boolean;
   showDates?: boolean;
+  activityStartDate?: Date;
+  activityEndDate?: Date;
 }
 
 interface WeatherIconProps {
@@ -71,15 +73,50 @@ const WeatherIcon: React.FC<WeatherIconProps> = ({ condition, size = 20 }) => {
 const WeatherCard: React.FC<WeatherCardProps> = ({ 
   weatherData, 
   compact = false,
-  showDates = true 
-}) => {
-  const bgColor = useColorModeValue('blue.50', 'blue.900');
+  showDates = true,
+  activityStartDate,
+  activityEndDate
+}) => {  const bgColor = useColorModeValue('blue.50', 'blue.900');
   const borderColor = useColorModeValue('blue.200', 'blue.700');
   const textColor = useColorModeValue('gray.700', 'gray.200');
   
   // Pre-calcular valores de color para evitar hooks en callbacks
   const dayCardBg = useColorModeValue('white', 'gray.800');
   const dayCardBorder = useColorModeValue('gray.200', 'gray.600');
+
+  // Función para determinar la relación del día con la actividad
+  const getDayRelation = (dayDate: string) => {
+    if (!activityStartDate || !activityEndDate) return null;
+    
+    const date = new Date(dayDate);
+    const startDate = new Date(activityStartDate);
+    const endDate = new Date(activityEndDate);
+    
+    // Normalizar fechas para comparación (solo día, no hora)
+    date.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    
+    if (date < startDate) return 'before';
+    if (date >= startDate && date <= endDate) return 'during';
+    if (date > endDate) return 'after';
+    return null;
+  };
+
+  // Función para obtener badge de contexto
+  const getContextBadge = (dayDate: string) => {
+    const relation = getDayRelation(dayDate);
+    switch (relation) {
+      case 'before':
+        return { label: 'Previo', color: 'orange' };
+      case 'during':
+        return { label: 'Actividad', color: 'green' };
+      case 'after':
+        return { label: 'Posterior', color: 'gray' };
+      default:
+        return null;
+    }
+  };
 
   if (!weatherData || weatherData.length === 0) {
     return null;
@@ -114,49 +151,62 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
       </Tooltip>
     );
   }
-
   // Modo completo para vista detallada
   return (
     <Box
-      p={4}
+      p={{ base: 2, md: 4 }}
       borderRadius="lg"
       bg={bgColor}
       border="1px"
       borderColor={borderColor}
       width="100%"
     >
-      <Flex align="center" gap={2} mb={3}>
+      <Flex align="center" gap={2} mb={{ base: 2, md: 3 }}>
         <Icon as={FiCloud} color="blue.500" boxSize={5} />
-        <Text fontWeight="bold" color={textColor}>
+        <Text fontWeight="bold" color={textColor} fontSize={{ base: "sm", md: "md" }}>
           Pronóstico del tiempo
         </Text>
       </Flex>
 
-      <VStack spacing={3} align="stretch">
-        {weatherData.map((day, index) => (            <Box
+      <VStack spacing={{ base: 2, md: 3 }} align="stretch">
+        {weatherData.map((day, index) => (
+          <Box
             key={day.date}
-            p={3}
+            p={{ base: 2, md: 3 }}
             borderRadius="md"
             bg={dayCardBg}
             border="1px"
             borderColor={dayCardBorder}
-          >
-            <Flex justify="space-between" align="center" wrap="wrap" gap={2}>
-              {/* Fecha y condición */}
-              <Flex align="center" gap={3} flex={1}>
-                <WeatherIcon condition={day.condition} size={24} />
+          >            <Flex justify="space-between" align="center" wrap="wrap" gap={{ base: 1, md: 2 }}>              {/* Fecha y condición */}
+              <Flex align="center" gap={{ base: 2, md: 3 }} flex={1}>
+                <WeatherIcon condition={day.condition} size={20} />
                 <VStack align="start" spacing={0}>
                   {showDates && (
-                    <Text fontSize="sm" fontWeight="medium" color={textColor}>
-                      {index === 0 ? 'Hoy' : 
-                       index === 1 ? 'Mañana' : 
-                       new Date(day.date).toLocaleDateString('es-ES', { 
-                         weekday: 'short', 
-                         day: 'numeric', 
-                         month: 'short' 
-                       })
-                      }
-                    </Text>
+                    <HStack spacing={2} align="center">
+                      <Text fontSize={{ base: "xs", md: "sm" }} fontWeight="medium" color={textColor}>
+                        {index === 0 ? 'Hoy' : 
+                         index === 1 ? 'Mañana' : 
+                         new Date(day.date).toLocaleDateString('es-ES', { 
+                           weekday: 'short', 
+                           day: 'numeric', 
+                           month: 'short' 
+                         })
+                        }
+                      </Text>
+                      {/* Badge contextual */}
+                      {(() => {
+                        const contextBadge = getContextBadge(day.date);
+                        return contextBadge && (
+                          <Badge 
+                            colorScheme={contextBadge.color} 
+                            size="sm"
+                            fontSize="xx-small"
+                          >
+                            {contextBadge.label}
+                          </Badge>
+                        );
+                      })()}
+                    </HStack>
                   )}
                   <Text fontSize="xs" color="gray.500" textTransform="capitalize">
                     {day.description}
@@ -166,15 +216,16 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
 
               {/* Temperatura */}
               <Flex align="center" gap={1}>
-                <Icon as={FiThermometer} color="red.500" boxSize={4} />
-                <Text fontWeight="bold" color={textColor}>
+                <Icon as={FiThermometer} color="red.500" boxSize={3} />
+                <Text fontWeight="bold" color={textColor} fontSize={{ base: "xs", md: "sm" }}>
                   {Math.round(day.temperature.min)}° / {Math.round(day.temperature.max)}°C
                 </Text>
               </Flex>
 
               {/* Detalles adicionales */}
-              <HStack spacing={3} flexWrap="wrap">
-                {/* Humedad */}                <Tooltip label="Humedad">
+              <HStack spacing={{ base: 2, md: 3 }} flexWrap="wrap">
+                {/* Humedad */}
+                <Tooltip label="Humedad">
                   <Flex align="center" gap={1}>
                     <Icon as={FiDroplet} color="blue.400" boxSize={3} />
                     <Text fontSize="xs" color={textColor}>
@@ -195,7 +246,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
 
                 {/* Precipitación */}
                 {day.precipitation && day.precipitation > 0 && (
-                  <Badge colorScheme="blue" fontSize="xs">
+                  <Badge colorScheme="blue" fontSize="xs" size="sm">
                     {day.precipitation.toFixed(1)}mm
                   </Badge>
                 )}
