@@ -27,11 +27,13 @@ export interface Material {
   
   // Campos específicos para anclajes
   tipoAnclaje?: string;
-  
-  // Campos específicos para varios
+    // Campos específicos para varios
   categoria?: string;
   subcategoria?: string;
   descripcion?: string;
+  
+  // Campo de precio/coste
+  precio?: number;
 }
 
 // Tipo para representar un material en la UI (lista de materiales)

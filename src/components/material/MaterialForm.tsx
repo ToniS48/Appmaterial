@@ -99,10 +99,10 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
       tipo: '',
       estado: 'disponible',
       fechaAdquisicion: new Date(),
-      fechaUltimaRevision: new Date(),
-      proximaRevision: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 6 meses por defecto
+      fechaUltimaRevision: new Date(),      proximaRevision: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 6 meses por defecto
       observaciones: '',
-      codigo: '' // Nuevo campo para código personalizado
+      codigo: '', // Nuevo campo para código personalizado
+      precio: '' // Nuevo campo para precio/coste
     }
   });
   // Actualizar el estado del tipo de material cuando cambia
@@ -121,13 +121,14 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
   const onSubmit = async (data: any) => {
     try {
       setIsSubmitting(true);
-      
-      // Preparamos los datos según el tipo de material
+        // Preparamos los datos según el tipo de material
       const materialData = {
         ...data,
         fechaAdquisicion: data.fechaAdquisicion,
         fechaUltimaRevision: data.fechaUltimaRevision,
         proximaRevision: data.proximaRevision,
+        // Convertir precio a número si se proporciona
+        precio: data.precio ? parseFloat(data.precio) : undefined
       };
       
       // Para las cuerdas, establecer automáticamente cantidad = 1 y cantidadDisponible = 1
@@ -241,8 +242,7 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
               <FormErrorMessage>{errors.nombre.message?.toString()}</FormErrorMessage>
             )}
           </FormControl>
-          
-          <FormControl isInvalid={!!errors.codigo}>
+            <FormControl isInvalid={!!errors.codigo}>
             <FormLabel>Código (opcional)</FormLabel>
             <Input 
               id="codigo"
@@ -251,6 +251,28 @@ const MaterialForm: React.FC<MaterialFormProps> = ({
             />
             {errors.codigo && (
               <FormErrorMessage>{errors.codigo.message?.toString()}</FormErrorMessage>
+            )}
+          </FormControl>
+          
+          <FormControl isInvalid={!!errors.precio}>
+            <FormLabel>Precio/Coste (€)</FormLabel>
+            <Input 
+              type="number"
+              step="0.01"
+              min="0"
+              {...register('precio', {
+                min: { value: 0, message: 'El precio no puede ser negativo' },
+                validate: (value) => {
+                  if (value && (isNaN(value) || value < 0)) {
+                    return 'Ingrese un precio válido';
+                  }
+                  return true;
+                }
+              })}
+              placeholder="Precio en euros (opcional)" 
+            />
+            {errors.precio && (
+              <FormErrorMessage>{errors.precio.message?.toString()}</FormErrorMessage>
             )}
           </FormControl>
           

@@ -240,9 +240,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                 </Text>
               )}
             </VStack>
-          )}
-
-          {(material.tipo === 'anclaje' || material.tipo === 'varios') && material.cantidadDisponible !== undefined && (
+          )}          {(material.tipo === 'anclaje' || material.tipo === 'varios') && material.cantidadDisponible !== undefined && (
             <Text fontSize="sm">
               <Text as="span" fontWeight="medium">Disponible:</Text>{' '}
               <Text 
@@ -252,6 +250,15 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                 fontWeight="semibold"
               >
                 {material.cantidadDisponible} unidades
+              </Text>
+            </Text>
+          )}
+
+          {material.precio !== undefined && material.precio > 0 && (
+            <Text fontSize="sm">
+              <Text as="span" fontWeight="medium">Precio:</Text>{' '}
+              <Text as="span" color="green.600" fontWeight="semibold">
+                {material.precio.toFixed(2)}€
               </Text>
             </Text>
           )}
@@ -314,14 +321,20 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
              material.estado}
           </Badge>
         )}
-      </Td>
-      <Td>
+      </Td>      <Td>
         {material.tipo === 'cuerda' ? (
           `${material.longitud || '-'}m / ${material.diametro || '-'}mm`
         ) : material.cantidadDisponible !== undefined ? (
           <Text color={material.cantidadDisponible === 0 ? "red.600" : 
                       material.cantidadDisponible < 5 ? "orange.600" : "green.600"}>
             {material.cantidadDisponible} unidades
+          </Text>
+        ) : '-'}
+      </Td>
+      <Td>
+        {material.precio !== undefined && material.precio > 0 ? (
+          <Text color="green.600" fontWeight="semibold">
+            {material.precio.toFixed(2)}€
           </Text>
         ) : '-'}
       </Td>      <Td>
@@ -459,8 +472,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
           <TabPanels>            <TabPanel px={0}>              {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesFiltrados.map(renderMaterialCard)}
-                </SimpleGrid>
-              ) : (
+                </SimpleGrid>              ) : (
                 <Box overflowX="auto">
                   <Table variant="simple">
                     <Thead>
@@ -468,6 +480,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                         <Th>Material</Th>
                         <Th>Tipo</Th>
                         <Th>Especificaciones</Th>
+                        <Th>Precio</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
                     </Thead>
@@ -481,14 +494,14 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesPorTipo.cuerdas.map(renderMaterialCard)}
-                </SimpleGrid>
-              ) : (
+                </SimpleGrid>              ) : (
                 <Box overflowX="auto">
                   <Table variant="simple">
                     <Thead>                      <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
                         <Th>Especificaciones</Th>
+                        <Th>Precio</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
                     </Thead>                    <Tbody>
@@ -511,6 +524,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                         <Th>Material</Th>
                         <Th>Tipo</Th>
                         <Th>Especificaciones</Th>
+                        <Th>Precio</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
                     </Thead>
@@ -533,6 +547,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                         <Th>Material</Th>
                         <Th>Tipo</Th>
                         <Th>Especificaciones</Th>
+                        <Th>Precio</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
                     </Thead>
@@ -557,6 +572,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                   <Th>Material</Th>
                   <Th>Tipo</Th>
                   <Th>Especificaciones</Th>
+                  <Th>Precio</Th>
                   <Th width="50px">Acciones</Th>
                 </Tr>
               </Thead>
