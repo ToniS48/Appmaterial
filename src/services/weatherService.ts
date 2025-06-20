@@ -816,6 +816,140 @@ class WeatherService {
       return [];
     }
   }
+
+  /**
+   * Obtiene datos meteorológicos históricos de Open-Meteo
+   */
+  async getHistoricalWeather(
+    location: string | { lat: number; lon: number },
+    startDate: Date,
+    endDate: Date
+  ): Promise<WeatherData[]> {
+    if (!this.isEnabled()) {
+      return [];
+    }
+
+    try {
+      let coordinates: { lat: number; lon: number };
+      
+      if (typeof location === 'string') {
+        const coords = await this.getCoordinatesFromLocation(location);
+        if (!coords) return [];
+        coordinates = coords;
+      } else {
+        coordinates = location;
+      }
+
+      // Formatear fechas para la API (YYYY-MM-DD)
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      // Parámetros para la API de datos históricos de Open-Meteo
+      const params = new URLSearchParams({
+        latitude: coordinates.lat.toString(),
+        longitude: coordinates.lon.toString(),
+        start_date: startDateStr,
+        end_date: endDateStr,
+        daily: [
+          'temperature_2m_max',
+          'temperature_2m_min',
+          'temperature_2m_mean',
+          'precipitation_sum',
+          'windspeed_10m_max',
+          'winddirection_10m_dominant',
+          'weathercode',
+          'relative_humidity_2m_max'
+        ].join(','),
+        timezone: 'auto'
+      });
+
+      const url = `https://archive-api.open-meteo.com/v1/archive?${params.toString()}`;
+      console.log('🕰️ Petición datos históricos:', url);
+
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Error en API histórica: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.daily) {
+        return [];
+      }
+
+      // Procesar datos históricos
+      const historicalData: WeatherData[] = [];
+      
+      for (let i = 0; i < data.daily.time.length; i++) {
+        const weatherCode = data.daily.weathercode[i] || 0;
+        
+        historicalData.push({
+          date: data.daily.time[i],
+          temperature: {
+            min: Math.round(data.daily.temperature_2m_min[i] || 0),
+            max: Math.round(data.daily.temperature_2m_max[i] || 0),
+            current: Math.round(data.daily.temperature_2m_mean[i] || 0)
+          },
+          description: this.getWeatherDescription(weatherCode),
+          icon: this.getWeatherIcon(weatherCode),
+          humidity: Math.round(data.daily.relative_humidity_2m_max[i] || 0),
+          windSpeed: Math.round(data.daily.windspeed_10m_max[i] || 0),
+          precipitation: Math.round((data.daily.precipitation_sum[i] || 0) * 10) / 10,
+          condition: this.mapWeatherCodeToCondition(weatherCode)
+        });
+      }
+
+      console.log('✅ Datos históricos obtenidos:', historicalData.length, 'días');
+      return historicalData;
+
+    } catch (error) {
+      console.error('Error obteniendo datos históricos:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene datos históricos para los días anteriores a una actividad
+   */
+  async getHistoricalWeatherForActivity(
+    activityStartDate: Date | Timestamp,
+    location?: string,
+    daysBack: number = 7
+  ): Promise<WeatherData[]> {
+    if (!this.isEnabled()) {
+      return [];
+    }
+
+    try {
+      const startDate = activityStartDate instanceof Timestamp 
+        ? activityStartDate.toDate() 
+        : activityStartDate;
+
+      // Calcular el rango de fechas históricas
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() - 1); // Un día antes del inicio de la actividad
+      
+      const historyStartDate = new Date(startDate);
+      historyStartDate.setDate(historyStartDate.getDate() - daysBack); // 'daysBack' días antes
+
+      // Determinar ubicación
+      let locationToUse: string | { lat: number; lon: number };
+      if (location) {
+        locationToUse = location;
+      } else {
+        locationToUse = this.config.defaultLocation;
+      }
+
+      return await this.getHistoricalWeather(locationToUse, historyStartDate, endDate);
+
+    } catch (error) {
+      console.error('Error obteniendo datos históricos para actividad:', error);
+      return [];
+    }
+  }
+
+  // ...existing code...
 }
 
 // Instancia singleton
