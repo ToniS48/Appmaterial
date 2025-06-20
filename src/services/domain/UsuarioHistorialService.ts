@@ -44,7 +44,6 @@ export class UsuarioHistorialService {
     console.log(`👤 Evento registrado: ${evento.tipoEvento} para usuario ${evento.nombreUsuario}`);
     return nuevoEvento.id || '';
   }
-
   /**
    * Registrar múltiples eventos (para operaciones en bulk)
    */
@@ -59,7 +58,9 @@ export class UsuarioHistorialService {
       };
     });
     
-    const ids = await usuarioHistorialRepository.registrarEventosBulk(eventosCompletos);    // Actualizar estadísticas para todos los años afectados
+    const ids = await usuarioHistorialRepository.registrarEventosBulk(eventosCompletos);
+
+    // Actualizar estadísticas para todos los años afectados
     const añosAfectados = Array.from(new Set(eventosCompletos.map(e => e.año)));
     for (const año of añosAfectados) {
       await this.actualizarResumenAnual('bulk-update', año);
@@ -67,6 +68,37 @@ export class UsuarioHistorialService {
     
     console.log(`👥 ${eventos.length} eventos de usuarios registrados en bulk`);
     return ids;
+  }
+
+  /**
+   * Registrar múltiples eventos y devolver los eventos creados para cálculo inmediato de estadísticas
+   */
+  async registrarEventosBulkConEventos(eventos: Omit<EventoUsuario, 'id' | 'fechaRegistro' | 'año' | 'mes'>[]): Promise<{ ids: string[], eventos: EventoUsuario[] }> {
+    const eventosCompletos = eventos.map(evento => {
+      const fecha = evento.fecha instanceof Date ? evento.fecha : evento.fecha.toDate();
+      return {
+        ...evento,
+        año: fecha.getFullYear(),
+        mes: fecha.getMonth() + 1,
+        fechaRegistro: Timestamp.now()
+      };
+    });
+    
+    const ids = await usuarioHistorialRepository.registrarEventosBulk(eventosCompletos);
+
+    // Crear eventos con IDs para devolver
+    const eventosConIds: EventoUsuario[] = eventosCompletos.map((evento, index) => ({
+      ...evento,
+      id: ids[index]
+    }));    // Actualizar estadísticas para todos los años afectados usando los eventos recién creados
+    const añosAfectados = Array.from(new Set(eventosCompletos.map(e => e.año)));
+    for (const año of añosAfectados) {
+      // Por ahora usamos el método normal, pero los eventos ya están en memoria
+      await this.actualizarResumenAnual('bulk-update', año);
+    }
+    
+    console.log(`👥 ${eventos.length} eventos de usuarios registrados en bulk con eventos devueltos`);
+    return { ids, eventos: eventosConIds };
   }
 
   /**
@@ -155,24 +187,90 @@ export class UsuarioHistorialService {
       cambios
     };
   }
-
   /**
    * Obtener estadísticas anuales de usuarios
-   */
-  async obtenerEstadisticasAnuales(año: number): Promise<EstadisticasAnualesUsuarios> {
-    return this.calcularEstadisticasAnuales(año, null, null);
+   */  async obtenerEstadisticasAnuales(año: number): Promise<EstadisticasAnualesUsuarios> {
+    console.log(`🔍 [UsuarioHistorialService] Obteniendo estadísticas para año: ${año}`);
+    
+    try {
+      const resultado = await this.calcularEstadisticasAnuales(año, null, null);
+      console.log(`✅ [UsuarioHistorialService] Estadísticas obtenidas exitosamente para año ${año}`);
+      return resultado;
+    } catch (error) {
+      console.error(`❌ [UsuarioHistorialService] Error obteniendo estadísticas para año ${año}:`, error);
+      throw error;
+    }
   }
 
   /**
    * Calcular estadísticas anuales completas
-   */
-  private async calcularEstadisticasAnuales(
+   */  private async calcularEstadisticasAnuales(
     año: number, 
     eventosPrecalculados?: EventoUsuario[] | null,
     resumenAnterior?: EstadisticasAnualesUsuarios | null
   ): Promise<EstadisticasAnualesUsuarios> {
     
-    const eventos = eventosPrecalculados || await usuarioHistorialRepository.obtenerEventosPorAño(año);
+    console.log(`🔍 [UsuarioHistorialService] Calculando estadísticas para año: ${año}`);
+      try {
+      console.log(`🔍 [UsuarioHistorialService] Obteniendo eventos para año ${año}...`);
+      
+      let eventos = eventosPrecalculados;
+      
+      if (!eventos) {
+        // Intentar obtener eventos con reintentos para problemas de consistencia eventual
+        let intentos = 0;
+        const maxIntentos = 3;
+        
+        while (intentos < maxIntentos) {
+          try {
+            eventos = await usuarioHistorialRepository.obtenerEventosPorAño(año);
+            console.log(`📊 [UsuarioHistorialService] Intento ${intentos + 1}: Eventos encontrados: ${eventos.length}`);
+            
+            if (eventos.length > 0) {
+              break; // Eventos encontrados, salir del bucle
+            }
+            
+            if (intentos < maxIntentos - 1) {
+              console.log(`⏳ [UsuarioHistorialService] Esperando 2s antes del siguiente intento...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            
+          } catch (repoError) {
+            console.error(`❌ [UsuarioHistorialService] Error en intento ${intentos + 1}:`, repoError);
+            if (intentos === maxIntentos - 1) {
+              throw repoError;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          intentos++;
+        }
+      }
+      
+      console.log(`📊 [UsuarioHistorialService] Eventos finales encontrados: ${eventos?.length || 0}`);
+      
+      if (!eventos || eventos.length === 0) {
+        console.log(`⚠️ [UsuarioHistorialService] No hay eventos para el año ${año}, devolviendo estadísticas vacías`);
+        return {
+          año,
+          totalEventos: 0,
+          usuariosRegistrados: 0,
+          usuariosAprobados: 0,
+          usuariosRechazados: 0,
+          usuariosSuspendidos: 0,
+          usuariosActivos: 0,
+          usuariosInactivos: 0,
+          tasaAprobacion: 0,
+          tasaActividad: 0,
+          tasaRetencion: 0,
+          eventosPorMes: Array(12).fill(0),
+          eventosPorTipo: {} as Record<TipoEventoUsuario, number>,
+          usuariosPorRol: {},
+          usuariosProblematicos: [],
+          tiempoPromedioAprobacion: 0,
+          participacionPromedio: 0
+        };
+      }
     
     // Inicializar estadísticas
     const estadisticas: EstadisticasAnualesUsuarios = {
@@ -277,10 +375,18 @@ export class UsuarioHistorialService {
         estadisticas.tendencia = 'decreciente';
       } else {
         estadisticas.tendencia = 'estable';
-      }
-    }
+      }    }    console.log(`✅ [UsuarioHistorialService] Estadísticas calculadas para año ${año}:`, {
+      totalEventos: estadisticas.totalEventos,
+      usuariosRegistrados: estadisticas.usuariosRegistrados,
+      usuariosAprobados: estadisticas.usuariosAprobados
+    });
 
     return estadisticas;
+    
+    } catch (error) {
+      console.error(`❌ [UsuarioHistorialService] Error calculando estadísticas para año ${año}:`, error);
+      throw error;
+    }
   }
 
   /**

@@ -71,12 +71,14 @@ export class MaterialHistorialRepository extends BaseRepository<EventoMaterial> 
    * Buscar eventos de un material específico en un año
    */
   async findEventosByMaterialYear(materialId: string, año: number): Promise<EventoMaterial[]> {
+    // TEMPORAL: Comentar orderBy para evitar problema de índices
+    // TODO: Crear índice compuesto en Firestore para materialId + año + fecha
     return await this.find({
       where: [
         { field: 'materialId', operator: '==', value: materialId },
         { field: 'año', operator: '==', value: año }
-      ],
-      orderBy: [{ field: 'fecha', direction: 'desc' }]
+      ]
+      // orderBy: [{ field: 'fecha', direction: 'desc' }]
     });
   }
 
@@ -95,9 +97,11 @@ export class MaterialHistorialRepository extends BaseRepository<EventoMaterial> 
       where.push({ field: 'año', operator: '<=', value: añoFin });
     }
 
+    // TEMPORAL: Comentar orderBy para evitar problema de índices
+    // TODO: Crear índice compuesto en Firestore para tipoEvento + año + fecha
     return await this.find({
-      where,
-      orderBy: [{ field: 'fecha', direction: 'desc' }]
+      where
+      // orderBy: [{ field: 'fecha', direction: 'desc' }]
     });
   }
 
@@ -113,9 +117,11 @@ export class MaterialHistorialRepository extends BaseRepository<EventoMaterial> 
       where.push({ field: 'año', operator: '==', value: año });
     }
 
+    // TEMPORAL: Comentar orderBy para evitar problema de índices
+    // TODO: Crear índice compuesto en Firestore para costoAsociado + año + costoAsociado
     return await this.find({
-      where,
-      orderBy: [{ field: 'costoAsociado', direction: 'desc' }]
+      where
+      // orderBy: [{ field: 'costoAsociado', direction: 'desc' }]
     });
   }
 

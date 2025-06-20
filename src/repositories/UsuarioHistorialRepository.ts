@@ -107,9 +107,10 @@ export class UsuarioHistorialRepository extends BaseRepository<EventoUsuario> {
 
   /**
    * Obtener eventos de usuario por filtros
-   */
-  async obtenerEventosPorFiltros(filtros: FiltroHistorialUsuarios): Promise<EventoUsuario[]> {
+   */  async obtenerEventosPorFiltros(filtros: FiltroHistorialUsuarios): Promise<EventoUsuario[]> {
     try {
+      console.log(`🔍 [UsuarioHistorialRepository] Obteniendo eventos con filtros:`, filtros);
+      
       let q = collection(db, this.collectionName);
       let queryConstraints: any[] = [];
 
@@ -140,26 +141,39 @@ export class UsuarioHistorialRepository extends BaseRepository<EventoUsuario> {
 
       if (filtros.gravedad) {
         queryConstraints.push(where('gravedad', '==', filtros.gravedad));
-      }
+      }      console.log(`🔍 [UsuarioHistorialRepository] Aplicando ${queryConstraints.length} filtros`);
 
-      // Ordenar por fecha descendente
-      queryConstraints.push(orderBy('fecha', 'desc'));
+      // TEMPORAL: Comentar orderBy para evitar problema de índices
+      // TODO: Crear índice compuesto en Firestore para año + fecha
+      // queryConstraints.push(orderBy('fecha', 'desc'));
 
       // Limitar resultados
       if (filtros.limit) {
         queryConstraints.push(firestoreLimit(filtros.limit));
       }
 
+      console.log(`🔍 [UsuarioHistorialRepository] Ejecutando consulta Firestore SIN orderBy...`);
       const consultaFinal = query(q, ...queryConstraints);
-      const snapshot = await getDocs(consultaFinal);
+      const snapshot = await getDocs(consultaFinal);      console.log(`📊 [UsuarioHistorialRepository] Consulta completada. Documentos encontrados: ${snapshot.docs.length}`);
 
-      return snapshot.docs.map(doc => ({
+      const eventos = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as EventoUsuario[];
 
+      // Ordenar manualmente por fecha descendente (ya que no podemos usar orderBy en Firestore sin índice)
+      const eventosOrdenados = eventos.sort((a, b) => {
+        const fechaA = a.fecha instanceof Date ? a.fecha : a.fecha?.toDate?.() || new Date(0);
+        const fechaB = b.fecha instanceof Date ? b.fecha : b.fecha?.toDate?.() || new Date(0);
+        return fechaB.getTime() - fechaA.getTime();
+      });
+
+      console.log(`✅ [UsuarioHistorialRepository] Eventos ordenados manualmente`);
+
+      return eventosOrdenados;
+
     } catch (error) {
-      console.error('Error al obtener eventos filtrados:', error);
+      console.error('❌ [UsuarioHistorialRepository] Error al obtener eventos filtrados:', error);
       throw new Error('No se pudieron obtener los eventos');
     }
   }

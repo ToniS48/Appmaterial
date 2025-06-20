@@ -76,18 +76,15 @@ import { format, subYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Gráficos interactivos con Chart.js
-// TEMPORAL: Comentado hasta resolver problemas de módulos
-/*
-import { Line, Bar, Pie } from 'react-chartjs-2';
+import { Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
-  Tooltip as ChartTooltip,
+  Tooltip,
   Legend,
   ArcElement,
 } from 'chart.js';
@@ -98,13 +95,11 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  BarElement,
   Title,
-  ChartTooltip,
+  Tooltip,
   Legend,
   ArcElement
 );
-*/
 
 interface MaterialSeguimientoDashboardProps {
   añoInicial?: number;
@@ -133,43 +128,77 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
       años.push(añoActual - i);
     }
     return años;
-  }, []);
-
-  // Cargar datos
+  }, []);  // Cargar datos
   const cargarDatos = async (año: number) => {
     setCargando(true);
     try {
-      const [
-        estadisticasData,
-        eventosData,
-        materialesData,
-        comparacionData
-      ] = await Promise.all([
-        materialHistorialService.obtenerEstadisticasAnuales(año),
-        materialHistorialService.obtenerHistorial({ años: [año] }),
-        materialHistorialService.obtenerMaterialesProblematicos(año, 10),
-        año > 2020 ? materialHistorialService.compararAños(año - 1, año) : null
-      ]);
+      console.log('🔄 [MaterialDashboard] Iniciando carga de datos para año:', año);
+      
+      // Configuración de timeout más generosa para materiales
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout al cargar estadísticas de materiales')), 45000)
+      );
 
+      console.log('🔍 [MaterialDashboard] Llamando a obtenerEstadisticasAnuales...');
+      const estadisticasData = await Promise.race([
+        materialHistorialService.obtenerEstadisticasAnuales(año),
+        timeoutPromise
+      ]) as EstadisticasAnuales;
+      
+      console.log('✅ [MaterialDashboard] Estadísticas cargadas:', estadisticasData);
+      
+      if (!estadisticasData) {
+        throw new Error('Las estadísticas de materiales son null o undefined');
+      }
+      
       setEstadisticas(estadisticasData);
+      console.log('✅ [MaterialDashboard] Estadísticas establecidas en el estado del componente');
+
+      console.log('🔍 [MaterialDashboard] Obteniendo historial...');
+      const eventosData = await materialHistorialService.obtenerHistorial({ años: [año] });
+      console.log('🔍 [MaterialDashboard] Historial obtenido:', eventosData.length);      console.log('📊 [MaterialDashboard] Debug estadísticas completas:', {
+        totalMateriales: estadisticasData.totalMateriales,
+        materialesActivos: estadisticasData.materialesActivos,
+        inversionTotal: estadisticasData.inversionTotal,
+        costoPerdidas: estadisticasData.costoPerdidas,
+        eventosReales: eventosData.length,
+        año: año
+      });
+
       setEventosRecientes(eventosData.slice(0, 20)); // Últimos 20 eventos
+      console.log('✅ [MaterialDashboard] Eventos recientes cargados:', eventosData.slice(0, 20).length);
+
+      const materialesData = await materialHistorialService.obtenerMaterialesProblematicos(año, 10);
+      console.log('✅ [MaterialDashboard] Materiales problemáticos cargados:', materialesData.length);
       setMaterialesProblematicos(materialesData);
-      setComparacionAños(comparacionData);
+
+      if (año > 2020) {
+        console.log('📈 [MaterialDashboard] Cargando comparación con año anterior...');
+        const comparacionData = await materialHistorialService.compararAños(año - 1, año);
+        console.log('✅ [MaterialDashboard] Comparación cargada:', comparacionData);
+        setComparacionAños(comparacionData);
+      }
+
+      console.log('🎉 [MaterialDashboard] Todos los datos cargados exitosamente');
+
     } catch (error) {
-      console.error('Error al cargar datos:', error);
+      console.error('❌ [MaterialDashboard] Error al cargar datos:', error);
+      console.error('❌ [MaterialDashboard] Tipo de error:', typeof error);
+      console.error('❌ [MaterialDashboard] Stack trace:', error instanceof Error ? error.stack : 'No stack available');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      
       toast({
-        title: 'Error al cargar datos',
-        description: 'No se pudieron cargar las estadísticas del año seleccionado',
+        title: 'Error al cargar datos de materiales',
+        description: `No se pudieron cargar los datos: ${errorMessage}`,
         status: 'error',
         duration: 5000,
-        isClosable: true
+        isClosable: true,
       });
     } finally {
       setCargando(false);
     }
-  };
-
-  // Generar reporte
+  };  // Generar reporte
   const generarReporte = async () => {
     try {
       const reporte = await materialHistorialService.generarReporteAnual(añoSeleccionado);
@@ -270,6 +299,13 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
     }
   };
 
+  // Exposición global para debugging (solo en desarrollo)
+  if (process.env.NODE_ENV === 'development') {
+    (window as any).materialHistorialService = materialHistorialService;
+    (window as any).MaterialHistorialService = materialHistorialService;
+    console.log('🔧 MaterialHistorialService expuesto globalmente para debugging');
+  }
+
   if (cargando) {
     return (
       <Box p={6}>
@@ -280,42 +316,83 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
       </Box>
     );
   }
-
   return (
-    <Box p={6}>
+    <Box p={6} minH="100vh" bg="gray.50">
       <VStack spacing={6} align="stretch">
-        {/* Header */}
-        <Flex align="center" justify="space-between">
-          <Heading size="xl">📊 Seguimiento de Material por Años</Heading>
-          <HStack spacing={4}>
-            <Select
-              value={añoSeleccionado}
-              onChange={(e) => setAñoSeleccionado(parseInt(e.target.value))}
-              width="200px"
-            >
-              {añosDisponibles.map(año => (
-                <option key={año} value={año}>{año}</option>
-              ))}
-            </Select>            <ChakraTooltip label="Actualizar datos">
-              <IconButton
-                aria-label="Actualizar"
-                icon={<FiRefreshCw />}
-                onClick={() => cargarDatos(añoSeleccionado)}
-                isLoading={cargando}
-              />
-            </ChakraTooltip>
-            <Button
-              leftIcon={<FiFileText />}
-              colorScheme="blue"
-              onClick={generarReporte}
-            >
-              Generar Reporte
-            </Button>
-          </HStack>
-        </Flex>
-
-        {/* Estadísticas principales */}
-        {estadisticas && (
+        {/* Header mejorado */}
+        <Card>
+          <CardBody>
+            <Flex align="center" justify="space-between" wrap="wrap" gap={4}>
+              <VStack align="start" spacing={2}>
+                <Heading size="xl" color="blue.600">
+                  📊 Seguimiento de Material por Años
+                </Heading>
+                <Text fontSize="md" color="gray.600">
+                  Sistema de monitoreo y análisis del historial de materiales por períodos anuales
+                </Text>
+                <HStack spacing={2}>
+                  <Badge colorScheme="blue" variant="subtle">
+                    <FiCalendar style={{ marginRight: '4px' }} />
+                    Año {añoSeleccionado}
+                  </Badge>
+                  {estadisticas && (
+                    <Badge colorScheme="green" variant="subtle">
+                      {estadisticas.materialesActivos} materiales activos
+                    </Badge>
+                  )}
+                </HStack>
+              </VStack>
+              
+              <HStack spacing={4} wrap="wrap">
+                <Select
+                  value={añoSeleccionado}
+                  onChange={(e) => setAñoSeleccionado(parseInt(e.target.value))}
+                  width="200px"
+                  bg="white"
+                >
+                  {añosDisponibles.map(año => (
+                    <option key={año} value={año}>{año}</option>
+                  ))}
+                </Select>
+                
+                <ChakraTooltip label="Actualizar datos">
+                  <IconButton
+                    aria-label="Actualizar"
+                    icon={<FiRefreshCw />}
+                    onClick={() => cargarDatos(añoSeleccionado)}
+                    isLoading={cargando}
+                    colorScheme="blue"
+                    variant="outline"
+                  />
+                </ChakraTooltip>
+                
+                <Button
+                  leftIcon={<FiFileText />}
+                  colorScheme="blue"
+                  onClick={generarReporte}
+                  isDisabled={!estadisticas}
+                >
+                  Generar Reporte
+                </Button>
+              </HStack>
+            </Flex>
+          </CardBody>
+        </Card>{/* Estadísticas principales */}
+        {cargando ? (
+          <Card>
+            <CardBody>
+              <VStack spacing={4}>
+                <Progress isIndeterminate size="lg" colorScheme="blue" width="100%" />
+                <Text fontSize="md" color="gray.600">
+                  🔄 Cargando datos de materiales para el año {añoSeleccionado}...
+                </Text>
+                <Text fontSize="sm" color="gray.500">
+                  Esto puede tomar unos segundos si hay muchos datos
+                </Text>
+              </VStack>
+            </CardBody>
+          </Card>
+        ) : estadisticas ? (
           <Grid templateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap={4}>
             <Card>
               <CardBody>
@@ -371,10 +448,20 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                     </StatHelpText>
                   </Stat>
                 </CardBody>
-              </Card>
-            )}
+              </Card>            )}
           </Grid>
-        )}
+        ) : !cargando ? (
+          <Alert status="warning">
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Sin datos</AlertTitle>
+              <AlertDescription>
+                No se encontraron estadísticas para el año {añoSeleccionado}. 
+                Intenta recargar los datos o selecciona otro año.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        ) : null}
 
         {/* Alertas de materiales problemáticos */}
         {materialesProblematicos.length > 0 && (
@@ -405,16 +492,7 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                   <CardHeader>
                     <Heading size="md">Eventos por Mes</Heading>
                   </CardHeader>                  <CardBody>
-                    {/* <Line options={chartOptions} data={eventosChartData} /> */}
-                    <Alert status="info">
-                      <AlertIcon />
-                      <Box>
-                        <AlertTitle>Gráfico de Eventos por Mes</AlertTitle>
-                        <AlertDescription>
-                          Los gráficos interactivos estarán disponibles próximamente.
-                        </AlertDescription>
-                      </Box>
-                    </Alert>
+                    <Line options={chartOptions} data={eventosChartData} />
                   </CardBody>
                 </Card>
 
@@ -422,16 +500,7 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                   <CardHeader>
                     <Heading size="md">Distribución por Tipo</Heading>
                   </CardHeader>                  <CardBody>
-                    {/* <Pie data={tiposChartData} /> */}
-                    <Alert status="info">
-                      <AlertIcon />
-                      <Box>
-                        <AlertTitle>Gráfico de Distribución por Tipo</AlertTitle>
-                        <AlertDescription>
-                          Los gráficos interactivos estarán disponibles próximamente.
-                        </AlertDescription>
-                      </Box>
-                    </Alert>
+                    <Pie data={tiposChartData} />
                   </CardBody>
                 </Card>
               </Grid>

@@ -138,8 +138,7 @@
           "order": "ASCENDING"
         }
       ]
-    },
-    {
+    },    {
       "collectionGroup": "prestamos",
       "queryScope": "COLLECTION",
       "fields": [
@@ -149,6 +148,60 @@
         },
         {
           "fieldPath": "fechaPrestamo",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "material_historial",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "materialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "año",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "material_historial",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tipoEvento",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "año",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "material_historial",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "costoAsociado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "año",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "costoAsociado",
           "order": "DESCENDING"
         }
       ]

@@ -32,6 +32,8 @@ import MensajeriaPage from '../pages/MensajeriaPage';
 import MensajeriaTesting from '../components/testing/MensajeriaTesting';
 import MaterialSeguimientoPage from '../pages/material/MaterialSeguimientoPage';
 import UsuarioSeguimientoPage from '../pages/usuarios/UsuarioSeguimientoPage';
+import AdminHistorialMateriales from '../components/admin/AdminHistorialMateriales';
+import GeneradorHistorialSimple from '../components/admin/GeneradorHistorialSimple';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -67,9 +69,10 @@ const AppRoutes: React.FC = () => {
       } />
       
 
-      {/* IMPORTANTE: Colocar primero las rutas específicas antes de la ruta genérica /:role */}        {/* Rutas específicas para administrador */}
-      <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><GestionUsuariosPage /></ProtectedRoute>} />
+      {/* IMPORTANTE: Colocar primero las rutas específicas antes de la ruta genérica /:role */}        {/* Rutas específicas para administrador */}      <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/admin/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['admin']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
+      <Route path="/admin/material/historial" element={<ProtectedRoute allowedRoles={['admin']}><AdminHistorialMateriales /></ProtectedRoute>} />
+      <Route path="/admin/material/generar" element={<ProtectedRoute allowedRoles={['admin']}><GeneradorHistorialSimple /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
       <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />

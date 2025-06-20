@@ -148,16 +148,18 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
   useEffect(() => {
     cargarDatos();
   }, [añoSeleccionado]);
-  const cargarDatos = async (silencioso = false) => {
+
+  const cargarDatos = async () => {
     setCargando(true);
     setError(null);
-      try {
+    
+    try {
       console.log('🔄 Iniciando carga de datos para año:', añoSeleccionado);
-        const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout al cargar estadísticas')), 30000)
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout al cargar estadísticas')), 10000)
       );
 
-      console.log('🔍 Llamando a obtenerEstadisticasAnuales...');
       const stats = await Promise.race([
         usuarioHistorialService.obtenerEstadisticasAnuales(añoSeleccionado),
         timeoutPromise
@@ -165,23 +167,13 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       
       console.log('✅ Estadísticas cargadas:', stats);
       
-      if (!stats) {
-        throw new Error('Las estadísticas son null o undefined');
+      if (stats.totalEventos === 0) {
+        console.log('📭 No hay eventos de seguimiento - mostrando opción para generar datos');
       }
       
-      // Establecer estadísticas inmediatamente
       setEstadisticas(stats);
-      console.log('✅ Estadísticas establecidas en el estado del componente');      console.log('🔍 Obteniendo eventos recientes...');
+
       const eventosRecientesData = await usuarioHistorialService.obtenerEventosRecientes(50);
-      console.log('🔍 Eventos recientes obtenidos:', eventosRecientesData.length);
-      
-      console.log('📊 Debug estadísticas completas:', {
-        totalEventos: stats.totalEventos,
-        usuariosRegistrados: stats.usuariosRegistrados,
-        usuariosAprobados: stats.usuariosAprobados,
-        eventosReales: eventosRecientesData.length,
-        año: añoSeleccionado
-      });
       const eventosFiltrados = eventosRecientesData.filter((e: EventoUsuario) => {
         const fechaEvento = e.fecha instanceof Date ? e.fecha : e.fecha?.toDate();
         return fechaEvento && fechaEvento.getFullYear() === añoSeleccionado;
@@ -201,34 +193,19 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       }
 
       console.log('🎉 Todos los datos cargados exitosamente');
-        // Forzar actualización de la interfaz
-      setTimeout(() => {
-        console.log('🔄 Forzando actualización de interfaz después de cargar datos');
-        // Si hay eventos, salir del modo debug automáticamente
-        if (eventosFiltrados.length > 0 || stats.totalEventos > 0) {
-          console.log('🎯 Datos detectados, saliendo del modo debug automáticamente');
-          setMostrarDebug(false);
-        }
-        
-        // Forzar un re-render
-        setEstadisticas(prevStats => ({ ...stats }));
-      }, 500);    } catch (error) {
+
+    } catch (error) {
       console.error('❌ Error al cargar datos:', error);
-      console.error('❌ Tipo de error:', typeof error);
-      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack available');
-      
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       setError(`Error al cargar datos del seguimiento: ${errorMessage}`);
       
-      if (!silencioso) {
-        toast({
-          title: 'Error',
-          description: `No se pudieron cargar los datos del seguimiento: ${errorMessage}`,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los datos del seguimiento',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setCargando(false);
     }
@@ -268,6 +245,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       isClosable: true,
     });
   };
+
   const generarDatosIniciales = async () => {
     setCargandoMigracion(true);
     try {
@@ -279,12 +257,12 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       const actividades = await listarActividades();
       console.log(`📅 Se encontraron ${actividades.length} actividades`);
       
-      const eventosBulk: Array<Omit<EventoUsuario, 'id' | 'fechaRegistro' | 'año' | 'mes'>> = [];
+      let eventosCreados = 0;
       
       // Generar eventos de registro para cada usuario
       for (const usuario of usuarios) {
         try {
-          eventosBulk.push({
+          await usuarioHistorialService.registrarEvento({
             usuarioId: usuario.uid,
             nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`,
             emailUsuario: usuario.email,
@@ -294,9 +272,10 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             responsableId: 'sistema',
             responsableNombre: 'Sistema Automático'
           });
+          eventosCreados++;
 
           if (usuario.estadoAprobacion === 'aprobado') {
-            eventosBulk.push({
+            await usuarioHistorialService.registrarEvento({
               usuarioId: usuario.uid,
               nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`,
               emailUsuario: usuario.email,
@@ -308,6 +287,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
               responsableId: 'sistema',
               responsableNombre: 'Sistema Automático'
             });
+            eventosCreados++;
           }
           
         } catch (error) {
@@ -322,7 +302,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             for (const participanteId of actividad.participanteIds) {
               const usuario = usuarios.find(u => u.uid === participanteId);
               if (usuario) {
-                eventosBulk.push({
+                await usuarioHistorialService.registrarEvento({
                   usuarioId: participanteId,
                   nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`,
                   emailUsuario: usuario.email,
@@ -334,6 +314,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                   responsableId: actividad.creadorId,
                   responsableNombre: 'Sistema Automático'
                 });
+                eventosCreados++;
               }
             }
           }
@@ -341,45 +322,18 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
           console.warn(`Error procesando actividad ${actividad.nombre}:`, error);
         }
       }
-        console.log(`📝 Preparando ${eventosBulk.length} eventos para registro en lote...`);
       
-      // Registrar todos los eventos en lote (mucho más eficiente) y obtener los eventos creados
-      const { ids, eventos: eventosCreados } = await usuarioHistorialService.registrarEventosBulkConEventos(eventosBulk);
+      console.log(`✅ Generación completada. Se crearon ${eventosCreados} eventos`);
       
-      console.log(`✅ Generación completada. Se crearon ${eventosCreados.length} eventos`);      toast({
+      toast({
         title: 'Datos generados exitosamente',
-        description: `Se generaron ${eventosCreados.length} eventos de seguimiento`,
+        description: `Se generaron ${eventosCreados} eventos de seguimiento`,
         status: 'success',
         duration: 5000,
         isClosable: true,
       });
-        // Forzar salida del modo debug tras generar datos
-      console.log('🎯 Forzando salida del modo debug tras generación exitosa');
-      setMostrarDebug(false);
       
-      // Esperar un poco antes de recargar para que los datos se persistan
-      console.log('⏳ Esperando 1 segundo antes de recargar datos...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      await cargarDatos(true); // Silencioso para evitar toast duplicado
-        // Verificar que los datos se cargaron correctamente
-      console.log('🔍 Verificando datos después de la recarga...');
-      setTimeout(() => {
-        console.log('🔍 Estado actual de estadísticas:', estadisticas);
-        console.log('🔍 Estado actual de eventos recientes:', eventosRecientes.length);
-        if (estadisticas && estadisticas.totalEventos > 0) {
-          console.log('✅ Datos verificados correctamente, dashboard debería estar visible');
-        } else if (eventosRecientes.length > 0) {
-          console.log('✅ Hay eventos recientes, dashboard debería estar visible');
-        } else {
-          console.log('⚠️ Los datos aún no se han cargado completamente');
-          // Intentar una segunda recarga después de más tiempo
-          setTimeout(async () => {
-            console.log('🔄 Intentando segunda recarga de datos...');
-            await cargarDatos(true);
-          }, 2000);
-        }
-      }, 1500);
+      await cargarDatos();
       
     } catch (error) {
       console.error('❌ Error generando datos iniciales:', error);
@@ -394,6 +348,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       setCargandoMigracion(false);
     }
   };
+
   const debugConexion = async () => {
     try {
       console.log('🔧 [DEBUG] Probando conexión directa...');
@@ -425,17 +380,6 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         isClosable: true,
       });
     }
-  };
-
-  const limpiarLogs = () => {
-    console.clear();
-    toast({
-      title: 'Logs limpiados',
-      description: 'Se ha limpiado la consola del navegador',
-      status: 'info',
-      duration: 2000,
-      isClosable: true,
-    });
   };
 
   const obtenerColorEstado = (estado: string) => {
@@ -474,23 +418,20 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         return <FiClock />;
     }
   };
+
   // Funciones para generar datos de gráficas
   const generarDatosGraficaRegistrosPorMes = () => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const registrosPorMes = new Array(12).fill(0);
     
-    console.log('📊 Generando gráfica de registros por mes. Eventos disponibles:', eventosRecientes.length);
-    
     eventosRecientes
-      .filter(evento => evento.tipoEvento === TipoEventoUsuario.REGISTRO)
+      .filter(evento => (evento as any).tipoEvento === 'registro')
       .forEach(evento => {
         const fecha = evento.fecha instanceof Date ? evento.fecha : evento.fecha?.toDate();
         if (fecha) {
           registrosPorMes[fecha.getMonth()]++;
         }
       });
-
-    console.log('📊 Registros por mes calculados:', registrosPorMes);
 
     return {
       labels: meses,
@@ -504,10 +445,9 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       }]
     };
   };
+
   const generarDatosGraficaEstadosAprobacion = () => {
     if (!estadisticas) return { labels: [], datasets: [] };
-
-    console.log('🎯 Generando gráfica de estados de aprobación. Estadísticas:', estadisticas);
 
     return {
       labels: ['Aprobados', 'Rechazados'],
@@ -603,23 +543,11 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
           stepSize: 1,
         },
       },
-    },  };
+    },
+  };
 
-  // Lógica de renderizado más clara
-  const tieneDatos = estadisticas && (estadisticas.totalEventos > 0 || eventosRecientes.length > 0);
-  const deberiasMostrarDebug = mostrarDebug && !tieneDatos;
-  
-  console.log('🔍 Decisión de renderizado:', {
-    mostrarDebug,
-    estadisticas: !!estadisticas,
-    totalEventos: estadisticas?.totalEventos,
-    eventosRecientes: eventosRecientes.length,
-    tieneDatos,
-    deberiasMostrarDebug,
-    estadisticasCompletas: estadisticas
-  });
-
-  if (deberiasMostrarDebug) {
+  // Renderizar botones de debug SOLO si está habilitado Y no hay datos aún
+  if (mostrarDebug && (!estadisticas || estadisticas.totalEventos === 0)) {
     return (
       <Box p={6} maxWidth="1400px" mx="auto">
         <VStack spacing={6} align="stretch">
@@ -627,9 +555,10 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             <CardBody>
               <VStack spacing={4}>
                 <Heading size="md" color="orange.600">🔧 Panel de Debug</Heading>
-                <HStack spacing={3} wrap="wrap">                  <Button 
+                <HStack spacing={3} wrap="wrap">
+                  <Button 
                     colorScheme="blue" 
-                    onClick={() => cargarDatos(false)}
+                    onClick={cargarDatos}
                     leftIcon={<FiRefreshCw />}
                     isLoading={cargando}
                   >
@@ -643,7 +572,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                   >
                     Test Conexión
                   </Button>
-                    <Button 
+                  
+                  <Button 
                     colorScheme="green" 
                     onClick={generarDatosIniciales}
                     leftIcon={<FiUserPlus />}
@@ -654,45 +584,27 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                   </Button>
                   
                   <Button 
-                    colorScheme="purple" 
-                    onClick={limpiarLogs}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Limpiar Logs
-                  </Button>
-                    <Button 
                     colorScheme="gray" 
                     onClick={() => setMostrarDebug(false)}
                     size="sm"
                   >
-                    Ver Dashboard Completo
+                    Ocultar Debug
                   </Button>
-                  
-                  <Button 
-                    colorScheme="orange" 
-                    onClick={() => setMostrarDebug(false)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Forzar Vista Completa
-                  </Button>
-                </HStack>                <Text fontSize="sm" color="gray.600">
-                  Estado: {cargando ? 'Cargando...' : error ? `Error: ${error}` : estadisticas ? `Estadísticas cargadas (totalEventos: ${estadisticas.totalEventos}), ${eventosRecientes.length} eventos filtrados` : 'Sin datos'}
-                </Text>                <Text fontSize="xs" color="orange.600">
-                  Debug: mostrarDebug={mostrarDebug.toString()}, eventos={eventosRecientes.length}, tieneDatos={Boolean(estadisticas && (estadisticas.totalEventos > 0 || eventosRecientes.length > 0)).toString()}
-                </Text>
-                  <Text fontSize="xs" color="blue.600">
-                  Año: {añoSeleccionado}, Usuarios: {estadisticas?.usuariosRegistrados || 0}, Aprobados: {estadisticas?.usuariosAprobados || 0}
+                </HStack>
+                
+                <Text fontSize="sm" color="gray.600">
+                  Estado: {cargando ? 'Cargando...' : error ? `Error: ${error}` : estadisticas ? `${estadisticas.totalEventos} eventos` : 'Sin datos'}
                 </Text>
               </VStack>
             </CardBody>
-          </Card>          {!cargando && !error && estadisticas && ((estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0) > 0 && (
+          </Card>
+
+          {!cargando && !error && estadisticas && estadisticas.totalEventos > 0 && (
             <Card borderLeft="4px" borderColor="green.500">
               <CardBody>
                 <HStack>
                   <Text color="green.600" fontWeight="bold">✅ Datos cargados exitosamente:</Text>
-                  <Text>{(estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0} eventos de seguimiento</Text>
+                  <Text>{estadisticas.totalEventos} eventos de seguimiento</Text>
                   <Button size="sm" variant="outline" onClick={() => setMostrarDebug(false)}>
                     Ver Dashboard Completo
                   </Button>
@@ -701,7 +613,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             </Card>
           )}
           
-          {!cargando && !error && estadisticas && ((estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0) === 0 && (
+          {!cargando && !error && estadisticas && estadisticas.totalEventos === 0 && (
             <Text color="orange.600">No hay datos disponibles. Usa el botón "Generar Datos" para crear el historial inicial.</Text>
           )}
         </VStack>
@@ -731,10 +643,11 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
               {error}
             </AlertDescription>
           </Box>
-        </Alert>        <Button 
+        </Alert>
+        <Button 
           mt={4} 
           colorScheme="blue" 
-          onClick={() => cargarDatos(false)}
+          onClick={cargarDatos}
           leftIcon={<FiRefreshCw />}
         >
           Reintentar
@@ -761,12 +674,13 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
               {añosDisponibles.map(año => (
                 <option key={año} value={año}>{año}</option>
               ))}
-            </Select>            
+            </Select>
+            
             <ChakraTooltip label="Actualizar datos">
               <IconButton
                 aria-label="Actualizar"
                 icon={<FiRefreshCw />}
-                onClick={() => cargarDatos(false)}
+                onClick={cargarDatos}
                 isLoading={cargando}
                 colorScheme="blue"
                 variant="outline"
@@ -782,7 +696,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                 variant="outline"
               />
             </ChakraTooltip>
-              <Button 
+            
+            <Button 
               colorScheme="green" 
               variant="outline" 
               onClick={generarDatosIniciales}
@@ -793,20 +708,12 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             >
               Generar datos
             </Button>
-            
-            <Button 
-              colorScheme="purple" 
-              variant="solid" 
-              onClick={() => setMostrarDebug(false)}
-              leftIcon={<FiBarChart />}
-              size="sm"
-            >
-              Ver Gráficas Ahora
-            </Button>
           </HStack>
-        </Flex>        {/* Tarjetas de estadísticas principales */}
+        </Flex>
+
+        {/* Tarjetas de estadísticas principales */}
         {estadisticas ? (
-          (estadisticas.totalEventos === 0 && eventosRecientes.length === 0) ? (
+          estadisticas.totalEventos === 0 ? (
             <Card>
               <CardBody>
                 <VStack spacing={4} py={8}>
@@ -817,10 +724,11 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                     Los datos de seguimiento se generan automáticamente cuando los usuarios realizan actividades.
                     Para ver estadísticas, asegúrate de que hay usuarios registrados y actividades en el sistema.
                   </Text>
-                  <VStack spacing={3}>                    <Button 
+                  <VStack spacing={3}>
+                    <Button 
                       colorScheme="blue" 
                       variant="outline" 
-                      onClick={() => cargarDatos(false)}
+                      onClick={cargarDatos}
                       leftIcon={<FiRefreshCw />}
                     >
                       Actualizar datos
@@ -902,8 +810,10 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
               </Card>
             </Grid>
           )
-        ) : null}        {/* Pestañas principales - Mostrar si hay estadísticas cargadas */}
-        {estadisticas && (
+        ) : null}
+
+        {/* Pestañas principales - Solo mostrar si hay datos */}
+        {estadisticas && estadisticas.totalEventos > 0 && (
           <Tabs variant="enclosed" colorScheme="blue">
             <TabList>
               <Tab><FiBarChart style={{ marginRight: '8px' }} />Resumen</Tab>
@@ -994,19 +904,11 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                     </>
                   )}
                 </VStack>
-              </TabPanel>              {/* Panel Gráficos */}
+              </TabPanel>
+
+              {/* Panel Gráficos */}
               <TabPanel>
                 <VStack spacing={6} align="stretch">
-                  {/* Debug Info */}
-                  <Card variant="outline" borderColor="gray.200">
-                    <CardBody>
-                      <Text fontSize="sm" color="gray.600">
-                        🔍 Debug: {eventosRecientes.length} eventos | {estadisticas?.totalEventos} total eventos | 
-                        Registros: {eventosRecientes.filter(e => e.tipoEvento === TipoEventoUsuario.REGISTRO).length}
-                      </Text>
-                    </CardBody>
-                  </Card>
-
                   {/* Gráfica de Registros por Mes */}
                   <Card>
                     <CardHeader>
@@ -1198,11 +1100,12 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                                     <Text fontWeight="medium">{evento.nombreUsuario}</Text>
                                     <Text fontSize="xs" color="gray.500">{evento.emailUsuario}</Text>
                                   </VStack>
-                                </Td>                                <Td>
+                                </Td>
+                                <Td>
                                   <HStack>
-                                    {obtenerIconoTipoEvento(evento.tipoEvento as TipoEventoUsuario)}
+                                    {obtenerIconoTipoEvento((evento as any).tipoEvento as TipoEventoUsuario)}
                                     <Badge colorScheme="blue">
-                                      {evento.tipoEvento}
+                                      {(evento as any).tipoEvento}
                                     </Badge>
                                   </HStack>
                                 </Td>
@@ -1258,8 +1161,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                                     >
                                       {usuario.estadoActual.actividad}
                                     </Badge>
-                                  </HStack>
-                                  <Text fontSize="sm" color="gray.600">{usuario.emailUsuario}</Text>                                  <Text fontSize="sm">
+                                  </HStack>                                  <Text fontSize="sm" color="gray.600">{usuario.emailUsuario}</Text>
+                                  <Text fontSize="sm">
                                     <strong>Recomendaciones:</strong> {usuario.recomendaciones.join(', ')}
                                   </Text>
                                 </VStack>
@@ -1270,7 +1173,7 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                                   >
                                     {usuario.gravedad}
                                   </Badge>                                  <Text fontSize="xs" color="gray.500">
-                                    Último evento: {format(
+                                    Última actividad: {format(
                                       usuario.ultimoEvento instanceof Date 
                                         ? usuario.ultimoEvento 
                                         : usuario.ultimoEvento?.toDate() || new Date(),

@@ -66,84 +66,106 @@ export class MaterialHistorialService {
 
     console.log(`📝 ${eventos.length} eventos registrados en bulk`);
     return nuevosEventos.map(e => e.id || '').filter(id => id !== '');
-  }
-
-  /**
+  }  /**
    * Obtener historial de eventos con filtros
    */
   async obtenerHistorial(filtros: FiltroHistorial = {}): Promise<EventoMaterial[]> {
-    const queryOptions: any = {
-      orderBy: [{ field: 'fecha', direction: 'desc' }]
-    };
-
-    // Aplicar filtros
-    const where: any[] = [];
-
-    if (filtros.años && filtros.años.length > 0) {
-      where.push({
-        field: 'año',
-        operator: 'in',
-        value: filtros.años
-      });
-    }
-
-    if (filtros.materiales && filtros.materiales.length > 0) {
-      where.push({
-        field: 'materialId',
-        operator: 'in',
-        value: filtros.materiales
-      });
-    }
-
-    if (filtros.tipoEvento && filtros.tipoEvento.length > 0) {
-      where.push({
-        field: 'tipoEvento',
-        operator: 'in',
-        value: filtros.tipoEvento
-      });
-    }
-
-    if (filtros.gravedad && filtros.gravedad.length > 0) {
-      where.push({
-        field: 'gravedad',
-        operator: 'in',
-        value: filtros.gravedad
-      });
-    }
-
-    if (filtros.responsable) {
-      where.push({
-        field: 'usuarioResponsable',
-        operator: '==',
-        value: filtros.responsable
-      });
-    }
-
-    if (filtros.conCosto) {
-      where.push({
-        field: 'costoAsociado',
-        operator: '>',
-        value: 0
-      });
-    }
-
-    queryOptions.where = where;
-
-    let eventos = await materialHistorialRepository.find(queryOptions);
-
-    // Filtros adicionales que requieren procesamiento local
-    if (filtros.fechaInicio || filtros.fechaFin) {
-      eventos = eventos.filter(evento => {
-        const fechaEvento = evento.fecha instanceof Date ? evento.fecha : evento.fecha.toDate();
+    return this.ejecutarConReintentos(
+      async () => {
+        console.log(`🔍 [MaterialHistorialService] Obteniendo historial con filtros:`, filtros);
         
-        if (filtros.fechaInicio && fechaEvento < filtros.fechaInicio) return false;
-        if (filtros.fechaFin && fechaEvento > filtros.fechaFin) return false;
-        
-        return true;
-      });
-    }
+        const queryOptions: any = {
+          // TEMPORAL: Comentar orderBy para evitar problema de índices
+          // TODO: Crear índice compuesto en Firestore para año + fecha
+          // orderBy: [{ field: 'fecha', direction: 'desc' }]
+        };
 
-    return eventos;
+        // Aplicar filtros
+        const where: any[] = [];
+
+        if (filtros.años && filtros.años.length > 0) {
+          where.push({
+            field: 'año',
+            operator: 'in',
+            value: filtros.años
+          });
+        }
+
+        if (filtros.materiales && filtros.materiales.length > 0) {
+          where.push({
+            field: 'materialId',
+            operator: 'in',
+            value: filtros.materiales
+          });
+        }
+
+        if (filtros.tipoEvento && filtros.tipoEvento.length > 0) {
+          where.push({
+            field: 'tipoEvento',
+            operator: 'in',
+            value: filtros.tipoEvento
+          });
+        }
+
+        if (filtros.gravedad && filtros.gravedad.length > 0) {
+          where.push({
+            field: 'gravedad',
+            operator: 'in',
+            value: filtros.gravedad
+          });
+        }
+
+        if (filtros.responsable) {
+          where.push({
+            field: 'usuarioResponsable',
+            operator: '==',
+            value: filtros.responsable
+          });
+        }
+
+        if (filtros.conCosto) {
+          where.push({
+            field: 'costoAsociado',
+            operator: '>',
+            value: 0
+          });
+        }
+
+        queryOptions.where = where;
+
+        console.log(`🔍 [MaterialHistorialService] Ejecutando consulta al repositorio con ${where.length} filtros...`);
+        let eventos = await materialHistorialRepository.find(queryOptions);
+        console.log(`📊 [MaterialHistorialService] Consulta completada. Eventos encontrados: ${eventos.length}`);
+
+        // Filtros adicionales que requieren procesamiento local
+        if (filtros.fechaInicio || filtros.fechaFin) {
+          console.log(`🔍 [MaterialHistorialService] Aplicando filtros de fecha localmente...`);
+          eventos = eventos.filter(evento => {
+            const fechaEvento = evento.fecha instanceof Date ? evento.fecha : evento.fecha.toDate();
+            
+            if (filtros.fechaInicio && fechaEvento < filtros.fechaInicio) return false;
+            if (filtros.fechaFin && fechaEvento > filtros.fechaFin) return false;
+            
+            return true;
+          });
+          console.log(`📊 [MaterialHistorialService] Después del filtrado local: ${eventos.length} eventos`);
+        }
+
+        // Ordenamiento manual por fecha (descendente) - evitamos problemas de índices
+        console.log(`🔍 [MaterialHistorialService] Ordenando eventos por fecha...`);
+        eventos.sort((a, b) => {
+          const fechaA = a.fecha instanceof Date ? a.fecha : a.fecha.toDate();
+          const fechaB = b.fecha instanceof Date ? b.fecha : b.fecha.toDate();
+          return fechaB.getTime() - fechaA.getTime(); // Descendente (más reciente primero)
+        });
+
+        console.log(`✅ [MaterialHistorialService] Historial obtenido exitosamente: ${eventos.length} eventos`);
+        return eventos;
+      },
+      `obtenerHistorial(${JSON.stringify(filtros)})`,
+      3,
+      1500
+    );
   }
 
   /**
@@ -159,16 +181,28 @@ export class MaterialHistorialService {
 
     // Si no existe, calcularlo
     return await this.calcularResumenAnual(materialId, año);
-  }
-
-  /**
+  }  /**
    * Obtener estadísticas generales de un año
    */
   async obtenerEstadisticasAnuales(año: number): Promise<EstadisticasAnuales> {
-    const eventos = await this.obtenerHistorial({ años: [año] });
-    const resumenesMateriales = await materialHistorialRepository.findResumenesAnuales(año);
-    
-    return this.calcularEstadisticasAnuales(año, eventos, resumenesMateriales);
+    return this.ejecutarConReintentos(
+      async () => {
+        console.log(`🔍 [MaterialHistorialService] Obteniendo estadísticas para año: ${año}`);
+        
+        const eventos = await this.obtenerHistorial({ años: [año] });
+        console.log(`📊 [MaterialHistorialService] Eventos encontrados: ${eventos.length}`);
+        
+        const resumenesMateriales = await materialHistorialRepository.findResumenesAnuales(año);
+        console.log(`📊 [MaterialHistorialService] Resúmenes de materiales encontrados: ${resumenesMateriales.length}`);
+        
+        const resultado = this.calcularEstadisticasAnuales(año, eventos, resumenesMateriales);
+        console.log(`✅ [MaterialHistorialService] Estadísticas calculadas exitosamente para año ${año}`);
+        return resultado;
+      },
+      `obtenerEstadisticasAnuales(${año})`,
+      3,
+      2000
+    );
   }
 
   /**
@@ -444,6 +478,44 @@ export class MaterialHistorialService {
     if (incidencias.some(i => i.gravedad === 'alta')) return 'alta';
     if (incidencias.some(i => i.gravedad === 'media')) return 'media';
     return 'baja';
+  }
+
+  /**
+   * Ejecutar una operación con reintentos automáticos y backoff exponencial
+   */
+  private async ejecutarConReintentos<T>(
+    operacion: () => Promise<T>,
+    nombreOperacion: string,
+    maxIntentos: number = 3,
+    delayBase: number = 1000
+  ): Promise<T> {
+    let ultimoError: Error | null = null;
+    
+    for (let intento = 1; intento <= maxIntentos; intento++) {
+      try {
+        console.log(`🔄 [MaterialHistorialService] ${nombreOperacion} - Intento ${intento}/${maxIntentos}`);
+        
+        const resultado = await operacion();
+        
+        if (intento > 1) {
+          console.log(`✅ [MaterialHistorialService] ${nombreOperacion} exitosa en intento ${intento}`);
+        }
+        
+        return resultado;
+      } catch (error) {
+        ultimoError = error instanceof Error ? error : new Error('Error desconocido');
+        console.warn(`⚠️ [MaterialHistorialService] ${nombreOperacion} falló en intento ${intento}:`, ultimoError.message);
+        
+        if (intento < maxIntentos) {
+          const delay = delayBase * Math.pow(2, intento - 1); // Backoff exponencial
+          console.log(`⏳ [MaterialHistorialService] Esperando ${delay}ms antes del siguiente intento...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    console.error(`❌ [MaterialHistorialService] ${nombreOperacion} falló después de ${maxIntentos} intentos`);
+    throw ultimoError;
   }
 }
 
