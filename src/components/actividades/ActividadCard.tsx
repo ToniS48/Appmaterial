@@ -55,20 +55,25 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   variant = 'complete'
 }) => {
   const { userProfile } = useAuth();
-
-  // Hook para datos meteorológicos - solo para actividades futuras activas
+  // Hook para datos meteorológicos - mostrar hasta 1 día después del fin de la actividad
   const shouldShowWeather = useMemo(() => {
-    if (actividad.estado === 'cancelada' || actividad.estado === 'finalizada') return false;
+    if (actividad.estado === 'cancelada') return false;
     
-    const fechaActividad = actividad.fechaInicio instanceof Date 
+    const fechaInicio = actividad.fechaInicio instanceof Date 
       ? actividad.fechaInicio 
       : actividad.fechaInicio.toDate();
     
+    const fechaFin = actividad.fechaFin 
+      ? (actividad.fechaFin instanceof Date ? actividad.fechaFin : actividad.fechaFin.toDate())
+      : fechaInicio;
+    
     const hoy = new Date();
-    const diasHastaActividad = Math.ceil((fechaActividad.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-      // Solo mostrar para actividades en los próximos 15 días
-    return diasHastaActividad >= -1 && diasHastaActividad <= 15;
-  }, [actividad.estado, actividad.fechaInicio]);
+    const diasDesdeFin = Math.ceil((hoy.getTime() - fechaFin.getTime()) / (1000 * 60 * 60 * 24));
+    const diasHastaInicio = Math.ceil((fechaInicio.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Mostrar meteo hasta 1 día después del fin de la actividad y hasta 15 días antes del inicio
+    return diasDesdeFin <= 1 && diasHastaInicio <= 15;
+  }, [actividad.estado, actividad.fechaInicio, actividad.fechaFin]);
   const { weatherData, loading: weatherLoading } = use7DayWeather(
     shouldShowWeather ? actividad : null
   );

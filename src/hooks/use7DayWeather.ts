@@ -25,15 +25,21 @@ export const use7DayWeather = (actividad: Actividad | null): Use7DayWeatherRetur
     if (!actividad || !weatherService.isEnabled()) {
       setWeatherData([]);
       return;
-    }
-
-    // Solo mostrar pronóstico para actividades futuras
+    }    // Mostrar pronóstico hasta 1 día después del fin de la actividad
     const today = new Date();
-    const activityDate = actividad.fechaInicio instanceof Timestamp 
+    const activityStartDate = actividad.fechaInicio instanceof Timestamp 
       ? actividad.fechaInicio.toDate() 
       : actividad.fechaInicio;
+    
+    const activityEndDate = actividad.fechaFin
+      ? (actividad.fechaFin instanceof Timestamp ? actividad.fechaFin.toDate() : actividad.fechaFin)
+      : activityStartDate;
 
-    if (activityDate <= today) {
+    // Calcular días desde el fin de la actividad
+    const daysSinceEnd = Math.ceil((today.getTime() - activityEndDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // No mostrar si han pasado más de 1 día desde el fin
+    if (daysSinceEnd > 1) {
       setWeatherData([]);
       return;
     }
@@ -42,11 +48,10 @@ export const use7DayWeather = (actividad: Actividad | null): Use7DayWeatherRetur
     setError(null);
 
     try {      // Usar ubicación de la actividad
-      const locationToUse = actividad.lugar;
-
-      const weather = await weatherService.get7DayForecastForActivity(
+      const locationToUse = actividad.lugar;      const weather = await weatherService.get7DayForecastForActivity(
         actividad.fechaInicio,
-        locationToUse
+        locationToUse,
+        actividad.fechaFin
       );
 
       setWeatherData(weather);

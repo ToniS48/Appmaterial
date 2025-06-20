@@ -769,13 +769,13 @@ class WeatherService {
     if (['51', '52', '53', '54'].includes(codigo)) return 'thunderstorm';
     return 'unknown';
   }
-
   /**
    * Obtiene el pronóstico de 7 días para una actividad (para vista compacta en tarjetas)
    */
   async get7DayForecastForActivity(
     activityStartDate: Date | Timestamp,
-    location?: string
+    location?: string,
+    activityEndDate?: Date | Timestamp
   ): Promise<WeatherData[]> {
     if (!this.isEnabled()) {
       return [];
@@ -786,12 +786,19 @@ class WeatherService {
         ? activityStartDate.toDate() 
         : activityStartDate;
 
-      // Calcular días desde hoy hasta la fecha de la actividad
+      const endDate = activityEndDate 
+        ? (activityEndDate instanceof Timestamp ? activityEndDate.toDate() : activityEndDate)
+        : startDate;
+
+      // Calcular días desde hoy hasta la fecha de inicio de la actividad
       const today = new Date();
       const daysUntilActivity = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Si la actividad es muy lejana, no mostrar pronóstico
-      if (daysUntilActivity > 15) {
+      // Calcular días desde el fin de la actividad
+      const daysSinceEnd = Math.ceil((today.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Si la actividad es muy lejana o ya terminó hace más de 1 día, no mostrar pronóstico
+      if (daysUntilActivity > 15 || daysSinceEnd > 1) {
         return [];
       }
 
