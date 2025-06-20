@@ -196,7 +196,19 @@ export class AdvancedCache<T> {
     
     logger.debug(`Caché: desalojadas ${toRemove} entradas por límite de tamaño`);
   }
-  
+    /**
+   * Obtiene estadísticas de la caché
+   */
+  getStats() {
+    return {
+      size: this.cache.size,
+      maxSize: this.options.maxSize,
+      storageType: this.options.storageType,
+      namespace: this.options.namespace,
+      ttl: this.options.ttl
+    };
+  }
+
   /**
    * Genera una clave normalizada para la caché
    */

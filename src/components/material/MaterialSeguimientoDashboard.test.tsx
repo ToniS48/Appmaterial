@@ -190,9 +190,8 @@ describe('MaterialSeguimientoDashboard', () => {
       expect(reportButton).toBeInTheDocument();
     });
   });
-
   it('should show loading state initially', () => {
     renderWithChakra(<MaterialSeguimientoDashboard />);
-    expect(screen.getByText('Cargando datos...')).toBeInTheDocument();
+    expect(screen.getByText('Cargando datos de materiales...')).toBeInTheDocument();
   });
 });

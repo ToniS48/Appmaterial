@@ -1,8 +1,9 @@
 /**
- * Dashboard de Seguimiento de Material por Años
+ * Dashboard de Seguimiento de Material por Años - Versión Optimizada
  * Proporciona una vista completa del historial, estadísticas y reportes anuales
+ * Optimizado con lazy loading y cache inteligente para mejorar rendimiento en 4G
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   VStack,
@@ -30,7 +31,8 @@ import {
   Tr,
   Th,
   Td,
-  Badge,  Alert,
+  Badge,
+  Alert,
   AlertIcon,
   AlertTitle,
   AlertDescription,
@@ -50,7 +52,12 @@ import {
   GridItem,
   Progress,
   Flex,
-  Spacer
+  Spacer,
+  useColorModeValue,
+  Spinner,
+  Center,
+  Skeleton,
+  SkeletonText
 } from '@chakra-ui/react';
 import {
   FiDownload,
@@ -63,7 +70,9 @@ import {
   FiAlertTriangle,
   FiEye,
   FiCalendar,
-  FiDollarSign
+  FiDollarSign,
+  FiActivity,
+  FiDatabase
 } from 'react-icons/fi';
 import { 
   EstadisticasAnuales, 
@@ -74,6 +83,8 @@ import {
 import { materialHistorialService } from '../../services/domain/MaterialHistorialService';
 import { format, subYears } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useLazyDataManager, useOnDemandData } from '../../hooks/useLazyDataManager';
+import { networkOptimization } from '../../services/networkOptimization';
 
 // Gráficos interactivos con Chart.js
 import { Line, Pie } from 'react-chartjs-2';
@@ -110,15 +121,22 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
 }) => {
   const toast = useToast();
   const { isOpen: isReporteOpen, onOpen: onReporteOpen, onClose: onReporteClose } = useDisclosure();
-  
-  // Estados
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const cardBg = useColorModeValue('white', 'gray.800');
+    // Estados
   const [añoSeleccionado, setAñoSeleccionado] = useState(añoInicial || new Date().getFullYear());
-  const [estadisticas, setEstadisticas] = useState<EstadisticasAnuales | null>(null);
-  const [eventosRecientes, setEventosRecientes] = useState<EventoMaterial[]>([]);
-  const [materialesProblematicos, setMaterialesProblematicos] = useState<any[]>([]);
-  const [comparacionAños, setComparacionAños] = useState<any>(null);
-  const [cargando, setCargando] = useState(false);
   const [reporteTexto, setReporteTexto] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
+  const [networkInfo, setNetworkInfo] = useState(networkOptimization.getNetworkInfo());
+
+  // Suscribirse a cambios de configuración de red
+  useEffect(() => {
+    const unsubscribe = networkOptimization.subscribe((config) => {
+      setNetworkInfo(networkOptimization.getNetworkInfo());
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Años disponibles para selección
   const añosDisponibles = useMemo(() => {
@@ -128,79 +146,119 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
       años.push(añoActual - i);
     }
     return años;
-  }, []);  // Cargar datos
-  const cargarDatos = async (año: number) => {
-    setCargando(true);
-    try {
-      console.log('🔄 [MaterialDashboard] Iniciando carga de datos para año:', año);
-      
-      // Configuración de timeout más generosa para materiales
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout al cargar estadísticas de materiales')), 45000)
-      );
+  }, []);
 
-      console.log('🔍 [MaterialDashboard] Llamando a obtenerEstadisticasAnuales...');
-      const estadisticasData = await Promise.race([
-        materialHistorialService.obtenerEstadisticasAnuales(año),
-        timeoutPromise
-      ]) as EstadisticasAnuales;
-      
-      console.log('✅ [MaterialDashboard] Estadísticas cargadas:', estadisticasData);
-      
-      if (!estadisticasData) {
-        throw new Error('Las estadísticas de materiales son null o undefined');
-      }
-      
-      setEstadisticas(estadisticasData);
-      console.log('✅ [MaterialDashboard] Estadísticas establecidas en el estado del componente');
-
-      console.log('🔍 [MaterialDashboard] Obteniendo historial...');
-      const eventosData = await materialHistorialService.obtenerHistorial({ años: [año] });
-      console.log('🔍 [MaterialDashboard] Historial obtenido:', eventosData.length);      console.log('📊 [MaterialDashboard] Debug estadísticas completas:', {
-        totalMateriales: estadisticasData.totalMateriales,
-        materialesActivos: estadisticasData.materialesActivos,
-        inversionTotal: estadisticasData.inversionTotal,
-        costoPerdidas: estadisticasData.costoPerdidas,
-        eventosReales: eventosData.length,
-        año: año
-      });
-
-      setEventosRecientes(eventosData.slice(0, 20)); // Últimos 20 eventos
-      console.log('✅ [MaterialDashboard] Eventos recientes cargados:', eventosData.slice(0, 20).length);
-
-      const materialesData = await materialHistorialService.obtenerMaterialesProblematicos(año, 10);
-      console.log('✅ [MaterialDashboard] Materiales problemáticos cargados:', materialesData.length);
-      setMaterialesProblematicos(materialesData);
-
-      if (año > 2020) {
-        console.log('📈 [MaterialDashboard] Cargando comparación con año anterior...');
-        const comparacionData = await materialHistorialService.compararAños(año - 1, año);
-        console.log('✅ [MaterialDashboard] Comparación cargada:', comparacionData);
-        setComparacionAños(comparacionData);
-      }
-
-      console.log('🎉 [MaterialDashboard] Todos los datos cargados exitosamente');
-
-    } catch (error) {
-      console.error('❌ [MaterialDashboard] Error al cargar datos:', error);
-      console.error('❌ [MaterialDashboard] Tipo de error:', typeof error);
-      console.error('❌ [MaterialDashboard] Stack trace:', error instanceof Error ? error.stack : 'No stack available');
-      
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-      
+  // Lazy loading para estadísticas principales - siempre cargadas
+  const estadisticasManager = useLazyDataManager({
+    loadFunction: () => materialHistorialService.obtenerEstadisticasAnuales(añoSeleccionado),
+    cacheKey: `estadisticas-${añoSeleccionado}`,
+    cacheTTL: 5 * 60 * 1000, // 5 minutos para datos principales
+    loadOnMount: true,
+    onError: (error) => {
       toast({
-        title: 'Error al cargar datos de materiales',
-        description: `No se pudieron cargar los datos: ${errorMessage}`,
+        title: 'Error al cargar estadísticas',
+        description: error.message,
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
-    } finally {
-      setCargando(false);
     }
-  };  // Generar reporte
-  const generarReporte = async () => {
+  });
+
+  // Lazy loading para eventos recientes - solo cuando se necesiten
+  const eventosManager = useOnDemandData({
+    loadFunction: () => materialHistorialService.obtenerHistorial({ 
+      años: [añoSeleccionado] 
+    }).then(eventos => eventos.slice(0, 20)),
+    cacheKey: `eventos-recientes-${añoSeleccionado}`,
+    cacheTTL: 3 * 60 * 1000, // 3 minutos para eventos
+    onError: (error) => {
+      toast({
+        title: 'Error al cargar eventos',
+        description: error.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  });
+
+  // Lazy loading para materiales problemáticos - solo cuando se necesiten
+  const materialesProblematicosManager = useOnDemandData({
+    loadFunction: () => materialHistorialService.obtenerMaterialesProblematicos(añoSeleccionado, 10),
+    cacheKey: `materiales-problematicos-${añoSeleccionado}`,
+    cacheTTL: 10 * 60 * 1000, // 10 minutos para materiales problemáticos
+    onError: (error) => {
+      toast({
+        title: 'Error al cargar materiales problemáticos',
+        description: error.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  });
+
+  // Lazy loading para comparación de años - solo cuando se necesite
+  const comparacionManager = useOnDemandData({
+    loadFunction: () => materialHistorialService.compararAños(añoSeleccionado - 1, añoSeleccionado),
+    cacheKey: `comparacion-${añoSeleccionado}`,
+    cacheTTL: 10 * 60 * 1000, // 10 minutos para comparaciones
+    onError: (error) => {
+      console.warn('No se pudo cargar la comparación:', error.message);
+    }
+  });
+
+  // Efecto para actualizar datos cuando cambia el año
+  useEffect(() => {
+    console.log(`🔄 [MaterialDashboard] Cambiando al año: ${añoSeleccionado}`);
+    
+    // Forzar recarga de estadísticas principales
+    estadisticasManager.forceReload();
+    
+    // Limpiar cache de otros datos para el nuevo año
+    eventosManager.clearCache();
+    materialesProblematicosManager.clearCache();
+    comparacionManager.clearCache();
+    
+    // Precargar datos según la pestaña activa
+    if (activeTab === 2) { // Pestaña de eventos
+      eventosManager.load();
+    } else if (activeTab === 3) { // Pestaña de materiales
+      materialesProblematicosManager.load();
+    } else if (activeTab === 4 && añoSeleccionado > 2020) { // Pestaña de comparación
+      comparacionManager.load();
+    }
+  }, [añoSeleccionado]);
+
+  // Manejar cambio de pestaña con lazy loading
+  const handleTabChange = useCallback((index: number) => {
+    setActiveTab(index);
+    
+    // Cargar datos específicos según la pestaña
+    switch (index) {
+      case 2: // Eventos
+        if (!eventosManager.loaded) {
+          eventosManager.load();
+        }
+        break;
+      case 3: // Materiales problemáticos
+        if (!materialesProblematicosManager.loaded) {
+          materialesProblematicosManager.load();
+        }
+        break;
+      case 4: // Comparación
+        if (añoSeleccionado > 2020 && !comparacionManager.loaded) {
+          comparacionManager.load();
+        }
+        break;
+    }
+  }, [añoSeleccionado, eventosManager, materialesProblematicosManager, comparacionManager]);
+
+  // Generar reporte con cache
+  const generarReporte = useCallback(async () => {
     try {
+      console.log(`📄 [MaterialDashboard] Generando reporte para ${añoSeleccionado}...`);
       const reporte = await materialHistorialService.generarReporteAnual(añoSeleccionado);
       setReporteTexto(reporte);
       onReporteOpen();
@@ -213,10 +271,10 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
         isClosable: true
       });
     }
-  };
+  }, [añoSeleccionado, toast, onReporteOpen]);
 
   // Descargar reporte
-  const descargarReporte = () => {
+  const descargarReporte = useCallback(() => {
     const blob = new Blob([reporteTexto], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -226,60 +284,51 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }, [reporteTexto, añoSeleccionado]);
 
-  // Efectos
-  useEffect(() => {
-    cargarDatos(añoSeleccionado);
-  }, [añoSeleccionado]);
+  // Datos para gráficos
+  const chartData = useMemo(() => {
+    const estadisticas = estadisticasManager.data;
+    if (!estadisticas) return null;
 
-  // Configuración de gráficos
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Seguimiento de Material por Meses'
-      },
-    },
-  };
-
-  const eventosChartData = {
-    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-    datasets: [
-      {
-        label: 'Total Eventos',
-        data: estadisticas?.eventosPorMes || [],
-        borderColor: 'rgb(53, 162, 235)',
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
-      },
-      {
-        label: 'Incidencias',
-        data: estadisticas?.incidenciasPorMes || [],
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-      },
-    ],
-  };
-
-  const tiposChartData = {
-    labels: Object.keys(estadisticas?.estadisticasPorTipo || {}),
-    datasets: [
-      {
-        data: Object.values(estadisticas?.estadisticasPorTipo || {}).map((t: any) => t.total),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.8)',
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(255, 205, 86, 0.8)',
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(153, 102, 255, 0.8)',
+    return {
+      line: {
+        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+        datasets: [
+          {
+            label: 'Eventos por Mes',
+            data: estadisticas.eventosPorMes || [],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+          },
+          {
+            label: 'Incidencias',
+            data: estadisticas.incidenciasPorMes || [],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1,
+          },
         ],
       },
-    ],
-  };
+      pie: {
+        labels: Object.keys(estadisticas.estadisticasPorTipo || {}),
+        datasets: [
+          {
+            label: 'Eventos por Tipo',
+            data: Object.values(estadisticas.estadisticasPorTipo || {}).map((t: any) => t.total),
+            backgroundColor: [
+              'rgba(255, 99, 132, 0.8)',
+              'rgba(54, 162, 235, 0.8)',
+              'rgba(255, 205, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(153, 102, 255, 0.8)',
+            ],
+          },
+        ],
+      }
+    };
+  }, [estadisticasManager.data]);
 
   // Función para obtener el color de la tendencia
   const getTendenciaColor = (tendencia: string) => {
@@ -299,6 +348,21 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
     }
   };
 
+  // Componente de loading para pestañas específicas
+  const TabLoadingSpinner = ({ loading, children }: { loading: boolean; children: React.ReactNode }) => {
+    if (loading) {
+      return (
+        <Center p={8}>
+          <VStack spacing={4}>
+            <Spinner size="lg" color="blue.500" />
+            <Text color="gray.600">Cargando datos...</Text>
+          </VStack>
+        </Center>
+      );
+    }
+    return <>{children}</>;
+  };
+
   // Exposición global para debugging (solo en desarrollo)
   if (process.env.NODE_ENV === 'development') {
     (window as any).materialHistorialService = materialHistorialService;
@@ -306,21 +370,29 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
     console.log('🔧 MaterialHistorialService expuesto globalmente para debugging');
   }
 
-  if (cargando) {
+  // Mostrar spinner si las estadísticas principales están cargando
+  if (estadisticasManager.loading) {
     return (
-      <Box p={6}>
+      <Center p={8}>
         <VStack spacing={4}>
-          <Heading size="lg">Cargando datos...</Heading>
-          <Progress size="sm" isIndeterminate width="100%" />
+          <Spinner size="xl" color="blue.500" />
+          <Heading size="lg">Cargando datos de materiales...</Heading>
+          <Text color="gray.600">
+            {estadisticasManager.fromCache ? 'Verificando actualizaciones...' : 'Obteniendo datos del servidor...'}
+          </Text>
+          <Progress size="sm" isIndeterminate width="300px" />
         </VStack>
-      </Box>
+      </Center>
     );
   }
+
+  const estadisticas = estadisticasManager.data;
+
   return (
-    <Box p={6} minH="100vh" bg="gray.50">
-      <VStack spacing={6} align="stretch">
-        {/* Header mejorado */}
-        <Card>
+    <Box bg={bgColor} minH="100vh">
+      <VStack spacing={6} align="stretch" p={6}>
+        {/* Header mejorado con indicadores de cache */}
+        <Card bg={cardBg}>
           <CardBody>
             <Flex align="center" justify="space-between" wrap="wrap" gap={4}>
               <VStack align="start" spacing={2}>
@@ -337,7 +409,23 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                   </Badge>
                   {estadisticas && (
                     <Badge colorScheme="green" variant="subtle">
+                      <FiActivity style={{ marginRight: '4px' }} />
                       {estadisticas.materialesActivos} materiales activos
+                    </Badge>
+                  )}                  {estadisticasManager.fromCache && (
+                    <Badge colorScheme="purple" variant="subtle">
+                      <FiDatabase style={{ marginRight: '4px' }} />
+                      Datos en caché
+                    </Badge>
+                  )}
+                  {networkInfo && networkOptimization.isSlowConnection() && (
+                    <Badge colorScheme="orange" variant="subtle">
+                      🌐 Modo Optimizado ({networkInfo.effectiveType.toUpperCase()})
+                    </Badge>
+                  )}
+                  {networkInfo && !networkOptimization.isSlowConnection() && (
+                    <Badge colorScheme="green" variant="subtle">
+                      🌐 Red Rápida ({networkInfo.effectiveType.toUpperCase()})
                     </Badge>
                   )}
                 </HStack>
@@ -348,7 +436,7 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                   value={añoSeleccionado}
                   onChange={(e) => setAñoSeleccionado(parseInt(e.target.value))}
                   width="200px"
-                  bg="white"
+                  bg={cardBg}
                 >
                   {añosDisponibles.map(año => (
                     <option key={año} value={año}>{año}</option>
@@ -359,8 +447,8 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
                   <IconButton
                     aria-label="Actualizar"
                     icon={<FiRefreshCw />}
-                    onClick={() => cargarDatos(añoSeleccionado)}
-                    isLoading={cargando}
+                    onClick={() => estadisticasManager.forceReload()}
+                    isLoading={estadisticasManager.loading}
                     colorScheme="blue"
                     variant="outline"
                   />
@@ -377,332 +465,466 @@ const MaterialSeguimientoDashboard: React.FC<MaterialSeguimientoDashboardProps> 
               </HStack>
             </Flex>
           </CardBody>
-        </Card>{/* Estadísticas principales */}
-        {cargando ? (
-          <Card>
-            <CardBody>
-              <VStack spacing={4}>
-                <Progress isIndeterminate size="lg" colorScheme="blue" width="100%" />
-                <Text fontSize="md" color="gray.600">
-                  🔄 Cargando datos de materiales para el año {añoSeleccionado}...
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  Esto puede tomar unos segundos si hay muchos datos
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>
-        ) : estadisticas ? (
+        </Card>
+
+        {/* Estadísticas principales con información de caché */}
+        {estadisticas && (
           <Grid templateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap={4}>
-            <Card>
+            <Card bg={cardBg}>
               <CardBody>
                 <Stat>
                   <StatLabel>Total Materiales</StatLabel>
-                  <StatNumber>{estadisticas.totalMateriales}</StatNumber>
+                  <StatNumber color="blue.500">{estadisticas.totalMateriales}</StatNumber>
                   <StatHelpText>
-                    {estadisticas.materialesActivos} activos
+                    {estadisticas.materialesActivos} activos, {estadisticas.materialesPerdidos} perdidos
                   </StatHelpText>
                 </Stat>
               </CardBody>
             </Card>
 
-            <Card>
+            <Card bg={cardBg}>
               <CardBody>
                 <Stat>
                   <StatLabel>Inversión Total</StatLabel>
-                  <StatNumber>€{estadisticas.inversionTotal.toFixed(2)}</StatNumber>
+                  <StatNumber color="green.500">€{estadisticas.inversionTotal?.toLocaleString()}</StatNumber>
                   <StatHelpText>
-                    <FiDollarSign style={{ display: 'inline' }} /> Este año
+                    Costo pérdidas: €{estadisticas.costoPerdidas?.toLocaleString()}
                   </StatHelpText>
                 </Stat>
               </CardBody>
             </Card>
 
-            <Card>
+            <Card bg={cardBg}>
               <CardBody>
                 <Stat>
-                  <StatLabel>Costo Pérdidas</StatLabel>
-                  <StatNumber color="red.500">€{estadisticas.costoPerdidas.toFixed(2)}</StatNumber>
+                  <StatLabel>Eventos Registrados</StatLabel>
+                  <StatNumber color="purple.500">{estadisticas.eventosPorMes.reduce((total, eventos) => total + eventos, 0)}</StatNumber>
                   <StatHelpText>
-                    {estadisticas.materialesPerdidos} materiales perdidos
+                    Este año
                   </StatHelpText>
                 </Stat>
               </CardBody>
             </Card>
 
-            {comparacionAños && (
-              <Card>
-                <CardBody>
-                  <Stat>
-                    <StatLabel>Tendencia Incidencias</StatLabel>
-                    <StatNumber>
-                      <HStack>
-                        <Box color={getTendenciaColor(comparacionAños.comparacion.tendencia)}>
-                          {getTendenciaIcon(comparacionAños.comparacion.tendencia)}
-                        </Box>
-                        <Text fontSize="lg">{comparacionAños.comparacion.tendencia}</Text>
-                      </HStack>
-                    </StatNumber>
-                    <StatHelpText>
-                      vs. año anterior
-                    </StatHelpText>
-                  </Stat>
-                </CardBody>
-              </Card>            )}
+            <Card bg={cardBg}>
+              <CardBody>
+                <Stat>
+                  <StatLabel>Costo Mantenimiento</StatLabel>
+                  <StatNumber color="orange.500">€{estadisticas.costoMantenimiento?.toLocaleString()}</StatNumber>
+                  <StatHelpText>
+                    Año {añoSeleccionado}
+                  </StatHelpText>
+                </Stat>
+              </CardBody>
+            </Card>
           </Grid>
-        ) : !cargando ? (
-          <Alert status="warning">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Sin datos</AlertTitle>
-              <AlertDescription>
-                No se encontraron estadísticas para el año {añoSeleccionado}. 
-                Intenta recargar los datos o selecciona otro año.
-              </AlertDescription>
-            </Box>
-          </Alert>
-        ) : null}
-
-        {/* Alertas de materiales problemáticos */}
-        {materialesProblematicos.length > 0 && (
-          <Alert status="warning">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Materiales que requieren atención</AlertTitle>
-              <AlertDescription>
-                {materialesProblematicos.length} materiales tienen múltiples incidencias este año
-              </AlertDescription>
-            </Box>
-          </Alert>
         )}
 
-        {/* Pestañas principales */}
-        <Tabs variant="enclosed">
+        {/* Pestañas con lazy loading */}
+        <Tabs variant="enclosed" bg={cardBg} borderRadius="lg" shadow="sm" index={activeTab} onChange={handleTabChange}>
           <TabList>
+            <Tab>📊 Resumen</Tab>
             <Tab>📈 Gráficos</Tab>
             <Tab>📋 Eventos Recientes</Tab>
             <Tab>⚠️ Materiales Problemáticos</Tab>
-            <Tab>📊 Comparación Anual</Tab>
+            <Tab>🔄 Comparación Anual</Tab>
+            <Tab>📄 Reportes</Tab>
           </TabList>
 
-          <TabPanels>            {/* Panel de Gráficos */}
+          <TabPanels>
+            {/* Resumen */}
             <TabPanel>
-              <Grid templateColumns="repeat(auto-fit, minmax(400px, 1fr))" gap={6}>
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Eventos por Mes</Heading>
-                  </CardHeader>                  <CardBody>
-                    <Line options={chartOptions} data={eventosChartData} />
-                  </CardBody>
-                </Card>
+              {estadisticas ? (
+                <VStack spacing={6} align="stretch">
+                  <Alert status="info" bg={cardBg} borderLeft="4px solid" borderLeftColor="blue.400">
+                    <AlertIcon />
+                    <Box>
+                      <AlertTitle>Resumen del año {añoSeleccionado}</AlertTitle>
+                      <AlertDescription>
+                        Se registraron {estadisticas.eventosPorMes.reduce((total, eventos) => total + eventos, 0)} eventos en total, 
+                        con una inversión de €{estadisticas.inversionTotal?.toLocaleString()} y 
+                        {estadisticas.materialesActivos} materiales activos.
+                      </AlertDescription>
+                    </Box>
+                  </Alert>
 
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Distribución por Tipo</Heading>
-                  </CardHeader>                  <CardBody>
-                    <Pie data={tiposChartData} />
-                  </CardBody>
-                </Card>
-              </Grid>
-            </TabPanel>
-
-            {/* Panel de Eventos Recientes */}
-            <TabPanel>
-              <Card>
-                <CardHeader>
-                  <Heading size="md">Últimos Eventos Registrados</Heading>
-                </CardHeader>
-                <CardBody>
-                  <Table variant="simple">
-                    <Thead>
-                      <Tr>
-                        <Th>Fecha</Th>
-                        <Th>Material</Th>
-                        <Th>Tipo Evento</Th>
-                        <Th>Descripción</Th>
-                        <Th>Costo</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {eventosRecientes.map((evento) => (
-                        <Tr key={evento.id}>
-                          <Td>
-                            {format(
-                              evento.fecha instanceof Date ? evento.fecha : evento.fecha.toDate(),
-                              'dd/MM/yyyy',
-                              { locale: es }
-                            )}
-                          </Td>
-                          <Td>{evento.nombreMaterial}</Td>
-                          <Td>
-                            <Badge colorScheme={evento.tipoEvento.includes('incidencia') ? 'red' : 'blue'}>
-                              {evento.tipoEvento}
-                            </Badge>
-                          </Td>
-                          <Td>{evento.descripcion}</Td>
-                          <Td>
-                            {evento.costoAsociado ? `€${evento.costoAsociado.toFixed(2)}` : '-'}
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </CardBody>
-              </Card>
-            </TabPanel>
-
-            {/* Panel de Materiales Problemáticos */}
-            <TabPanel>
-              <Card>
-                <CardHeader>
-                  <Heading size="md">Materiales con Mayor Número de Incidencias</Heading>
-                </CardHeader>
-                <CardBody>
-                  <Table variant="simple">
-                    <Thead>
-                      <Tr>
-                        <Th>Material</Th>
-                        <Th>Incidencias</Th>
-                        <Th>Costo Total</Th>
-                        <Th>Gravedad</Th>
-                        <Th>Última Incidencia</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {materialesProblematicos.map((material) => (
-                        <Tr key={material.materialId}>
-                          <Td>{material.nombreMaterial}</Td>
-                          <Td>
-                            <Badge colorScheme="red" fontSize="sm">
-                              {material.totalIncidencias}
-                            </Badge>
-                          </Td>
-                          <Td>€{material.costoTotal.toFixed(2)}</Td>
-                          <Td>
-                            <Badge 
-                              colorScheme={
-                                material.gravedad === 'critica' ? 'red' :
-                                material.gravedad === 'alta' ? 'orange' :
-                                material.gravedad === 'media' ? 'yellow' : 'green'
-                              }
-                            >
-                              {material.gravedad}
-                            </Badge>
-                          </Td>
-                          <Td>
-                            {format(material.ultimaIncidencia, 'dd/MM/yyyy', { locale: es })}
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </CardBody>
-              </Card>
-            </TabPanel>
-
-            {/* Panel de Comparación Anual */}
-            <TabPanel>
-              {comparacionAños ? (
-                <VStack spacing={6}>
-                  <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={6} width="100%">
-                    <Card>
+                  {/* Métricas adicionales */}
+                  <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={4}>
+                    <Card bg={cardBg}>
                       <CardHeader>
-                        <Heading size="md">Mejora en Materiales</Heading>
+                        <Heading size="sm">Materiales Nuevos</Heading>
                       </CardHeader>
-                      <CardBody>
-                        <Stat>
-                          <StatNumber>
-                            {comparacionAños.comparacion.mejoraMateriales > 0 ? '+' : ''}
-                            {comparacionAños.comparacion.mejoraMateriales.toFixed(1)}%
-                          </StatNumber>
-                          <StatHelpText>vs año anterior</StatHelpText>
-                        </Stat>
+                      <CardBody pt={0}>
+                        <Text fontSize="2xl" fontWeight="bold" color="green.500">
+                          {estadisticas.materialesNuevos || 0}
+                        </Text>
                       </CardBody>
                     </Card>
 
-                    <Card>
+                    <Card bg={cardBg}>
                       <CardHeader>
-                        <Heading size="md">Reducción Incidencias</Heading>
+                        <Heading size="sm">Dados de Baja</Heading>
                       </CardHeader>
-                      <CardBody>
-                        <Stat>
-                          <StatNumber color={comparacionAños.comparacion.mejoraIncidencias > 0 ? 'green.500' : 'red.500'}>
-                            {comparacionAños.comparacion.mejoraIncidencias > 0 ? '+' : ''}
-                            {comparacionAños.comparacion.mejoraIncidencias.toFixed(1)}%
-                          </StatNumber>
-                          <StatHelpText>menos incidencias</StatHelpText>
-                        </Stat>
+                      <CardBody pt={0}>
+                        <Text fontSize="2xl" fontWeight="bold" color="red.500">
+                          {estadisticas.materialesDadosBaja || 0}
+                        </Text>
                       </CardBody>
                     </Card>
 
-                    <Card>
+                    <Card bg={cardBg}>
                       <CardHeader>
-                        <Heading size="md">Ahorro en Costos</Heading>
+                        <Heading size="sm">Materiales Dañados</Heading>
                       </CardHeader>
-                      <CardBody>
-                        <Stat>
-                          <StatNumber color={comparacionAños.comparacion.mejoraCostos > 0 ? 'green.500' : 'red.500'}>
-                            {comparacionAños.comparacion.mejoraCostos > 0 ? '+' : ''}
-                            {comparacionAños.comparacion.mejoraCostos.toFixed(1)}%
-                          </StatNumber>
-                          <StatHelpText>ahorro en pérdidas</StatHelpText>
-                        </Stat>
+                      <CardBody pt={0}>
+                        <Text fontSize="2xl" fontWeight="bold" color="orange.500">
+                          {estadisticas.materialesDadosBaja || 0}
+                        </Text>
                       </CardBody>
                     </Card>
                   </Grid>
-
-                  <Alert 
-                    status={comparacionAños.comparacion.tendencia === 'mejora' ? 'success' : 
-                            comparacionAños.comparacion.tendencia === 'empeora' ? 'error' : 'info'}
-                  >
-                    <AlertIcon />
-                    <AlertTitle>Tendencia General: {comparacionAños.comparacion.tendencia}</AlertTitle>
-                    <AlertDescription>
-                      {comparacionAños.comparacion.tendencia === 'mejora' && 
-                        'Los indicadores muestran una mejora general en la gestión del material.'}
-                      {comparacionAños.comparacion.tendencia === 'empeora' && 
-                        'Los indicadores sugieren la necesidad de revisar los procesos de gestión.'}
-                      {comparacionAños.comparacion.tendencia === 'estable' && 
-                        'Los indicadores se mantienen estables respecto al año anterior.'}
-                    </AlertDescription>
-                  </Alert>
                 </VStack>
               ) : (
-                <Alert status="info">
+                <Alert status="warning">
                   <AlertIcon />
-                  <AlertTitle>Sin datos de comparación</AlertTitle>
                   <AlertDescription>
-                    No hay datos del año anterior para realizar la comparación.
+                    No hay datos disponibles para el año {añoSeleccionado}
                   </AlertDescription>
                 </Alert>
               )}
             </TabPanel>
+
+            {/* Gráficos */}
+            <TabPanel>
+              {chartData ? (
+                <Grid templateColumns="repeat(auto-fit, minmax(400px, 1fr))" gap={6}>
+                  <Card bg={cardBg}>
+                    <CardHeader>
+                      <Heading size="md">Eventos por Mes</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <Line 
+                        data={chartData.line} 
+                        options={{
+                          responsive: true,
+                          plugins: {
+                            legend: {
+                              position: 'top' as const,
+                            }
+                          }
+                        }} 
+                      />
+                    </CardBody>
+                  </Card>
+
+                  <Card bg={cardBg}>
+                    <CardHeader>
+                      <Heading size="md">Distribución por Tipo</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <Pie 
+                        data={chartData.pie}
+                        options={{
+                          responsive: true,
+                          plugins: {
+                            legend: {
+                              position: 'bottom' as const,
+                            }
+                          }
+                        }}
+                      />
+                    </CardBody>
+                  </Card>
+                </Grid>
+              ) : (
+                <Alert status="info">
+                  <AlertIcon />
+                  <AlertDescription>
+                    No hay datos suficientes para generar gráficos
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabPanel>
+
+            {/* Eventos Recientes */}
+            <TabPanel>
+              <TabLoadingSpinner loading={eventosManager.loading}>
+                {eventosManager.data && eventosManager.data.length > 0 ? (
+                  <Card bg={cardBg}>
+                    <CardHeader>
+                      <HStack justify="space-between">
+                        <Heading size="md">Eventos Recientes del {añoSeleccionado}</Heading>
+                        <Badge colorScheme={eventosManager.fromCache ? 'purple' : 'green'}>
+                          {eventosManager.fromCache ? 'Datos en caché' : 'Datos actualizados'}
+                        </Badge>
+                      </HStack>
+                    </CardHeader>
+                    <CardBody>
+                      <Table variant="simple">
+                        <Thead>
+                          <Tr>
+                            <Th>Fecha</Th>
+                            <Th>Material</Th>
+                            <Th>Tipo de Evento</Th>
+                            <Th>Costo</Th>
+                            <Th>Estado</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {eventosManager.data.map((evento: EventoMaterial, index: number) => (
+                            <Tr key={index}>
+                              <Td>
+                                {format(
+                                  evento.fecha instanceof Date ? evento.fecha : evento.fecha.toDate(),
+                                  'dd/MM/yyyy',
+                                  { locale: es }
+                                )}
+                              </Td>
+                              <Td>{evento.nombreMaterial}</Td>
+                              <Td>
+                                <Badge colorScheme="blue" variant="subtle">
+                                  {evento.tipoEvento}
+                                </Badge>
+                              </Td>
+                              <Td>€{(evento.costoAsociado || 0).toLocaleString()}</Td>
+                              <Td>
+                                <Badge 
+                                  colorScheme={evento.estadoNuevo === 'disponible' ? 'green' : 'red'}
+                                  variant="subtle"
+                                >
+                                  {evento.estadoNuevo}
+                                </Badge>
+                              </Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    </CardBody>
+                  </Card>
+                ) : (
+                  <Alert status="info">
+                    <AlertIcon />
+                    <AlertDescription>
+                      No hay eventos registrados para el año {añoSeleccionado}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </TabLoadingSpinner>
+            </TabPanel>
+
+            {/* Materiales Problemáticos */}
+            <TabPanel>
+              <TabLoadingSpinner loading={materialesProblematicosManager.loading}>
+                {materialesProblematicosManager.data && materialesProblematicosManager.data.length > 0 ? (
+                  <Card bg={cardBg}>
+                    <CardHeader>
+                      <HStack justify="space-between">
+                        <Heading size="md">Materiales que Requieren Atención</Heading>
+                        <Badge colorScheme={materialesProblematicosManager.fromCache ? 'purple' : 'green'}>
+                          {materialesProblematicosManager.fromCache ? 'Datos en caché' : 'Datos actualizados'}
+                        </Badge>
+                      </HStack>
+                    </CardHeader>
+                    <CardBody>
+                      <Table variant="simple">
+                        <Thead>
+                          <Tr>
+                            <Th>Material</Th>
+                            <Th>Incidencias</Th>
+                            <Th>Costo Total</Th>
+                            <Th>Gravedad</Th>
+                            <Th>Última Incidencia</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {materialesProblematicosManager.data.map((material: any, index: number) => (
+                            <Tr key={index}>
+                              <Td>{material.nombreMaterial}</Td>
+                              <Td>
+                                <Badge colorScheme="red" variant="solid">
+                                  {material.totalIncidencias}
+                                </Badge>
+                              </Td>
+                              <Td>€{material.costoTotal?.toLocaleString()}</Td>
+                              <Td>
+                                <Badge 
+                                  colorScheme={
+                                    material.gravedad === 'alta' ? 'red' : 
+                                    material.gravedad === 'media' ? 'orange' : 'yellow'
+                                  }
+                                  variant="subtle"
+                                >
+                                  {material.gravedad}
+                                </Badge>
+                              </Td>
+                              <Td>
+                                {material.ultimaIncidencia && format(
+                                  material.ultimaIncidencia instanceof Date ? 
+                                    material.ultimaIncidencia : 
+                                    material.ultimaIncidencia.toDate(),
+                                  'dd/MM/yyyy',
+                                  { locale: es }
+                                )}
+                              </Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    </CardBody>
+                  </Card>
+                ) : (
+                  <Alert status="success">
+                    <AlertIcon />
+                    <AlertDescription>
+                      ¡Excelente! No se han identificado materiales problemáticos en {añoSeleccionado}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </TabLoadingSpinner>
+            </TabPanel>
+
+            {/* Comparación Anual */}
+            <TabPanel>
+              {añoSeleccionado <= 2020 ? (
+                <Alert status="warning">
+                  <AlertIcon />
+                  <AlertDescription>
+                    La comparación anual no está disponible para años anteriores a 2021
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <TabLoadingSpinner loading={comparacionManager.loading}>
+                  {comparacionManager.data ? (
+                    <VStack spacing={6} align="stretch">
+                      <Card bg={cardBg}>
+                        <CardHeader>
+                          <HStack justify="space-between">
+                            <Heading size="md">Comparación {añoSeleccionado - 1} vs {añoSeleccionado}</Heading>
+                            <Badge colorScheme={comparacionManager.fromCache ? 'purple' : 'green'}>
+                              {comparacionManager.fromCache ? 'Datos en caché' : 'Datos actualizados'}
+                            </Badge>
+                          </HStack>
+                        </CardHeader>
+                        <CardBody>
+                          <Grid templateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap={4}>
+                            <Stat>
+                              <StatLabel>Mejora en Materiales</StatLabel>
+                              <StatNumber color={getTendenciaColor(comparacionManager.data.comparacion?.tendencia)}>
+                                {getTendenciaIcon(comparacionManager.data.comparacion?.tendencia)}
+                                {comparacionManager.data.comparacion?.mejoraMateriales?.toFixed(1)}%
+                              </StatNumber>
+                              <StatHelpText>
+                                Respecto al año anterior
+                              </StatHelpText>
+                            </Stat>
+
+                            <Stat>
+                              <StatLabel>Cambio en Incidencias</StatLabel>
+                              <StatNumber color={comparacionManager.data.comparacion?.mejoraIncidencias > 0 ? 'green' : 'red'}>
+                                {comparacionManager.data.comparacion?.mejoraIncidencias > 0 ? <FiTrendingUp /> : <FiTrendingDown />}
+                                {comparacionManager.data.comparacion?.mejoraIncidencias?.toFixed(1)}%
+                              </StatNumber>
+                              <StatHelpText>
+                                Reducción de incidencias
+                              </StatHelpText>
+                            </Stat>
+
+                            <Stat>
+                              <StatLabel>Optimización Costos</StatLabel>
+                              <StatNumber color={comparacionManager.data.comparacion?.mejoraCostos > 0 ? 'green' : 'red'}>
+                                {comparacionManager.data.comparacion?.mejoraCostos > 0 ? <FiTrendingUp /> : <FiTrendingDown />}
+                                {comparacionManager.data.comparacion?.mejoraCostos?.toFixed(1)}%
+                              </StatNumber>
+                              <StatHelpText>
+                                Ahorro en costos
+                              </StatHelpText>
+                            </Stat>
+                          </Grid>
+                        </CardBody>
+                      </Card>
+                    </VStack>
+                  ) : (
+                    <Alert status="info">
+                      <AlertIcon />
+                      <AlertDescription>
+                        No hay datos suficientes para realizar la comparación anual
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </TabLoadingSpinner>
+              )}
+            </TabPanel>
+
+            {/* Reportes */}
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <Card bg={cardBg}>
+                  <CardHeader>
+                    <Heading size="md">📄 Generación de Reportes</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <VStack spacing={4} align="start">
+                      <Text>
+                        Genera reportes detallados del seguimiento de materiales para auditorías,
+                        análisis de tendencias y toma de decisiones.
+                      </Text>
+                      
+                      <HStack spacing={4}>
+                        <Button
+                          leftIcon={<FiFileText />}
+                          colorScheme="blue"
+                          onClick={generarReporte}
+                          isDisabled={!estadisticas}
+                        >
+                          Generar Reporte Anual {añoSeleccionado}
+                        </Button>
+                        
+                        {reporteTexto && (
+                          <Button
+                            leftIcon={<FiDownload />}
+                            colorScheme="green"
+                            onClick={descargarReporte}
+                          >
+                            Descargar
+                          </Button>
+                        )}
+                      </HStack>
+
+                      <Text fontSize="sm" color="gray.600">
+                        El reporte incluye estadísticas detalladas, materiales problemáticos,
+                        tendencias anuales y recomendaciones para optimización.
+                      </Text>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </VStack>
+            </TabPanel>
           </TabPanels>
         </Tabs>
 
-        {/* Modal de Reporte */}
-        <Modal isOpen={isReporteOpen} onClose={onReporteClose} size="6xl">
+        {/* Modal para mostrar reporte */}
+        <Modal isOpen={isReporteOpen} onClose={onReporteClose} size="4xl">
           <ModalOverlay />
           <ModalContent>
-            <ModalHeader>Reporte Anual {añoSeleccionado}</ModalHeader>
+            <ModalHeader>Reporte Anual de Material {añoSeleccionado}</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <Box 
-                as="pre" 
-                whiteSpace="pre-wrap" 
-                fontFamily="monospace" 
-                fontSize="sm"
-                p={4}
-                bg="gray.50"
-                borderRadius="md"
-                maxH="500px"
+                bg="gray.50" 
+                p={4} 
+                borderRadius="md" 
+                maxH="70vh" 
                 overflowY="auto"
+                fontFamily="monospace"
+                fontSize="sm"
+                whiteSpace="pre-wrap"
               >
                 {reporteTexto}
               </Box>
             </ModalBody>
             <ModalFooter>
-              <Button leftIcon={<FiDownload />} onClick={descargarReporte} mr={3}>
+              <Button colorScheme="blue" mr={3} onClick={descargarReporte}>
+                <FiDownload style={{ marginRight: '8px' }} />
                 Descargar
               </Button>
               <Button variant="ghost" onClick={onReporteClose}>
