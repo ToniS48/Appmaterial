@@ -151,39 +151,7 @@ const GestionMaterialPage: React.FC = () => {
       // Filtro por estado
       const cumpleEstado = !filtroEstado || material.estado === filtroEstado;
       
-      return cumpleBusqueda && cumpleTipo && cumpleEstado;    });
-  }, [materiales, busqueda, filtroTipo, filtroEstado]);
-  
-  // Función para renderizar la columna "En uso / Total"
-  const renderEnUsoTotal = (material: any) => {
-    const cantidadPrestada = Number(cantidadesPrestadas[material.id]) || 0;
-    
-    // Para cuerdas, el total es siempre 1
-    const cantidadTotal = material.tipo === 'cuerda' ? 1 : (Number(material.cantidad) || 0);
-
-    // Validar valores para evitar NaN
-    if (isNaN(cantidadPrestada) || isNaN(cantidadTotal)) {
-      return (
-        <Badge colorScheme="red">
-          Error en datos
-        </Badge>
-      );
-    }
-
-    // Determinar color basado en el estado de uso
-    let colorScheme = 'green'; // Disponible por defecto
-    if (cantidadPrestada === cantidadTotal) {
-      colorScheme = 'red'; // Completamente prestado
-    } else if (cantidadPrestada > 0) {
-      colorScheme = 'orange'; // Parcialmente prestado
-    }
-
-    return (
-      <Badge colorScheme={colorScheme}>
-        {cantidadPrestada}/{cantidadTotal}
-      </Badge>
-    );
-  };
+      return cumpleBusqueda && cumpleTipo && cumpleEstado;    });  }, [materiales, busqueda, filtroTipo, filtroEstado]);
   
   // Contextos y hooks
   const { currentUser, userProfile } = useAuth();
@@ -402,24 +370,21 @@ const GestionMaterialPage: React.FC = () => {
         
         {/* Tabla de materiales */}
         <Box overflowX="auto">
-          <Table variant="simple" display={{ base: "none", md: "table" }}>            <Thead>
-              <Tr>
+          <Table variant="simple" display={{ base: "none", md: "table" }}>            <Thead>              <Tr>
                 <Th>Nombre</Th>
                 <Th>Tipo</Th>
-                <Th>En uso / Total</Th>
                 <Th>Última revisión</Th>
                 <Th>Próxima revisión</Th>
                 <Th>Acciones</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {isLoading ? (
-                <Tr>
-                  <Td colSpan={6} textAlign="center">Cargando...</Td>
+              {isLoading ? (                <Tr>
+                  <Td colSpan={5} textAlign="center">Cargando...</Td>
                 </Tr>
               ) : materialesFiltrados.length === 0 ? (
                 <Tr>
-                  <Td colSpan={6} textAlign="center">No se encontraron materiales</Td>
+                  <Td colSpan={5} textAlign="center">No se encontraron materiales</Td>
                 </Tr>
               ) : (
                 materialesFiltrados.map(material => (
@@ -433,10 +398,7 @@ const GestionMaterialPage: React.FC = () => {
                       }>
                         {material.tipo === 'cuerda' ? 'Cuerda' :
                          material.tipo === 'anclaje' ? 'Anclaje' :
-                         'Varios'}
-                      </Badge>
-                    </Td>                    <Td>
-                      {renderEnUsoTotal(material)}
+                         'Varios'}                      </Badge>
                     </Td>
                     <Td>
                       {material.fechaUltimaRevision instanceof Date 
@@ -541,10 +503,7 @@ const GestionMaterialPage: React.FC = () => {
                       }>
                         {material.tipo === 'cuerda' ? 'Cuerda' :
                          material.tipo === 'anclaje' ? 'Anclaje' :
-                         'Varios'}
-                      </Badge>
-                      
-                      {renderEnUsoTotal(material)}
+                         'Varios'}                      </Badge>
                     </Flex>
                     
                     <Text mt={2}>Cantidad: {material.cantidad}</Text>

@@ -186,7 +186,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               variant="ghost"
               colorScheme="brand"
             />
-          </Flex><Flex gap={2} flexWrap="wrap">
+          </Flex>          <Flex gap={2} flexWrap="wrap">
             <Badge colorScheme={
               material.tipo === 'cuerda' ? 'blue' :
               material.tipo === 'anclaje' ? 'orange' : 
@@ -196,36 +196,33 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                material.tipo === 'anclaje' ? 'Anclaje' :
                'Varios'}
             </Badge>
+            
+            {/* Badge de estado para cuerdas */}
+            {material.tipo === 'cuerda' && (
+              <Badge colorScheme={
+                material.estado === 'disponible' ? 'green' :
+                material.estado === 'prestado' ? 'orange' :
+                material.estado === 'mantenimiento' ? 'blue' :
+                material.estado === 'baja' ? 'gray' :
+                material.estado === 'perdido' ? 'red' :
+                material.estado === 'revision' ? 'yellow' :
+                material.estado === 'retirado' ? 'gray' :
+                'gray'
+              }>
+                {material.estado === 'disponible' ? 'Disponible' :
+                 material.estado === 'prestado' ? 'En uso' :
+                 material.estado === 'mantenimiento' ? 'Mantenimiento' :
+                 material.estado === 'baja' ? 'De baja' :
+                 material.estado === 'perdido' ? 'Perdido' :
+                 material.estado === 'revision' ? 'En revisión' :
+                 material.estado === 'retirado' ? 'Retirado' :
+                 material.estado}
+              </Badge>
+            )}
               {(() => {
               const cantidadPrestada = cantidadesPrestadas[material.id || ''] || 0;
-              
-              if (material.tipo === 'cuerda') {
-                // Para cuerdas: usar cantidad prestada real / 1
-                return (
-                  <Badge colorScheme={cantidadPrestada > 0 ? "orange" : "green"}>
-                    En uso: {cantidadPrestada}/1
-                  </Badge>
-                );              } else {
-                const cantidadTotal = Number(material.cantidad) || 0;
-                const prestada = Number(cantidadPrestada) || 0;
-                
-                // Validar que los valores sean números válidos
-                if (isNaN(cantidadTotal) || isNaN(prestada)) {
-                  return (
-                    <Badge colorScheme="red">
-                      Error en datos
-                    </Badge>
-                  );
-                }
-                
-                return (
-                  <Badge colorScheme={prestada > 0 ? 
-                                    prestada >= cantidadTotal ? "red" : "orange" : 
-                                    "green"}>
-                    En uso: {prestada}/{cantidadTotal}
-                  </Badge>
-                );
-              }
+                // Badge de "En uso" eliminado por solicitud del usuario
+              return null;
             })()}
           </Flex>
 
@@ -281,8 +278,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
             </Text>
           )}
         </VStack>
-      </Td>
-      <Td>
+      </Td>      <Td>
         <Badge colorScheme={
           material.tipo === 'cuerda' ? 'blue' :
           material.tipo === 'anclaje' ? 'orange' : 
@@ -292,39 +288,32 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
            material.tipo === 'anclaje' ? 'Anclaje' :
            'Varios'}
         </Badge>
-      </Td>      <Td>
-        {(() => {
-          const cantidadPrestada = cantidadesPrestadas[material.id || ''] || 0;
-          
-          if (material.tipo === 'cuerda') {
-            // Para cuerdas: usar cantidad prestada real / 1
-            return (
-              <Text color={cantidadPrestada > 0 ? "orange.600" : "green.600"}>
-                {cantidadPrestada} / 1
-              </Text>
-            );            } else {
-              // Para materiales con cantidad: prestado / total
-              const cantidadTotal = Number(material.cantidad) || 0;
-              const prestada = Number(cantidadPrestada) || 0;
-              
-              // Validar que los valores sean números válidos
-              if (isNaN(cantidadTotal) || isNaN(prestada)) {
-                return (
-                  <Text color="red.600">
-                    Error en datos
-                  </Text>
-                );
-              }
-              
-              return (
-                <Text color={prestada > 0 ? 
-                             prestada >= cantidadTotal ? "red.600" : "orange.600" : 
-                             "green.600"}>
-                  {prestada} / {cantidadTotal}
-              </Text>
-            );
-          }
-        })()}
+        
+        {/* Badge de estado para cuerdas en tabla */}
+        {material.tipo === 'cuerda' && (
+          <Badge 
+            ml={2}
+            colorScheme={
+              material.estado === 'disponible' ? 'green' :
+              material.estado === 'prestado' ? 'orange' :
+              material.estado === 'mantenimiento' ? 'blue' :
+              material.estado === 'baja' ? 'gray' :
+              material.estado === 'perdido' ? 'red' :
+              material.estado === 'revision' ? 'yellow' :
+              material.estado === 'retirado' ? 'gray' :
+              'gray'
+            }
+          >
+            {material.estado === 'disponible' ? 'Disponible' :
+             material.estado === 'prestado' ? 'En uso' :
+             material.estado === 'mantenimiento' ? 'Mantenimiento' :
+             material.estado === 'baja' ? 'De baja' :
+             material.estado === 'perdido' ? 'Perdido' :
+             material.estado === 'revision' ? 'En revisión' :
+             material.estado === 'retirado' ? 'Retirado' :
+             material.estado}
+          </Badge>
+        )}
       </Td>
       <Td>
         {material.tipo === 'cuerda' ? (
@@ -467,8 +456,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
             <Tab>Varios ({materialesPorTipo.varios.length})</Tab>
           </TabList>
 
-          <TabPanels>            <TabPanel px={0}>
-              {vistaActiva === 'grid' ? (
+          <TabPanels>            <TabPanel px={0}>              {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesFiltrados.map(renderMaterialCard)}
                 </SimpleGrid>
@@ -479,7 +467,6 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -498,16 +485,13 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               ) : (
                 <Box overflowX="auto">
                   <Table variant="simple">
-                    <Thead>
-                      <Tr>
+                    <Thead>                      <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
-                    </Thead>
-                    <Tbody>
+                    </Thead>                    <Tbody>
                       {materialesPorTipo.cuerdas.map(renderTableRow)}
                     </Tbody>
                   </Table>
@@ -526,7 +510,6 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -543,14 +526,12 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
               {vistaActiva === 'grid' ? (
                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
                   {materialesPorTipo.varios.map(renderMaterialCard)}
-                </SimpleGrid>
-              ) : (                <Box overflowX="auto">
+                </SimpleGrid>              ) : (                <Box overflowX="auto">
                   <Table variant="simple">
                     <Thead>
                       <Tr>
                         <Th>Material</Th>
                         <Th>Tipo</Th>
-                        <Th>En uso / Total</Th>
                         <Th>Especificaciones</Th>
                         <Th width="50px">Acciones</Th>
                       </Tr>
@@ -566,8 +547,7 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
         </Tabs>
       ) : (
         // Vista sin tabs (legacy)
-        vistaActiva === 'grid' ? (
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
+        vistaActiva === 'grid' ? (          <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4}>
             {materialesFiltrados.map(renderMaterialCard)}
           </SimpleGrid>        ) : (
           <Box overflowX="auto">
@@ -576,7 +556,6 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
                 <Tr>
                   <Th>Material</Th>
                   <Th>Tipo</Th>
-                  <Th>En uso / Total</Th>
                   <Th>Especificaciones</Th>
                   <Th width="50px">Acciones</Th>
                 </Tr>
