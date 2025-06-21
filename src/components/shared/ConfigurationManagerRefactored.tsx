@@ -20,6 +20,7 @@ import {
   MaterialTab,
   ApisTab,
   SecurityTab,
+  PermissionsTab,
   DropdownsTab,
   SystemViewerTab,
   TabConfig
@@ -50,13 +51,13 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
     handleVariableChange, 
     handleSettingsChange, 
     handleSubmit 
-  } = useConfigurationHandlers(initialSettings);
-  // Configuración de pestañas disponibles según el rol
+  } = useConfigurationHandlers(initialSettings);  // Configuración de pestañas disponibles según el rol
   const tabs: TabConfig[] = [
     { id: 'variables', label: 'General', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'material', label: 'Material', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'apis', label: 'APIs', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'security', label: 'Seguridad', roles: ['admin'] as ('admin' | 'vocal')[] },
+    { id: 'permissions', label: 'Permisos', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'dropdowns', label: 'Formularios Material', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'system-viewer', label: 'Visor Sistema', roles: ['admin'] as ('admin' | 'vocal')[] }
   ].filter(tab => tab.roles.includes(userRole));
@@ -117,11 +118,18 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
               userRole={userRole}
               onSettingsChange={handleSettingsChange}
             />
-          )}
-
-          {/* Seguridad (solo admin) */}
+          )}          {/* Seguridad (solo admin) */}
           {tabs.find(t => t.id === 'security') && (
             <SecurityTab
+              settings={settings}
+              userRole={userRole}
+              onVariableChange={handleVariableChange}
+            />
+          )}
+
+          {/* Permisos (solo admin) */}
+          {tabs.find(t => t.id === 'permissions') && (
+            <PermissionsTab
               settings={settings}
               userRole={userRole}
               onVariableChange={handleVariableChange}

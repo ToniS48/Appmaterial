@@ -75,18 +75,15 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
                   value={settings.frecuenciaBackup || 'semanal'}
                   onChange={(e) => onVariableChange('frecuenciaBackup', e.target.value)}
                 >
-                  <option value="diario">Diario</option>
-                  <option value="semanal">Semanal</option>
+                  <option value="diario">Diario</option>                  <option value="semanal">Semanal</option>
                   <option value="mensual">Mensual</option>
                 </Select>
               </FormControl>
-            </SimpleGrid>
-          </CardBody>
+            </SimpleGrid>          </CardBody>
         </Card>
 
         {/* TODO: Añadir más secciones de seguridad según sea necesario */}
         {/* <AuthenticationSection /> */}
-        {/* <PermissionsSection /> */}
         {/* <AuditLogSection /> */}
       </VStack>
     </TabPanel>

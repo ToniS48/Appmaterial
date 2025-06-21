@@ -12,9 +12,11 @@ import {
   FormControl,
   FormLabel,
   Select,
-  SimpleGrid
+  SimpleGrid,
+  Divider
 } from '@chakra-ui/react';
 import { ConfigSettings } from '../../../types/configuration';
+import DropdownsTab from './DropdownsTab';
 
 interface MaterialTabProps {
   settings: ConfigSettings;
@@ -117,18 +119,45 @@ const MaterialTab: React.FC<MaterialTabProps> = ({
               </FormControl>
             </SimpleGrid>
           </CardBody>
-        </Card>
-
-        <Alert status="info">
+        </Card>        <Alert status="info">
           <AlertIcon />
           <Box>
             <Text fontWeight="bold">Información adicional</Text>
             <Text fontSize="sm">
               Las configuraciones detalladas de formularios de material están disponibles 
-              en la pestaña "Formularios Material" (solo para administradores).
+              en la sección de Formularios Material más abajo (solo para administradores).
             </Text>
           </Box>
         </Alert>
+
+        {/* Formularios Material - Solo para administradores */}
+        {userRole === 'admin' && (
+          <>
+            <Divider />
+            <Card>
+              <CardBody>
+                <Heading size="sm" mb={4} color="orange.600">
+                  📋 Formularios Material
+                </Heading>
+                <Alert status="warning" mb={4}>
+                  <AlertIcon />
+                  <Text fontSize="sm">
+                    Esta sección permite configurar los formularios dinámicos para la gestión de material.
+                    Solo los administradores pueden modificar estos parámetros.
+                  </Text>
+                </Alert>
+                
+                {/* Integrar el componente DropdownsTab aquí */}
+                <Box>
+                  <DropdownsTab 
+                    settings={settings}
+                    userRole={userRole}
+                  />
+                </Box>
+              </CardBody>
+            </Card>
+          </>
+        )}
       </VStack>
     </TabPanel>
   );

@@ -59,7 +59,6 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
     { id: 'apis', label: 'APIs', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'security', label: 'Seguridad', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'permissions', label: 'Permisos', roles: ['admin'] as ('admin' | 'vocal')[] },
-    { id: 'dropdowns', label: 'Formularios Material', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'system-viewer', label: 'Visor Sistema', roles: ['admin'] as ('admin' | 'vocal')[] }
   ].filter(tab => tab.roles.includes(userRole));
 
@@ -159,28 +158,11 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
                 onVariableChange={handleVariableChange}
               />
             </WithPermissions>
-          )}
-
-          {/* Gestión de Permisos (solo admin) */}
+          )}          {/* Gestión de Permisos (solo admin) */}
           {tabs.find(t => t.id === 'permissions') && (
             <TabPanel>
               <PermissionManager userRole={userRole} />
             </TabPanel>
-          )}
-
-          {/* Formularios Material (solo admin) */}
-          {tabs.find(t => t.id === 'dropdowns') && (
-            <WithPermissions 
-              section="dropdowns" 
-              requiredLevel="read" 
-              userRole={userRole}
-              fallbackMessage="Solo los administradores pueden gestionar los formularios de material."
-            >
-              <DropdownsTab
-                settings={settings}
-                userRole={userRole}
-              />
-            </WithPermissions>
           )}
 
           {/* Visor Sistema (solo admin) */}

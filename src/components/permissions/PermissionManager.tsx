@@ -17,12 +17,18 @@ import {
   Badge,
   Divider,
   FormControl,
-  FormLabel
+  FormLabel,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { ConfigurationPermissions, PermissionLevel } from '../../types/permissions';
 import { DEFAULT_PERMISSIONS, CUSTOMIZABLE_VOCAL_PERMISSIONS } from '../../config/permissions';
+import UserPermissionsTab from '../configuration/sections/UserPermissionsTab';
 
 interface PermissionManagerProps {
   userRole: 'admin' | 'vocal';
@@ -160,7 +166,55 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
       </HStack>
     </FormControl>
   );
+  return (
+    <Box>
+      <Tabs variant="enclosed" colorScheme="purple">
+        <TabList>
+          <Tab>👥 Permisos de Vocales</Tab>
+          <Tab>👤 Permisos de Usuarios</Tab>
+        </TabList>
 
+        <TabPanels>
+          {/* Pestaña de Permisos de Vocales */}
+          <TabPanel>
+            <VocalPermissionsContent 
+              vocalPermissions={vocalPermissions}
+              renderPermissionSelect={renderPermissionSelect}
+              isLoading={isLoading}
+              hasChanges={hasChanges}
+              onSave={savePermissions}
+              onReset={resetToDefaults}
+            />
+          </TabPanel>
+
+          {/* Pestaña de Permisos de Usuarios */}
+          <TabPanel>
+            <UserPermissionsTab onVariableChange={() => {}} />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Box>
+  );
+};
+
+// Componente separado para el contenido de permisos de vocales
+interface VocalPermissionsContentProps {
+  vocalPermissions: ConfigurationPermissions;
+  renderPermissionSelect: (section: string, subsection: string | null, currentLevel: PermissionLevel, label: string) => JSX.Element;
+  isLoading: boolean;
+  hasChanges: boolean;
+  onSave: () => void;
+  onReset: () => void;
+}
+
+const VocalPermissionsContent: React.FC<VocalPermissionsContentProps> = ({
+  vocalPermissions,
+  renderPermissionSelect,
+  isLoading,
+  hasChanges,
+  onSave,
+  onReset
+}) => {
   return (
     <Card>
       <CardHeader>
@@ -268,15 +322,13 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
                 )}
               </SimpleGrid>
             </CardBody>
-          </Card>
-
-          <Divider />
+          </Card>          <Divider />
 
           {/* Botones de acción */}
           <HStack justify="space-between">
             <Button 
               variant="outline" 
-              onClick={resetToDefaults}
+              onClick={onReset}
               isDisabled={isLoading}
             >
               🔄 Restaurar por Defecto
@@ -284,13 +336,12 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
             
             <Button
               colorScheme="blue"
-              onClick={savePermissions}
+              onClick={onSave}
               isLoading={isLoading}
               loadingText="Guardando..."
               isDisabled={!hasChanges}
             >
-              💾 Guardar Cambios
-            </Button>
+              💾 Guardar Cambios            </Button>
           </HStack>
         </VStack>
       </CardBody>

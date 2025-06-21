@@ -13,3 +13,8 @@ export { default as MaterialManagementSection } from './MaterialManagementSectio
 export { default as ActivityManagementSection } from './ActivityManagementSection';
 export { default as ReputationSystemSection } from './ReputationSystemSection';
 export { default as ReportsSection } from './ReportsSection';
+
+// Secciones de seguridad y permisos
+export { default as PermissionsSection } from './PermissionsSection';
+export { default as VocalPermissionsTab } from './VocalPermissionsTab';
+export { default as UserPermissionsTab } from './UserPermissionsTab';
