@@ -65,7 +65,10 @@
     "version:set": "node scripts/version-manager.js set",
     "version:patch-tag": "node scripts/version-manager.js patch --tag",
     "version:minor-tag": "node scripts/version-manager.js minor --tag",
-    "version:major-tag": "node scripts/version-manager.js major --tag"
+    "version:major-tag": "node scripts/version-manager.js major --tag",
+    "version:interactive": "node scripts/interactive-version-manager.js",
+    "version:quick": "node scripts/quick-version.js",
+    "version:post-push": "node scripts/post-push-version.js"
   },
   "eslintConfig": {
     "extends": [

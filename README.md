@@ -57,6 +57,41 @@ npm test           # Ejecutar tests
 npm run deploy     # Deploy a Firebase
 ```
 
+### 🔄 Gestión de Versiones Semi-Automática
+
+El proyecto incluye scripts para gestión semi-automática de versiones después de hacer push:
+
+```bash
+# Scripts recomendados (post-push)
+npm run version:quick        # Interfaz rápida para cambio de versión
+npm run version:interactive  # Análisis de commits + versión interactiva
+
+# Scripts directos
+npm run version:patch        # Incremento PATCH (bugs, correcciones)
+npm run version:minor        # Incremento MINOR (nuevas funcionalidades) 
+npm run version:major        # Incremento MAJOR (cambios importantes)
+
+# Scripts con tags automáticos
+npm run version:patch-tag    # PATCH + crear tag de Git
+npm run version:minor-tag    # MINOR + crear tag de Git
+npm run version:major-tag    # MAJOR + crear tag de Git
+
+# Utilidades
+npm run version:info         # Información de versión actual
+npm run version:generate     # Regenerar archivos de versión
+```
+
+**Para Windows:**
+```cmd
+# Script de lote interactivo
+version-quick.bat
+
+# Script de PowerShell  
+.\version-quick.ps1
+```
+
+📖 **[Ver documentación completa de versionado](./docs/VERSION-MANAGEMENT.md)**
+
 ## 🎯 Funcionalidades Clave
 
 ### 📦 Gestión de Materiales
