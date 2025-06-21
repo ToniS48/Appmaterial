@@ -127,19 +127,11 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       label: 'Gestión de Usuarios', 
       to: '/vocal/usuarios/gestion',
       icon: FiUsers,
-      roles: ['vocal'] 
-    },// Material - solo para admin y vocal
+      roles: ['vocal']    },// Material - solo para admin y vocal
     { 
       label: 'Material', 
-      to: '/material', 
+      to: '/material/dashboard', 
       icon: FiBox,
-      roles: ['admin', 'vocal'] 
-    },
-    // Seguimiento Material - solo para admin y vocal
-    { 
-      label: 'Seguimiento Anual', 
-      to: '/material/seguimiento', 
-      icon: FiTrendingUp,
       roles: ['admin', 'vocal'] 
     },
     // Administración de préstamos - solo para admin y vocal

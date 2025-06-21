@@ -16,8 +16,8 @@ export const adminDashboardCards: DashboardCard[] = [
   },  {
     title: "Gestión Material",
     icon: FaBox,
-    route: "/material",
-    description: "Gestión del inventario de material",
+    route: "/material/dashboard",
+    description: "Dashboard completo de gestión de materiales",
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
@@ -70,8 +70,8 @@ export const vocalDashboardCards: DashboardCard[] = [
   },  {
     title: "Gestión Material",
     icon: FaBox,
-    route: "/material",
-    description: "Supervisión del inventario de material",
+    route: "/material/dashboard",
+    description: "Dashboard completo de gestión de materiales",
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"

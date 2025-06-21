@@ -13,7 +13,6 @@ import CalendarioPage from '../pages/actividades/CalendarioPage';
 import ActividadPage from '../pages/actividades/ActividadPage';
 import ActividadFormPage from '../pages/actividades/ActividadFormPage';
 import MaterialInventoryPage from '../pages/material/MaterialInventoryPage';
-import GestionMaterialPage from '../pages/material/GestionMaterialPage';
 import ProfilePage from '../pages/usuario/ProfilePage';
 import GestionUsuariosPage from '../pages/common/GestionUsuariosPage';
 import DevolucionMaterialPage from '../pages/material/DevolucionMaterialPage';
@@ -30,10 +29,10 @@ import EstadisticasAdminPage from '../pages/admin/EstadisticasAdminPage';
 import EstadisticasVocalPage from '../pages/vocal/EstadisticasVocalPage';
 import MensajeriaPage from '../pages/MensajeriaPage';
 import MensajeriaTesting from '../components/testing/MensajeriaTesting';
-import MaterialSeguimientoPage from '../pages/material/MaterialSeguimientoPage';
 import UsuarioSeguimientoPage from '../pages/usuarios/UsuarioSeguimientoPage';
 import AdminHistorialMateriales from '../components/admin/AdminHistorialMateriales';
 import GeneradorHistorialSimple from '../components/admin/GeneradorHistorialSimple';
+import DashboardMateriales from '../components/material/DashboardMateriales';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -176,26 +175,18 @@ const AppRoutes: React.FC = () => {
       {/* RESTO DE RUTAS (mantener las existentes en el mismo orden) */}
       <Route path="/activities" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
-          <ActividadesPage />
-        </ProtectedRoute>
-      } />
-
-      {/* Rutas de material */}
-      <Route path="/material" element={
+          <ActividadesPage />        </ProtectedRoute>
+      } />      {/* Rutas de material */}
+      <Route path="/material" element={<Navigate to="/material/dashboard" replace />} />
+      <Route path="/material/dashboard" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal']}>
-          <GestionMaterialPage />
+          <DashboardMateriales />
         </ProtectedRoute>
-      } />
-      <Route path="/material/seguimiento" element={
-        <ProtectedRoute allowedRoles={['admin', 'vocal']}>
-          <MaterialSeguimientoPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/material/detalle/:id" element={
+      } />      <Route path="/material/detalle/:id" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio', 'invitado']}>
           <MaterialDetallePage />
         </ProtectedRoute>
-      } />      <Route path="/material/print-qr" element={
+      } /><Route path="/material/print-qr" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal']}>
           <QRPrintPage />
         </ProtectedRoute>

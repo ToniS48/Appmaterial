@@ -34,11 +34,15 @@ import {
   useDisclosure,
   Textarea
 } from '@chakra-ui/react';
-import { FiSettings, FiRefreshCw, FiAlertTriangle, FiTool, FiDatabase, FiUserPlus } from 'react-icons/fi';
+import { FiSettings, FiRefreshCw, FiAlertTriangle, FiTool, FiDatabase, FiUserPlus, FiPackage } from 'react-icons/fi';
 import RecalcularEstadosUsuarios from '../../admin/RecalcularEstadosUsuarios';
 import DiagnosticoUsuariosInactivos from '../../admin/DiagnosticoUsuariosInactivos';
 import DiagnosticoDetalladoUsuarios from '../../admin/DiagnosticoDetalladoUsuarios';
 import ReparacionUsuariosDesactualizados from '../../admin/ReparacionUsuariosDesactualizados';
+import RecalcularEstadosMateriales from '../../admin/RecalcularEstadosMateriales';
+import DiagnosticoMaterialesInactivos from '../../admin/DiagnosticoMaterialesInactivos';
+import DiagnosticoDetalladoMateriales from '../../admin/DiagnosticoDetalladoMateriales';
+import ReparacionMaterialesDesactualizados from '../../admin/ReparacionMaterialesDesactualizados';
 
 interface HerramientasAdminTabProps {
   userProfile: any;
@@ -168,16 +172,14 @@ const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
             <Progress size="sm" isIndeterminate mt={2} />
           </Box>
         </Alert>
-      )}
-
-      <Accordion allowMultiple>
-        {/* Herramientas de Diagnóstico */}
+      )}      <Accordion allowMultiple>
+        {/* Herramientas de Diagnóstico - Usuarios */}
         <AccordionItem>
           <AccordionButton>
             <Box flex="1" textAlign="left">
               <HStack>
                 <FiAlertTriangle />
-                <Text fontWeight="medium">Herramientas de Diagnóstico</Text>
+                <Text fontWeight="medium">Herramientas de Diagnóstico - Usuarios</Text>
                 <Badge colorScheme="blue">4 herramientas</Badge>
               </HStack>
             </Box>
@@ -218,6 +220,59 @@ const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
                 </CardHeader>
                 <CardBody>
                   <ReparacionUsuariosDesactualizados />
+                </CardBody>
+              </Card>
+            </Grid>
+          </AccordionPanel>
+        </AccordionItem>
+
+        {/* Herramientas de Diagnóstico - Materiales */}
+        <AccordionItem>
+          <AccordionButton>
+            <Box flex="1" textAlign="left">
+              <HStack>
+                <FiPackage />
+                <Text fontWeight="medium">Herramientas de Diagnóstico - Materiales</Text>
+                <Badge colorScheme="green">4 herramientas</Badge>
+              </HStack>
+            </Box>
+            <AccordionIcon />
+          </AccordionButton>
+          <AccordionPanel pb={4}>
+            <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={4}>
+              <Card>
+                <CardHeader>
+                  <Text fontWeight="bold">Recalcular Estados de Materiales</Text>
+                </CardHeader>
+                <CardBody>
+                  <RecalcularEstadosMateriales />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <Text fontWeight="bold">Diagnóstico de Materiales Inactivos</Text>
+                </CardHeader>
+                <CardBody>
+                  <DiagnosticoMaterialesInactivos />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <Text fontWeight="bold">Diagnóstico Detallado de Materiales</Text>
+                </CardHeader>
+                <CardBody>
+                  <DiagnosticoDetalladoMateriales />
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <Text fontWeight="bold">Reparación de Materiales Desactualizados</Text>
+                </CardHeader>
+                <CardBody>
+                  <ReparacionMaterialesDesactualizados />
                 </CardBody>
               </Card>
             </Grid>

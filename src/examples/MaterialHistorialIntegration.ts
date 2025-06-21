@@ -299,9 +299,8 @@ export const generarReporteAnualMaterial = async (año: number) => {
  *    - materialHistorialService.obtenerHistorial()
  *    - materialHistorialService.obtenerEstadisticasAnuales()
  *    - materialHistorialService.obtenerMaterialesProblematicos()
- * 
- * 5. Para dashboards, importar el componente:
- *    import MaterialSeguimientoDashboard from '../components/material/MaterialSeguimientoDashboard';
+ *  * 5. Para dashboards, usar el dashboard modular:
+ *    import DashboardMateriales from '../components/material/DashboardMateriales';
  */
 
 export default {
