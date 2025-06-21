@@ -58,11 +58,15 @@ export const detectarActividadesConRetraso = async (): Promise<ActividadConRetra
         console.log(`❌ "${actividad.nombre}" - Sin fecha fin válida, se omite`);
         continue;
       }
+        // Verificar si la actividad ya debería haber finalizado (considerando margen de 7 días)
+      const fechaFinDate = fechaFinTimestamp.toDate();
+      const fechaLimiteDevolucion = new Date(fechaFinDate);
+      fechaLimiteDevolucion.setDate(fechaLimiteDevolucion.getDate() + 7);
       
-      // Verificar si la actividad ya debería haber finalizado
-      const yaDeberiaHaberFinalizado = fechaFinTimestamp.seconds < hoy.seconds;
+      const yaDeberiaHaberFinalizado = new Date() > fechaLimiteDevolucion;
       if (!yaDeberiaHaberFinalizado) {
-        console.log(`✅ "${actividad.nombre}" - Aún no ha llegado su fecha de fin`);
+        const diasRestantes = Math.ceil((fechaLimiteDevolucion.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`✅ "${actividad.nombre}" - Aún tiene ${diasRestantes} días para devolver material (período de gracia)`);
         continue;
       }
       
@@ -82,10 +86,14 @@ export const detectarActividadesConRetraso = async (): Promise<ActividadConRetra
       // Si tiene préstamos activos, se considera con retraso
       if (prestamosActivos > 0) {
         console.log(`⚠️ RETRASO DETECTADO: "${actividad.nombre}" - ${prestamosActivos} préstamos sin devolver`);
+          // Calcular días de retraso desde el final del período de gracia (7 días después de finalización)
+        const fechaFinDate = fechaFinTimestamp.toDate();
+        const fechaLimiteDevolucion = new Date(fechaFinDate);
+        fechaLimiteDevolucion.setDate(fechaLimiteDevolucion.getDate() + 7);
         
-        // Calcular días de retraso
-        const diasRetraso = Math.floor((hoy.seconds - fechaFinTimestamp.seconds) / (24 * 60 * 60));
-        console.log(`📊 "${actividad.nombre}" - Días de retraso: ${diasRetraso}`);
+        const diasRetraso = Math.floor((new Date().getTime() - fechaLimiteDevolucion.getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`📊 "${actividad.nombre}" - Días de retraso: ${diasRetraso} (desde el final del período de gracia)`);
+        console.log(`📅 "${actividad.nombre}" - Fechas: Fin actividad: ${fechaFinDate.toLocaleDateString()}, Límite devolución: ${fechaLimiteDevolucion.toLocaleDateString()}`);
         
         // Obtener información de responsables
         const responsables: ActividadConRetraso['responsables'] = {};

@@ -146,13 +146,18 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       to: '/vocal/prestamos',
       icon: FiPackage,
       roles: ['vocal'] 
-    },
-    // Configuración - solo para admin
+    },    // Configuración - para admin y vocal
     { 
       label: 'Configuración', 
       to: '/admin/settings', 
       icon: FiSettings,
       roles: ['admin'] 
+    },
+    { 
+      label: 'Configuración', 
+      to: '/vocal/settings', 
+      icon: FiSettings,
+      roles: ['vocal'] 
     },
   ], []);
   // Filtrar elementos según el rol actual

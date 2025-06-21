@@ -255,8 +255,8 @@ const MisPrestamosPag: React.FC = () => {
     }
     
     return 'Relacionado';
-  };
-  // Función optimizada para verificar si la actividad ha finalizado pero el material no se ha devuelto
+  };  // Función optimizada para verificar si la actividad ha finalizado pero el material no se ha devuelto
+  // MARGEN DE DEVOLUCIÓN: 7 días desde la finalización de la actividad
   const esActividadFinalizadaConMaterialPendiente = (prestamo: Prestamo): boolean => {
     // Solo aplica para préstamos relacionados con actividades
     if (!prestamo.actividadId) {
@@ -275,7 +275,11 @@ const MisPrestamosPag: React.FC = () => {
         : prestamo.fechaFinActividad.toDate();
       
       const ahora = new Date();
-      return fechaFinActividad < ahora;
+      // Agregar margen de 7 días para la devolución
+      const fechaLimiteDevolucion = new Date(fechaFinActividad);
+      fechaLimiteDevolucion.setDate(fechaLimiteDevolucion.getDate() + 7);
+      
+      return ahora > fechaLimiteDevolucion;
     }
     
     // Fallback: usar fechaDevolucionPrevista como antes (para compatibilidad)
@@ -290,8 +294,8 @@ const MisPrestamosPag: React.FC = () => {
     
     return false;
   };
-
   // Calcular días de retraso en la devolución (optimizada)
+  // Los días de retraso se cuentan desde el final del período de gracia de 7 días
   const calcularDiasRetraso = (prestamo: Prestamo): number => {
     if (!esActividadFinalizadaConMaterialPendiente(prestamo)) {
       return 0;
@@ -304,6 +308,12 @@ const MisPrestamosPag: React.FC = () => {
       fechaReferencia = prestamo.fechaFinActividad instanceof Date 
         ? prestamo.fechaFinActividad 
         : prestamo.fechaFinActividad.toDate();
+      
+      // Agregar margen de 7 días para calcular el retraso desde el final del período de gracia
+      const fechaLimiteDevolucion = new Date(fechaReferencia);
+      fechaLimiteDevolucion.setDate(fechaLimiteDevolucion.getDate() + 7);
+      fechaReferencia = fechaLimiteDevolucion;
+      
     } else if (prestamo.fechaDevolucionPrevista) {
       fechaReferencia = prestamo.fechaDevolucionPrevista instanceof Date 
         ? prestamo.fechaDevolucionPrevista 

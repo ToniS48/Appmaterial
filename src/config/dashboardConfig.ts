@@ -116,8 +116,7 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "purple",
     statValue: 0, // Se calculará dinámicamente basado en actividades del año actual
     statLabel: "actividades este año"
-  },
-  {
+  },  {
     title: "Reportes",
     icon: FaChartBar,
     route: "/vocal/estadisticas",
@@ -125,6 +124,14 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "blue",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "reportes generados"
+  },
+  {
+    title: "Configuración",
+    icon: FaCog,
+    route: "/vocal/settings",
+    description: "Configuración del sistema (acceso vocal)",
+    colorScheme: "gray"
+    // No tiene statValue ni statLabel - no mostrará estadísticas
   }
 ];
 

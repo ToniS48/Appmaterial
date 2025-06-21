@@ -101,18 +101,17 @@ const WeatherConfiguration: React.FC = () => {
       await updateConfig(formData);
       
       const success = await testConnection();
-      
-      setTestResult({
+        setTestResult({
         success,
         message: success 
-          ? 'Conexión exitosa con OpenWeatherMap' 
-          : 'No se pudo conectar con la API. Verifica tu API key.'
+          ? 'Conexión exitosa con el servicio meteorológico' 
+          : 'No se pudo conectar con la API. Verifica tu configuración.'
       });
 
       if (success) {
         toast({
           title: 'Conexión exitosa',
-          description: 'La API de OpenWeatherMap está funcionando correctamente',
+          description: 'El servicio meteorológico está funcionando correctamente',
           status: 'success',
           duration: 3000,
           isClosable: true

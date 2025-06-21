@@ -344,7 +344,7 @@ class WeatherService {
    * Obtiene icono basado en el código de clima de Open-Meteo
    */
   private getWeatherIcon(code: number): string {
-    // Mapeo de códigos WMO a iconos similares a OpenWeatherMap
+    // Mapeo de códigos WMO a iconos meteorológicos estándar
     const iconMap: { [key: number]: string } = {
       0: '01d', // Despejado
       1: '02d', // Mayormente despejado
@@ -481,16 +481,8 @@ class WeatherService {
 
   /**
    * Limpia el cache
-   */
-  clearCache(): void {
+   */  clearCache(): void {
     this.cache.clear();
-  }
-
-  /**
-   * Obtiene el icono meteorológico como URL (usando iconos de OpenWeatherMap para compatibilidad)
-   */
-  getWeatherIconUrl(iconCode: string, size: '2x' | '4x' = '2x'): string {
-    return `https://openweathermap.org/img/wn/${iconCode}@${size}.png`;
   }
 
   /**

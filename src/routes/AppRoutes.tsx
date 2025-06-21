@@ -21,6 +21,7 @@ import MaterialDetallePage from '../pages/material/MaterialDetallePage';
 import QRPrintPage from '../pages/material/QRPrintPage';
 import NotificacionesPage from '../pages/common/NotificacionesPage';
 import ConfiguracionPage from '../pages/admin/ConfiguracionPage';
+import ConfiguracionVocalPage from '../pages/vocal/ConfiguracionVocalPage';
 import ReportesAdminPage from '../pages/reportes/ReportesAdminPage';
 import PrestamosAdminPage from '../pages/prestamos/PrestamosAdminPage';
 import PrestamosVocalPage from '../pages/prestamos/PrestamosVocalPage';
@@ -81,6 +82,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/vocal/usuarios" element={<ProtectedRoute allowedRoles={['vocal']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/vocal/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
       <Route path="/vocal/usuarios/gestion" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />      <Route path="/vocal/prestamos" element={<ProtectedRoute allowedRoles={['vocal']}><PrestamosVocalPage /></ProtectedRoute>} />
+      <Route path="/vocal/settings" element={<ProtectedRoute allowedRoles={['vocal', 'admin']}><ConfiguracionVocalPage /></ProtectedRoute>} />
       <Route path="/vocal/reportes" element={<ProtectedRoute allowedRoles={['vocal']}><ReportesAdminPage /></ProtectedRoute>} />
       <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
       <Route path="/vocal/estadisticas-actividades" element={<ProtectedRoute allowedRoles={['vocal']}><VocalEstadisticasActividadesPage /></ProtectedRoute>} />
