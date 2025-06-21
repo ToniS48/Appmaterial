@@ -24,7 +24,7 @@ import {
   Tab,
   TabPanel
 } from '@chakra-ui/react';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { ConfigurationPermissions, PermissionLevel } from '../../types/permissions';
 import { DEFAULT_PERMISSIONS, CUSTOMIZABLE_VOCAL_PERMISSIONS } from '../../config/permissions';
@@ -51,29 +51,40 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-
   useEffect(() => {
     if (userRole !== 'admin') return;
 
     const loadVocalPermissions = async () => {
       try {
+        console.log('🔄 Cargando permisos de vocales...');
         const docRef = doc(db, "configuracion", "permisos");
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+          console.log('📋 Datos del documento de permisos:', data);
           if (data.vocal) {
             setVocalPermissions(data.vocal);
+            console.log('✅ Permisos de vocales cargados exitosamente');
+          } else {
+            console.log('⚠️ No se encontraron permisos para vocales, usando valores por defecto');
           }
+        } else {
+          console.log('📄 Documento de permisos no existe, se usarán valores por defecto');
         }
-      } catch (error) {
-        console.error("Error al cargar permisos:", error);
+      } catch (error: any) {
+        console.error("❌ Error al cargar permisos:", error);
+        console.error("📋 Detalles del error:", {
+          code: error?.code,
+          message: error?.message
+        });
       }
     };
 
     loadVocalPermissions();
-  }, [userRole]);
-  const updatePermission = (section: string, subsection: string | null, level: PermissionLevel) => {
+  }, [userRole]);  const updatePermission = (section: string, subsection: string | null, level: PermissionLevel) => {
+    console.log(`🔧 Actualizando permiso: ${section}${subsection ? `.${subsection}` : ''} = ${level}`);
+    
     setVocalPermissions(prev => {
       const updated = { ...prev };
       
@@ -89,21 +100,43 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
         updated[section as keyof ConfigurationPermissions] = level as any;
       }
       
+      console.log('📋 Nuevos permisos:', updated);
       return updated;
     });
     setHasChanges(true);
+    console.log('✅ Estado de cambios actualizado: hay cambios pendientes');
   };
-
   const savePermissions = async () => {
     try {
       setIsLoading(true);
+      console.log('💾 Iniciando guardado de permisos...');
+      console.log('📋 Permisos a guardar:', vocalPermissions);
+      
       const docRef = doc(db, "configuracion", "permisos");
-      await updateDoc(docRef, {
-        vocal: vocalPermissions,
-        lastUpdated: new Date().toISOString(),
-        updatedBy: 'admin'
-      });
+      
+      // Intentar primero verificar si el documento existe
+      const docSnap = await getDoc(docRef);
+      console.log('📄 El documento existe:', docSnap.exists());
+      
+      if (docSnap.exists()) {
+        // Si existe, usar updateDoc
+        console.log('🔄 Actualizando documento existente...');
+        await updateDoc(docRef, {
+          vocal: vocalPermissions,
+          lastUpdated: new Date().toISOString(),
+          updatedBy: 'admin'
+        });      } else {
+        // Si no existe, usar setDoc para crear el documento
+        console.log('🆕 Creando nuevo documento...');
+        await setDoc(docRef, {
+          vocal: vocalPermissions,
+          admin: DEFAULT_PERMISSIONS.admin, // Incluir permisos de admin también
+          lastUpdated: new Date().toISOString(),
+          updatedBy: 'admin'
+        });
+      }
 
+      console.log('✅ Permisos guardados exitosamente');
       toast({
         title: "Permisos actualizados",
         description: "Los permisos de los vocales se han actualizado correctamente",
@@ -111,12 +144,17 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
         duration: 3000,
         isClosable: true,
       });
-      setHasChanges(false);
-    } catch (error) {
-      console.error("Error al guardar permisos:", error);
+      setHasChanges(false);    } catch (error: any) {
+      console.error("❌ Error al guardar permisos:", error);
+      console.error("📋 Detalles del error:", {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack
+      });
+      
       toast({
-        title: "Error",
-        description: "Error al guardar los permisos",
+        title: "Error al guardar",
+        description: `Error: ${error?.message || 'Error desconocido'}`,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -216,16 +254,34 @@ const VocalPermissionsContent: React.FC<VocalPermissionsContentProps> = ({
   onReset
 }) => {
   return (
-    <Card>
-      <CardHeader>
+    <Card>      <CardHeader>
         <HStack justify="space-between">
           <Heading size="md">🔐 Gestión de Permisos de Vocales</Heading>
-          <Badge colorScheme="purple">Solo Admin</Badge>
+          <HStack>
+            <Badge colorScheme="purple">Solo Admin</Badge>
+            {hasChanges && (
+              <Badge colorScheme="yellow" variant="solid">
+                ⚠️ Cambios Pendientes
+              </Badge>
+            )}
+          </HStack>
         </HStack>
       </CardHeader>
-      
-      <CardBody>
+        <CardBody>
         <VStack spacing={6} align="stretch">
+          {hasChanges && (
+            <Alert status="warning">
+              <AlertIcon />
+              <Box>
+                <Text fontWeight="bold">Cambios pendientes de guardar</Text>
+                <Text fontSize="sm">
+                  Has realizado cambios en los permisos que aún no se han guardado. 
+                  Recuerda hacer clic en "Guardar Cambios" para aplicarlos.
+                </Text>
+              </Box>
+            </Alert>
+          )}
+          
           <Alert status="info">
             <AlertIcon />
             <Box>

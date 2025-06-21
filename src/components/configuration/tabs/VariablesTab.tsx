@@ -22,8 +22,6 @@ interface VariablesTabProps {
   settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
   onVariableChange: (key: string, value: any) => void;
-  onSubmit: () => void;
-  isLoading: boolean;
 }
 
 /**
@@ -33,9 +31,7 @@ interface VariablesTabProps {
 const VariablesTab: React.FC<VariablesTabProps> = ({
   settings,
   userRole,
-  onVariableChange,
-  onSubmit,
-  isLoading
+  onVariableChange
 }) => {
   return (
     <TabPanel>
@@ -78,23 +74,11 @@ const VariablesTab: React.FC<VariablesTabProps> = ({
         <ReputationSystemSection 
           settings={settings} 
           onVariableChange={onVariableChange} 
-        />
-
-        {/* Sección: Configuración de Reportes */}
+        />        {/* Sección: Configuración de Reportes */}
         <ReportsSection 
           settings={settings} 
           onVariableChange={onVariableChange} 
         />
-
-        <Button 
-          onClick={onSubmit}
-          colorScheme="brand"
-          size="lg"
-          isLoading={isLoading}
-          loadingText="Guardando variables..."
-        >
-          💾 Guardar variables del sistema
-        </Button>
       </VStack>
     </TabPanel>
   );
