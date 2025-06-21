@@ -34,7 +34,7 @@ import {
   useDisclosure,
   Textarea
 } from '@chakra-ui/react';
-import { FiSettings, FiRefreshCw, FiAlertTriangle, FiTool, FiDatabase } from 'react-icons/fi';
+import { FiSettings, FiRefreshCw, FiAlertTriangle, FiTool, FiDatabase, FiUserPlus } from 'react-icons/fi';
 import RecalcularEstadosUsuarios from '../../admin/RecalcularEstadosUsuarios';
 import DiagnosticoUsuariosInactivos from '../../admin/DiagnosticoUsuariosInactivos';
 import DiagnosticoDetalladoUsuarios from '../../admin/DiagnosticoDetalladoUsuarios';
@@ -46,6 +46,7 @@ interface HerramientasAdminTabProps {
   onMigrarDatos?: () => Promise<void>;
   onActualizarCache?: () => Promise<void>;
   onLimpiarDatosTemporales?: () => Promise<void>;
+  onGenerarDatosIniciales?: () => Promise<void>;
 }
 
 const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
@@ -53,7 +54,8 @@ const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
   cargando,
   onMigrarDatos,
   onActualizarCache,
-  onLimpiarDatosTemporales
+  onLimpiarDatosTemporales,
+  onGenerarDatosIniciales
 }) => {
   const toast = useToast();
   const { isOpen: isLogOpen, onOpen: onLogOpen, onClose: onLogClose } = useDisclosure();
@@ -110,14 +112,19 @@ const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
       await ejecutarHerramienta("Actualización de caché", onActualizarCache);
     }
   };
-
   const handleLimpiarDatos = async () => {
     if (onLimpiarDatosTemporales) {
       await ejecutarHerramienta("Limpieza de datos temporales", onLimpiarDatosTemporales);
     }
   };
 
-  const esAdmin = userProfile?.role === 'admin' || userProfile?.isAdmin;
+  const handleGenerarDatosIniciales = async () => {
+    if (onGenerarDatosIniciales) {
+      await ejecutarHerramienta("Generación de datos iniciales", onGenerarDatosIniciales);
+    }
+  };
+
+  const esAdmin = userProfile?.rol === 'admin';
 
   if (!esAdmin) {
     return (
@@ -220,17 +227,42 @@ const HerramientasAdminTab: React.FC<HerramientasAdminTabProps> = ({
         {/* Herramientas de Mantenimiento */}
         <AccordionItem>
           <AccordionButton>
-            <Box flex="1" textAlign="left">
-              <HStack>
+            <Box flex="1" textAlign="left">              <HStack>
                 <FiTool />
                 <Text fontWeight="medium">Herramientas de Mantenimiento</Text>
-                <Badge colorScheme="green">3 herramientas</Badge>
+                <Badge colorScheme="green">4 herramientas</Badge>
               </HStack>
             </Box>
             <AccordionIcon />
-          </AccordionButton>
-          <AccordionPanel pb={4}>
+          </AccordionButton>          <AccordionPanel pb={4}>
             <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={4}>
+              {onGenerarDatosIniciales && (
+                <Card>
+                  <CardHeader>
+                    <HStack>
+                      <FiUserPlus />
+                      <Text fontWeight="bold">Generar Datos Iniciales</Text>
+                    </HStack>
+                  </CardHeader>
+                  <CardBody>
+                    <VStack spacing={3} align="stretch">
+                      <Text fontSize="sm" color="gray.600">
+                        Genera datos iniciales para usuarios y estadísticas históricas
+                      </Text>
+                      <Button
+                        colorScheme="green"
+                        size="sm"
+                        onClick={handleGenerarDatosIniciales}
+                        isLoading={ejecutandoHerramienta === "Generación de datos iniciales"}
+                        isDisabled={!!ejecutandoHerramienta}
+                      >
+                        Generar Datos
+                      </Button>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              )}
+
               {onMigrarDatos && (
                 <Card>
                   <CardHeader>

@@ -21,7 +21,6 @@ import {
   FiUsers,
   FiUserCheck,
   FiUserX,
-  FiUserPlus,
   FiActivity,
   FiTrendingUp,
   FiTrendingDown,
@@ -33,10 +32,8 @@ interface EstadisticasPrincipalesProps {
   estadisticas: EstadisticasAnualesUsuarios | null;
   comparacionAños?: any;
   cargando: boolean;
-  onGenerarDatos: () => void;
   onCargarDatos: () => void;
   añoSeleccionado: number;
-  cargandoMigracion: boolean;
   vistaExtendida?: boolean;
 }
 
@@ -44,10 +41,8 @@ const EstadisticasPrincipales: React.FC<EstadisticasPrincipalesProps> = ({
   estadisticas,
   comparacionAños,
   cargando,
-  onGenerarDatos,
   onCargarDatos,
   añoSeleccionado,
-  cargandoMigracion,
   vistaExtendida = false
 }) => {
   // Función para obtener el color del badge según el valor
@@ -80,24 +75,19 @@ const EstadisticasPrincipales: React.FC<EstadisticasPrincipalesProps> = ({
         </VStack>
       </Box>
     );
-  }
-
-  // Si no hay estadísticas, mostrar mensaje
+  }  // Si no hay estadísticas, mostrar mensaje
   if (!estadisticas) {
     return (
       <Card>
         <CardBody>
           <VStack spacing={4}>
             <Text color="gray.500">No hay estadísticas disponibles para el año {añoSeleccionado}</Text>
-            <Button 
-              colorScheme="green" 
-              onClick={onGenerarDatos}
-              leftIcon={<FiUserPlus />}
-              isLoading={cargandoMigracion}
-              loadingText="Generando..."
-            >
-              Generar datos iniciales
-            </Button>
+            <Text fontSize="sm" color="gray.400">
+              Para ver estadísticas, necesitas generar datos iniciales en la pestaña "Herramientas" → "Generar Datos Iniciales"
+            </Text>
+            <Text fontSize="xs" color="blue.400">
+              💡 Tip: La pestaña "Resumen" muestra estadísticas basadas en eventos de usuarios. Sin eventos en la base de datos, no hay datos que mostrar.
+            </Text>
           </VStack>
         </CardBody>
       </Card>
@@ -313,9 +303,7 @@ const EstadisticasPrincipales: React.FC<EstadisticasPrincipalesProps> = ({
               </Grid>
             </CardBody>
           </Card>
-        )}
-
-        {/* Botones de acción */}
+        )}        {/* Botones de acción */}
         <Card>
           <CardHeader>
             <HStack spacing={2}>
@@ -333,16 +321,6 @@ const EstadisticasPrincipales: React.FC<EstadisticasPrincipalesProps> = ({
                 isLoading={cargando}
               >
                 Actualizar datos
-              </Button>
-              <Button 
-                colorScheme="green" 
-                variant="solid" 
-                onClick={onGenerarDatos}
-                leftIcon={<FiUserPlus />}
-                isLoading={cargandoMigracion}
-                loadingText="Generando datos..."
-              >
-                Generar datos iniciales
               </Button>
             </HStack>
           </CardBody>

@@ -36,20 +36,13 @@ import { FiDownload, FiFileText, FiCalendar, FiUsers } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { EstadisticasAnualesUsuarios } from '../../../types/usuarioHistorial';
+import { TipoReporte } from './types';
 
 interface ReportesTabProps {
   año: number;
   estadisticas: EstadisticasAnualesUsuarios | null;
   onGenerarReporte: (tipo: TipoReporte, año: number) => Promise<string>;
   cargando: boolean;
-}
-
-export enum TipoReporte {
-  COMPLETO = 'completo',
-  USUARIOS_ACTIVOS = 'usuarios_activos',
-  USUARIOS_PROBLEMÁTICOS = 'usuarios_problematicos',
-  ESTADISTICAS_MENSUALES = 'estadisticas_mensuales',
-  COMPARATIVO_ANUAL = 'comparativo_anual'
 }
 
 const ReportesTab: React.FC<ReportesTabProps> = ({

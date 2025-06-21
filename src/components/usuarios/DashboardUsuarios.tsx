@@ -204,16 +204,13 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
             </ChakraTooltip>
           </HStack>
         </Flex>
-        
-        {/* Estadísticas principales usando componente modular */}
+          {/* Estadísticas principales usando componente modular */}
         <EstadisticasPrincipales
           estadisticas={estadisticas}
           comparacionAños={comparacionAños}
           cargando={cargando}
-          onGenerarDatos={generarDatosIniciales}
           onCargarDatos={() => cargarDatos(false)}
           añoSeleccionado={añoSeleccionado}
-          cargandoMigracion={cargandoMigracion}
         />
 
         {/* Pestañas principales usando componentes modulares */}
@@ -288,15 +285,12 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
 
             <TabPanels>
               {/* Panel Resumen - Reutilizar EstadisticasPrincipales pero con vista extendida */}
-              <TabPanel>
-                <EstadisticasPrincipales
+              <TabPanel>                <EstadisticasPrincipales
                   estadisticas={estadisticas}
                   comparacionAños={comparacionAños}
                   cargando={cargando}
-                  onGenerarDatos={generarDatosIniciales}
                   onCargarDatos={() => cargarDatos(false)}
                   añoSeleccionado={añoSeleccionado}
-                  cargandoMigracion={cargandoMigracion}
                   vistaExtendida={true}
                 />
               </TabPanel>
@@ -368,13 +362,13 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
 
               {/* Panel Herramientas Administrativas */}
               {esAdmin && (
-                <TabPanel px={{ base: 1, md: 4 }}>
-                  <HerramientasAdminTab
+                <TabPanel px={{ base: 1, md: 4 }}>                  <HerramientasAdminTab
                     userProfile={userProfile}
                     cargando={cargando}
                     onMigrarDatos={migrarDatos}
                     onActualizarCache={actualizarCache}
                     onLimpiarDatosTemporales={limpiarDatosTemporales}
+                    onGenerarDatosIniciales={generarDatosIniciales}
                   />
                 </TabPanel>
               )}

@@ -1,10 +1,7 @@
-/**
- * Hook personalizado para manejar la lógica del Dashboard de Usuarios
- * Centraliza el estado y las operaciones del dashboard
- */
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { usuarioHistorialService } from '../../../services/domain/UsuarioHistorialService';
+import { listarUsuarios } from '../../../services/usuarioService';
 import { DashboardState, TipoReporte } from './types';
 
 const useDashboard = (añoInicial?: number) => {
@@ -42,12 +39,11 @@ const useDashboard = (añoInicial?: number) => {
       const estadisticas = await usuarioHistorialService.obtenerEstadisticasAnuales(state.añoSeleccionado);
         // Cargar eventos recientes
       const eventos = await usuarioHistorialService.obtenerEventosRecientes(10);
-      
-      // Cargar usuarios problemáticos
+        // Cargar usuarios problemáticos
       const usuariosProblematicos = await usuarioHistorialService.obtenerUsuariosProblematicos(state.añoSeleccionado);
       
-      // Cargar todos los usuarios (simulado)
-      const usuarios = await Promise.resolve([]);
+      // Cargar todos los usuarios reales
+      const usuarios = await listarUsuarios();
 
       setState(prev => ({
         ...prev,

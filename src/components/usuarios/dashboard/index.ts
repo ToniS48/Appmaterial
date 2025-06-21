@@ -8,7 +8,7 @@ export { default as EstadisticasPrincipales } from './EstadisticasPrincipales';
 export { default as EventosTab } from './EventosTab';
 export { default as UsuariosProblematicosTab } from './UsuariosProblematicosTab';
 export { default as ComparacionAñosTab } from './ComparacionAñosTab';
-export { default as ReportesTab, TipoReporte } from './ReportesTab';
+export { default as ReportesTab } from './ReportesTab';
 export { default as HerramientasAdminTab } from './HerramientasAdminTab';
 
 // Hooks y utilidades

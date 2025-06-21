@@ -213,7 +213,6 @@ const GraficosDinamicosUsuarios: React.FC<GraficosDinamicosUsuariosProps> = ({
   const resultadoActivo = resultados.get(graficoActivo);
   const cargandoActivo = cargando.get(graficoActivo) || false;
   const errorActivo = errores.get(graficoActivo);
-
   if (usuarios.length === 0) {
     return (
       <Alert status="info">
@@ -221,7 +220,13 @@ const GraficosDinamicosUsuarios: React.FC<GraficosDinamicosUsuariosProps> = ({
         <Box>
           <AlertTitle>Sin datos de usuarios</AlertTitle>
           <AlertDescription>
-            No hay usuarios disponibles para generar gráficos. Asegúrate de que hay usuarios registrados en el sistema.
+            No hay usuarios disponibles para generar gráficos. Para visualizar datos:
+            <br />
+            1. Asegúrate de que hay usuarios registrados en el sistema
+            <br />
+            2. Si no hay usuarios, ve a la pestaña "Herramientas" → "Generar Datos Iniciales"
+            <br />
+            3. O registra usuarios manualmente en la pestaña "Gestión"
           </AlertDescription>
         </Box>
       </Alert>
