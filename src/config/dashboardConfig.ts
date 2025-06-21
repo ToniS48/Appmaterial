@@ -1,6 +1,6 @@
 import { FaUsers, FaCog, FaChartBar, FaBox, FaCommentDots } from 'react-icons/fa';
 import { MdInventory2 } from 'react-icons/md';
-import { FiCalendar, FiPackage, FiBell, FiEye } from 'react-icons/fi';
+import { FiCalendar, FiPackage, FiBell, FiEye, FiBarChart2 } from 'react-icons/fi';
 import { DashboardCard } from '../components/dashboard/GenericDashboard';
 
 // Configuración de cards para el dashboard de Admin
@@ -13,7 +13,8 @@ export const adminDashboardCards: DashboardCard[] = [
     colorScheme: "teal",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "préstamos activos"
-  },  {
+  },
+  {
     title: "Gestión Material",
     icon: FaBox,
     route: "/material/dashboard",
@@ -21,7 +22,17 @@ export const adminDashboardCards: DashboardCard[] = [
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
-  },{
+  },
+  {
+    title: "Gestión Usuarios",
+    icon: FaUsers,
+    route: "/admin/usuarios/gestion",
+    description: "Gestión completa de usuarios",
+    colorScheme: "linkedin",
+    statValue: 0, // Se calculará dinámicamente
+    statLabel: "usuarios en sistema"
+  },
+  {
     title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/admin/reportes",
@@ -31,6 +42,15 @@ export const adminDashboardCards: DashboardCard[] = [
     statLabel: "notificaciones pendientes"
   },
   {
+    title: "Estadísticas Actividades",
+    icon: FiBarChart2,
+    route: "/admin/estadisticas-actividades",
+    description: "Análisis detallado y estadísticas de actividades anuales",
+    colorScheme: "purple",
+    statValue: 0, // Se calculará dinámicamente basado en actividades del año actual
+    statLabel: "actividades este año"
+  },
+  {
     title: "Reportes",
     icon: FaChartBar,
     route: "/admin/estadisticas",
@@ -38,15 +58,8 @@ export const adminDashboardCards: DashboardCard[] = [
     colorScheme: "blue",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "reportes generados"
-  },  {
-    title: "Gestión Usuarios",
-    icon: FaUsers,
-    route: "/admin/usuarios/gestion",
-    description: "Gestión completa de usuarios",
-    colorScheme: "linkedin",
-    statValue: 0, // Se calculará dinámicamente
-    statLabel: "usuarios en sistema"
-  },{
+  },
+  {
     title: "Configuración",
     icon: FaCog,
     route: "/admin/settings",
@@ -67,7 +80,8 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "teal",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "préstamos activos"
-  },  {
+  },
+  {
     title: "Gestión Material",
     icon: FaBox,
     route: "/material/dashboard",
@@ -75,7 +89,17 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "orange",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "material disponible"
-  },{
+  },
+  {
+    title: "Gestión Usuarios",
+    icon: FaUsers,
+    route: "/vocal/usuarios/gestion",
+    description: "Supervisión de usuarios activos",
+    colorScheme: "linkedin",
+    statValue: 0, // Se calculará dinámicamente
+    statLabel: "usuarios en sistema"
+  },
+  {
     title: "Gestión Notificaciones",
     icon: FaCommentDots,
     route: "/vocal/reportes",
@@ -85,6 +109,15 @@ export const vocalDashboardCards: DashboardCard[] = [
     statLabel: "notificaciones pendientes"
   },
   {
+    title: "Estadísticas Actividades",
+    icon: FiBarChart2,
+    route: "/vocal/estadisticas-actividades",
+    description: "Análisis detallado y estadísticas de actividades anuales",
+    colorScheme: "purple",
+    statValue: 0, // Se calculará dinámicamente basado en actividades del año actual
+    statLabel: "actividades este año"
+  },
+  {
     title: "Reportes",
     icon: FaChartBar,
     route: "/vocal/estadisticas",
@@ -92,14 +125,6 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "blue",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "reportes generados"
-  },  {
-    title: "Gestión Usuarios",
-    icon: FaUsers,
-    route: "/vocal/usuarios/gestion",
-    description: "Supervisión de usuarios activos",
-    colorScheme: "linkedin",
-    statValue: 0, // Se calculará dinámicamente
-    statLabel: "usuarios en sistema"
   }
 ];
 

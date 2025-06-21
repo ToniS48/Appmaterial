@@ -81,12 +81,14 @@ import {
   FiActivity,
   FiClock,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiBarChart
 } from 'react-icons/fi';
 import { Material } from '../../../types/material';
 import { DashboardMaterialesState } from './types';
 import { listarMateriales, eliminarMaterial } from '../../../services/materialService';
 import MaterialForm from '../MaterialForm';
+import EstadisticasAnualesActividades from '../../actividades/estadisticas/EstadisticasAnualesActividades';
 
 interface SeguimientoAnualMaterialesTabProps {
   estadisticas: DashboardMaterialesState['estadisticas'];
@@ -123,9 +125,8 @@ const SeguimientoAnualMaterialesTab: React.FC<SeguimientoAnualMaterialesTabProps
   const [filtroTexto, setFiltroTexto] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [filtroAño, setFiltroAño] = useState(añoSeleccionado);
-  const [materialEditando, setMaterialEditando] = useState<Material | null>(null);
-  const [vistaActual, setVistaActual] = useState<'tabla' | 'resumen' | 'estadisticas'>('resumen');
+  const [filtroAño, setFiltroAño] = useState(añoSeleccionado);  const [materialEditando, setMaterialEditando] = useState<Material | null>(null);
+  const [vistaActual, setVistaActual] = useState<'tabla' | 'resumen' | 'estadisticas' | 'actividades'>('resumen');
   const [cargandoLocal, setCargandoLocal] = useState(false);
 
   // Filtrar materiales por año y otros criterios

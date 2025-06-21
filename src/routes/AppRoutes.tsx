@@ -33,6 +33,8 @@ import UsuarioSeguimientoPage from '../pages/usuarios/UsuarioSeguimientoPage';
 import AdminHistorialMateriales from '../components/admin/AdminHistorialMateriales';
 import GeneradorHistorialSimple from '../components/admin/GeneradorHistorialSimple';
 import DashboardMateriales from '../components/material/DashboardMateriales';
+import AdminEstadisticasActividadesPage from '../pages/admin/AdminEstadisticasActividadesPage';
+import VocalEstadisticasActividadesPage from '../pages/vocal/VocalEstadisticasActividadesPage';
 
 const AppRoutes: React.FC = () => {
   const location = useLocation();
@@ -72,16 +74,16 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/material/historial" element={<ProtectedRoute allowedRoles={['admin']}><AdminHistorialMateriales /></ProtectedRoute>} />
       <Route path="/admin/material/generar" element={<ProtectedRoute allowedRoles={['admin']}><GeneradorHistorialSimple /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
-      <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />
-      <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
+      <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />      <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
       <Route path="/admin/reportes" element={<ProtectedRoute allowedRoles={['admin']}><ReportesAdminPage /></ProtectedRoute>} />
-      <Route path="/admin/estadisticas" element={<ProtectedRoute allowedRoles={['admin']}><EstadisticasAdminPage /></ProtectedRoute>} />        {/* Rutas específicas para vocal */}
+      <Route path="/admin/estadisticas" element={<ProtectedRoute allowedRoles={['admin']}><EstadisticasAdminPage /></ProtectedRoute>} />
+      <Route path="/admin/estadisticas-actividades" element={<ProtectedRoute allowedRoles={['admin']}><AdminEstadisticasActividadesPage /></ProtectedRoute>} />{/* Rutas específicas para vocal */}
       <Route path="/vocal/usuarios" element={<ProtectedRoute allowedRoles={['vocal']}><GestionUsuariosPage /></ProtectedRoute>} />
       <Route path="/vocal/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
-      <Route path="/vocal/usuarios/gestion" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
-      <Route path="/vocal/prestamos" element={<ProtectedRoute allowedRoles={['vocal']}><PrestamosVocalPage /></ProtectedRoute>} />
+      <Route path="/vocal/usuarios/gestion" element={<ProtectedRoute allowedRoles={['vocal']}><UsuarioSeguimientoPage /></ProtectedRoute>} />      <Route path="/vocal/prestamos" element={<ProtectedRoute allowedRoles={['vocal']}><PrestamosVocalPage /></ProtectedRoute>} />
       <Route path="/vocal/reportes" element={<ProtectedRoute allowedRoles={['vocal']}><ReportesAdminPage /></ProtectedRoute>} />
       <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
+      <Route path="/vocal/estadisticas-actividades" element={<ProtectedRoute allowedRoles={['vocal']}><VocalEstadisticasActividadesPage /></ProtectedRoute>} />
       <Route path="/vocal/estadisticas" element={<ProtectedRoute allowedRoles={['vocal']}><EstadisticasVocalPage /></ProtectedRoute>} />
       
       {/* Dashboards - Unificado para todos los roles */}

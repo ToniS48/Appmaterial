@@ -6,7 +6,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import { AccessCard } from '../../utils/dashboardUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import messages from '../../constants/messages';
-import { obtenerEstadisticasActividades } from '../../services/actividadService';
+import { obtenerEstadisticasActividades, listarActividades } from '../../services/actividadService';
 import { UsuarioRepository } from '../../repositories/UsuarioRepository';
 import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import { MaterialRepository } from '../../repositories/MaterialRepository';
@@ -39,12 +39,11 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
   
   // Estados para las estadísticas
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [estadisticas, setEstadisticas] = useState({
+  const [error, setError] = useState<string | null>(null);  const [estadisticas, setEstadisticas] = useState({
     usuarios: { total: 0, activos: 0, inactivos: 0 },
     prestamos: { total: 0, activos: 0, vencidos: 0 },
     materiales: { total: 0, disponible: 0 },
-    actividades: { total: 0, planificadas: 0, enCurso: 0, finalizadas: 0 }
+    actividades: { total: 0, planificadas: 0, enCurso: 0, finalizadas: 0, añoActual: 0 }
   });
 
   // Instancias de repositorios memoizadas
@@ -61,7 +60,8 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
         estadUsuarios,
         estadPrestamos,
         estadMateriales,
-        estadActividades
+        estadActividades,
+        todasActividades
       ] = await Promise.all([
         queryCache.query(
           CACHE_KEYS.ESTADISTICAS_USUARIOS,
@@ -82,8 +82,22 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
           CACHE_KEYS.ESTADISTICAS_ACTIVIDADES,
           () => obtenerEstadisticasActividades(),
           60000
+        ),
+        queryCache.query(
+          'actividades_todas',
+          () => listarActividades(),
+          60000
         )
       ]);
+
+      // Calcular actividades del año actual
+      const añoActual = new Date().getFullYear();
+      const actividadesAñoActual = todasActividades.filter((actividad: any) => {
+        const fechaInicio = actividad.fechaInicio instanceof Date 
+          ? actividad.fechaInicio 
+          : actividad.fechaInicio?.toDate?.() || new Date(actividad.fechaInicio);
+        return fechaInicio.getFullYear() === añoActual;
+      });
 
       setEstadisticas({
         usuarios: {
@@ -104,7 +118,8 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
           total: estadActividades.planificadas + estadActividades.enCurso + estadActividades.finalizadas + (estadActividades.canceladas || 0),
           planificadas: estadActividades.planificadas,
           enCurso: estadActividades.enCurso,
-          finalizadas: estadActividades.finalizadas
+          finalizadas: estadActividades.finalizadas,
+          añoActual: actividadesAñoActual.length
         }
       });
 
@@ -147,9 +162,12 @@ const GenericDashboard: React.FC<GenericDashboardProps> = ({ userRole, cards, so
     if (card.statLabel.includes('notificaciones pendientes')) {
       return { value: 0, label: card.statLabel };
     }
-    
-    if (card.statLabel.includes('reportes generados')) {
+      if (card.statLabel.includes('reportes generados')) {
       return { value: 0, label: card.statLabel };
+    }
+    
+    if (card.statLabel.includes('actividades este año')) {
+      return { value: estadisticas.actividades.añoActual, label: card.statLabel };
     }
 
     // Valor por defecto
