@@ -3,6 +3,7 @@
  * Gestiona estados de aprobación, actividad y estadísticas anuales de usuarios
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Box,
   VStack,
@@ -64,11 +65,11 @@ import {
   FiAlertTriangle,
   FiEye,
   FiCalendar,
-  FiUsers,
-  FiUserCheck,
+  FiUsers,  FiUserCheck,
   FiUserX,
   FiUserPlus,
-  FiClock
+  FiClock,
+  FiSettings
 } from 'react-icons/fi';
 import { 
   EstadisticasAnualesUsuarios, 
@@ -98,6 +99,11 @@ import {
   LineElement,
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
+import RecalcularEstadosUsuarios from '../admin/RecalcularEstadosUsuarios';
+import DiagnosticoUsuariosInactivos from '../admin/DiagnosticoUsuariosInactivos';
+import DiagnosticoDetalladoUsuarios from '../admin/DiagnosticoDetalladoUsuarios';
+import ReparacionUsuariosDesactualizados from '../admin/ReparacionUsuariosDesactualizados';
+import GestionUsuariosTab from './GestionUsuariosTab';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -121,19 +127,17 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
 }) => {
   const toast = useToast();
   const { isOpen: isReporteOpen, onOpen: onReporteOpen, onClose: onReporteClose } = useDisclosure();
+  const { userProfile } = useAuth();
   
   // Estados
   const [añoSeleccionado, setAñoSeleccionado] = useState(añoInicial || new Date().getFullYear());
   const [estadisticas, setEstadisticas] = useState<EstadisticasAnualesUsuarios | null>(null);
   const [eventosRecientes, setEventosRecientes] = useState<EventoUsuario[]>([]);
   const [usuariosProblematicos, setUsuariosProblematicos] = useState<UsuarioProblematico[]>([]);
-  const [comparacionAños, setComparacionAños] = useState<any>(null);
-  const [cargando, setCargando] = useState(false);
+  const [comparacionAños, setComparacionAños] = useState<any>(null);  const [cargando, setCargando] = useState(false);
   const [cargandoMigracion, setCargandoMigracion] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mostrarDebug, setMostrarDebug] = useState(true);
   const [reporteTexto, setReporteTexto] = useState('');
-
   // Años disponibles para selección
   const añosDisponibles = useMemo(() => {
     const añoActual = new Date().getFullYear();
@@ -143,6 +147,10 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
     }
     return años;
   }, []);
+  // Verificar si el usuario es admin
+  const esAdmin = useMemo(() => {
+    return userProfile?.rol === 'admin';
+  }, [userProfile]);
 
   // Cargar datos al cambiar el año
   useEffect(() => {
@@ -198,21 +206,13 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         const comparacion = await usuarioHistorialService.compararAños(añoSeleccionado, añoSeleccionado - 1);
         console.log('✅ Comparación cargada:', comparacion);
         setComparacionAños(comparacion);
-      }
-
-      console.log('🎉 Todos los datos cargados exitosamente');
-        // Forzar actualización de la interfaz
+      }      console.log('🎉 Todos los datos cargados exitosamente');
+      
+      // Forzar un re-render para asegurar actualización de interfaz
       setTimeout(() => {
         console.log('🔄 Forzando actualización de interfaz después de cargar datos');
-        // Si hay eventos, salir del modo debug automáticamente
-        if (eventosFiltrados.length > 0 || stats.totalEventos > 0) {
-          console.log('🎯 Datos detectados, saliendo del modo debug automáticamente');
-          setMostrarDebug(false);
-        }
-        
-        // Forzar un re-render
         setEstadisticas(prevStats => ({ ...stats }));
-      }, 500);    } catch (error) {
+      }, 500);} catch (error) {
       console.error('❌ Error al cargar datos:', error);
       console.error('❌ Tipo de error:', typeof error);
       console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack available');
@@ -353,24 +353,20 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         duration: 5000,
         isClosable: true,
       });
-        // Forzar salida del modo debug tras generar datos
-      console.log('🎯 Forzando salida del modo debug tras generación exitosa');
-      setMostrarDebug(false);
       
       // Esperar un poco antes de recargar para que los datos se persistan
       console.log('⏳ Esperando 1 segundo antes de recargar datos...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      await cargarDatos(true); // Silencioso para evitar toast duplicado
-        // Verificar que los datos se cargaron correctamente
+      await cargarDatos(true); // Silencioso para evitar toast duplicado      // Verificar que los datos se cargaron correctamente
       console.log('🔍 Verificando datos después de la recarga...');
       setTimeout(() => {
         console.log('🔍 Estado actual de estadísticas:', estadisticas);
         console.log('🔍 Estado actual de eventos recientes:', eventosRecientes.length);
         if (estadisticas && estadisticas.totalEventos > 0) {
-          console.log('✅ Datos verificados correctamente, dashboard debería estar visible');
+          console.log('✅ Datos verificados correctamente, dashboard visible');
         } else if (eventosRecientes.length > 0) {
-          console.log('✅ Hay eventos recientes, dashboard debería estar visible');
+          console.log('✅ Hay eventos recientes, dashboard visible');
         } else {
           console.log('⚠️ Los datos aún no se han cargado completamente');
           // Intentar una segunda recarga después de más tiempo
@@ -604,112 +600,16 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         },
       },
     },  };
-
   // Lógica de renderizado más clara
   const tieneDatos = estadisticas && (estadisticas.totalEventos > 0 || eventosRecientes.length > 0);
-  const deberiasMostrarDebug = mostrarDebug && !tieneDatos;
   
   console.log('🔍 Decisión de renderizado:', {
-    mostrarDebug,
     estadisticas: !!estadisticas,
     totalEventos: estadisticas?.totalEventos,
     eventosRecientes: eventosRecientes.length,
     tieneDatos,
-    deberiasMostrarDebug,
     estadisticasCompletas: estadisticas
-  });
-
-  if (deberiasMostrarDebug) {
-    return (
-      <Box p={6} maxWidth="1400px" mx="auto">
-        <VStack spacing={6} align="stretch">
-          <Card borderLeft="4px" borderColor="orange.500">
-            <CardBody>
-              <VStack spacing={4}>
-                <Heading size="md" color="orange.600">🔧 Panel de Debug</Heading>
-                <HStack spacing={3} wrap="wrap">                  <Button 
-                    colorScheme="blue" 
-                    onClick={() => cargarDatos(false)}
-                    leftIcon={<FiRefreshCw />}
-                    isLoading={cargando}
-                  >
-                    Cargar Datos
-                  </Button>
-                  
-                  <Button 
-                    colorScheme="orange" 
-                    onClick={debugConexion}
-                    leftIcon={<FiEye />}
-                  >
-                    Test Conexión
-                  </Button>
-                    <Button 
-                    colorScheme="green" 
-                    onClick={generarDatosIniciales}
-                    leftIcon={<FiUserPlus />}
-                    isLoading={cargandoMigracion}
-                    loadingText="Generando..."
-                  >
-                    Generar Datos
-                  </Button>
-                  
-                  <Button 
-                    colorScheme="purple" 
-                    onClick={limpiarLogs}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Limpiar Logs
-                  </Button>
-                    <Button 
-                    colorScheme="gray" 
-                    onClick={() => setMostrarDebug(false)}
-                    size="sm"
-                  >
-                    Ver Dashboard Completo
-                  </Button>
-                  
-                  <Button 
-                    colorScheme="orange" 
-                    onClick={() => setMostrarDebug(false)}
-                    size="sm"
-                    variant="outline"
-                  >
-                    Forzar Vista Completa
-                  </Button>
-                </HStack>                <Text fontSize="sm" color="gray.600">
-                  Estado: {cargando ? 'Cargando...' : error ? `Error: ${error}` : estadisticas ? `Estadísticas cargadas (totalEventos: ${estadisticas.totalEventos}), ${eventosRecientes.length} eventos filtrados` : 'Sin datos'}
-                </Text>                <Text fontSize="xs" color="orange.600">
-                  Debug: mostrarDebug={mostrarDebug.toString()}, eventos={eventosRecientes.length}, tieneDatos={Boolean(estadisticas && (estadisticas.totalEventos > 0 || eventosRecientes.length > 0)).toString()}
-                </Text>
-                  <Text fontSize="xs" color="blue.600">
-                  Año: {añoSeleccionado}, Usuarios: {estadisticas?.usuariosRegistrados || 0}, Aprobados: {estadisticas?.usuariosAprobados || 0}
-                </Text>
-              </VStack>
-            </CardBody>
-          </Card>          {!cargando && !error && estadisticas && ((estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0) > 0 && (
-            <Card borderLeft="4px" borderColor="green.500">
-              <CardBody>
-                <HStack>
-                  <Text color="green.600" fontWeight="bold">✅ Datos cargados exitosamente:</Text>
-                  <Text>{(estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0} eventos de seguimiento</Text>
-                  <Button size="sm" variant="outline" onClick={() => setMostrarDebug(false)}>
-                    Ver Dashboard Completo
-                  </Button>
-                </HStack>
-              </CardBody>
-            </Card>
-          )}
-          
-          {!cargando && !error && estadisticas && ((estadisticas as EstadisticasAnualesUsuarios).totalEventos || 0) === 0 && (
-            <Text color="orange.600">No hay datos disponibles. Usa el botón "Generar Datos" para crear el historial inicial.</Text>
-          )}
-        </VStack>
-      </Box>
-    );
-  }
-
-  if (cargando && !estadisticas) {
+  });  if (cargando && !estadisticas) {
     return (
       <Box p={6}>
         <VStack spacing={4}>
@@ -746,10 +646,9 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
   return (
     <Box p={6} maxWidth="1400px" mx="auto">
       <VStack spacing={6} align="stretch">
-        {/* Encabezado */}
-        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
+        {/* Encabezado */}        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
           <Heading size="lg" color="blue.600">
-            Seguimiento Anual de Usuarios
+            Gestión de Usuarios
           </Heading>
           
           <HStack spacing={3}>
@@ -760,8 +659,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
             >
               {añosDisponibles.map(año => (
                 <option key={año} value={año}>{año}</option>
-              ))}
-            </Select>            
+              ))}            </Select>
+            
             <ChakraTooltip label="Actualizar datos">
               <IconButton
                 aria-label="Actualizar"
@@ -771,40 +670,10 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                 colorScheme="blue"
                 variant="outline"
               />
-            </ChakraTooltip>
-            
-            <ChakraTooltip label="Debug: Probar conexión">
-              <IconButton
-                aria-label="Debug"
-                icon={<FiEye />}
-                onClick={debugConexion}
-                colorScheme="orange"
-                variant="outline"
-              />
-            </ChakraTooltip>
-              <Button 
-              colorScheme="green" 
-              variant="outline" 
-              onClick={generarDatosIniciales}
-              leftIcon={<FiUserPlus />}
-              isLoading={cargandoMigracion}
-              loadingText="Generando..."
-              size="sm"
-            >
-              Generar datos
-            </Button>
-            
-            <Button 
-              colorScheme="purple" 
-              variant="solid" 
-              onClick={() => setMostrarDebug(false)}
-              leftIcon={<FiBarChart />}
-              size="sm"
-            >
-              Ver Gráficas Ahora
-            </Button>
-          </HStack>
-        </Flex>        {/* Tarjetas de estadísticas principales */}
+            </ChakraTooltip>          </HStack>
+        </Flex>
+        
+        {/* Tarjetas de estadísticas principales */}
         {estadisticas ? (
           (estadisticas.totalEventos === 0 && eventosRecientes.length === 0) ? (
             <Card>
@@ -831,18 +700,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                       onClick={generarDatosIniciales}
                       leftIcon={<FiUserPlus />}
                       isLoading={cargandoMigracion}
-                      loadingText="Generando datos..."
-                    >
+                      loadingText="Generando datos..."                    >
                       Generar datos desde usuarios y actividades existentes
-                    </Button>
-                    <Button 
-                      colorScheme="orange" 
-                      variant="outline" 
-                      onClick={debugConexion}
-                      leftIcon={<FiEye />}
-                      size="sm"
-                    >
-                      Debug: Probar conexión
                     </Button>
                   </VStack>
                 </VStack>
@@ -905,13 +764,77 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
         ) : null}        {/* Pestañas principales - Mostrar si hay estadísticas cargadas */}
         {estadisticas && (
           <Tabs variant="enclosed" colorScheme="blue">
-            <TabList>
-              <Tab><FiBarChart style={{ marginRight: '8px' }} />Resumen</Tab>
-              <Tab><FiTrendingUp style={{ marginRight: '8px' }} />Gráficos</Tab>
-              <Tab><FiClock style={{ marginRight: '8px' }} />Eventos</Tab>
-              <Tab><FiAlertTriangle style={{ marginRight: '8px' }} />Usuarios</Tab>
-              <Tab><FiEye style={{ marginRight: '8px' }} />Comparación</Tab>
-              <Tab><FiFileText style={{ marginRight: '8px' }} />Reportes</Tab>
+            <TabList 
+              overflowX="auto" 
+              overflowY="hidden"
+              flexWrap="nowrap"
+              whiteSpace="nowrap"
+              scrollBehavior="smooth"
+              py={2}
+              sx={{
+                '&::-webkit-scrollbar': {
+                  height: '4px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  bg: 'gray.100',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  bg: 'gray.400',
+                  borderRadius: '4px',
+                },
+                // Prevenir scroll vertical
+                maxHeight: 'fit-content',
+                alignItems: 'center',
+              }}
+            >              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiBarChart />
+                  <Box display={{ base: 'none', md: 'block' }}>Resumen</Box>
+                </HStack>
+              </Tab>
+              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiUserCheck />
+                  <Box display={{ base: 'none', md: 'block' }}>Gestión</Box>
+                </HStack>
+              </Tab>
+              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiClock />
+                  <Box display={{ base: 'none', md: 'block' }}>Eventos</Box>
+                </HStack>
+              </Tab>
+              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiAlertTriangle />
+                  <Box display={{ base: 'none', md: 'block' }}>Usuarios</Box>
+                </HStack>
+              </Tab>
+              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiTrendingUp />
+                  <Box display={{ base: 'none', md: 'block' }}>Gráficos</Box>
+                </HStack>
+              </Tab>
+              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiEye />
+                  <Box display={{ base: 'none', md: 'block' }}>Comparación</Box>
+                </HStack>
+              </Tab>              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                <HStack spacing={{ base: 0, md: 2 }} align="center">
+                  <FiFileText />
+                  <Box display={{ base: 'none', md: 'block' }}>Reportes</Box>
+                </HStack>
+              </Tab>
+              {esAdmin && (
+                <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+                  <HStack spacing={{ base: 0, md: 2 }} align="center">
+                    <FiSettings />
+                    <Box display={{ base: 'none', md: 'block' }}>Herramientas</Box>
+                  </HStack>
+                </Tab>
+              )}
             </TabList>
 
             <TabPanels>
@@ -992,9 +915,152 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                         </Card>
                       )}
                     </>
-                  )}
-                </VStack>
-              </TabPanel>              {/* Panel Gráficos */}
+                  )}                </VStack>
+              </TabPanel>
+
+              {/* Panel Gestión de Usuarios */}
+              <TabPanel px={{ base: 0, md: 4 }}>
+                <GestionUsuariosTab 
+                  onUsuariosChange={(usuarios) => {
+                    // Actualizar estadísticas cuando cambien los usuarios
+                    console.log('🔄 Usuarios actualizados desde gestión:', usuarios.length);
+                  }}
+                />              </TabPanel>
+
+              {/* Panel Eventos */}
+              <TabPanel>
+                <Card>
+                  <CardHeader>
+                    <Heading size="md">Eventos Recientes de Usuarios</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    {eventosRecientes.length > 0 ? (
+                      <Box overflowX="auto">
+                        <Table variant="simple" size="sm">
+                          <Thead>
+                            <Tr>
+                              <Th>Fecha</Th>
+                              <Th>Usuario</Th>
+                              <Th>Tipo</Th>
+                              <Th>Descripción</Th>
+                              <Th>Responsable</Th>
+                            </Tr>
+                          </Thead>
+                          <Tbody>
+                            {eventosRecientes.map((evento, index) => (
+                              <Tr key={index}>
+                                <Td>
+                                  {format(
+                                    evento.fecha instanceof Date ? evento.fecha : evento.fecha?.toDate() || new Date(),
+                                    'dd/MM/yyyy',
+                                    { locale: es }
+                                  )}
+                                </Td>
+                                <Td>
+                                  <VStack align="start" spacing={0}>
+                                    <Text fontWeight="medium">{evento.nombreUsuario}</Text>
+                                    <Text fontSize="xs" color="gray.500">{evento.emailUsuario}</Text>
+                                  </VStack>
+                                </Td>                                <Td>
+                                  <HStack>
+                                    {obtenerIconoTipoEvento(evento.tipoEvento as TipoEventoUsuario)}
+                                    <Badge colorScheme="blue">
+                                      {evento.tipoEvento}
+                                    </Badge>
+                                  </HStack>
+                                </Td>
+                                <Td>
+                                  <Text fontSize="sm">{evento.descripcion}</Text>
+                                </Td>
+                                <Td>
+                                  <Text fontSize="sm">{evento.responsableNombre}</Text>
+                                </Td>
+                              </Tr>
+                            ))}
+                          </Tbody>
+                        </Table>
+                      </Box>
+                    ) : (
+                      <Alert status="info">
+                        <AlertIcon />
+                        <Box>
+                          <AlertTitle>No hay eventos recientes</AlertTitle>
+                          <AlertDescription>
+                            No se encontraron eventos de usuarios para el año {añoSeleccionado}.
+                          </AlertDescription>
+                        </Box>
+                      </Alert>
+                    )}
+                  </CardBody>
+                </Card>
+              </TabPanel>
+
+              {/* Panel Usuarios Problemáticos */}
+              <TabPanel>
+                <Card>
+                  <CardHeader>
+                    <Heading size="md">Usuarios que Requieren Atención</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    {usuariosProblematicos.length > 0 ? (
+                      <VStack spacing={4} align="stretch">
+                        {usuariosProblematicos.map((usuario, index) => (
+                          <Card key={index} variant="outline">
+                            <CardBody>
+                              <Flex justify="space-between" align="start">
+                                <VStack align="start" spacing={2}>
+                                  <HStack>
+                                    <Text fontWeight="bold">{usuario.nombreUsuario}</Text>
+                                    <Badge
+                                      colorScheme={obtenerColorEstado(usuario.estadoActual.aprobacion)}
+                                    >
+                                      {usuario.estadoActual.aprobacion}
+                                    </Badge>
+                                    <Badge
+                                      colorScheme={obtenerColorEstado(usuario.estadoActual.actividad)}
+                                    >
+                                      {usuario.estadoActual.actividad}
+                                    </Badge>
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.600">{usuario.emailUsuario}</Text>                                  <Text fontSize="sm">
+                                    <strong>Recomendaciones:</strong> {usuario.recomendaciones.join(', ')}
+                                  </Text>
+                                </VStack>
+                                <VStack align="end">
+                                  <Badge
+                                    colorScheme={obtenerColorEstado(usuario.gravedad)}
+                                    size="lg"
+                                  >
+                                    {usuario.gravedad}
+                                  </Badge>                                  <Text fontSize="xs" color="gray.500">
+                                    Último evento: {format(
+                                      usuario.ultimoEvento instanceof Date 
+                                        ? usuario.ultimoEvento 
+                                        : usuario.ultimoEvento?.toDate() || new Date(),
+                                      'dd/MM/yyyy'
+                                    )}
+                                  </Text>
+                                </VStack>
+                              </Flex>
+                            </CardBody>
+                          </Card>
+                        ))}
+                      </VStack>
+                    ) : (
+                      <Alert status="success">
+                        <AlertIcon />
+                        <Box>
+                          <AlertTitle>¡Excelente!</AlertTitle>
+                          <AlertDescription>
+                            No se detectaron usuarios problemáticos para el año {añoSeleccionado}.
+                          </AlertDescription>
+                        </Box>
+                      </Alert>
+                    )}
+                  </CardBody>
+                </Card>              </TabPanel>
+
+              {/* Panel Gráficos */}
               <TabPanel>
                 <VStack spacing={6} align="stretch">
                   {/* Debug Info */}
@@ -1164,140 +1230,6 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                 </VStack>
               </TabPanel>
 
-              {/* Panel Eventos */}
-              <TabPanel>
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Eventos Recientes de Usuarios</Heading>
-                  </CardHeader>
-                  <CardBody>
-                    {eventosRecientes.length > 0 ? (
-                      <Box overflowX="auto">
-                        <Table variant="simple" size="sm">
-                          <Thead>
-                            <Tr>
-                              <Th>Fecha</Th>
-                              <Th>Usuario</Th>
-                              <Th>Tipo</Th>
-                              <Th>Descripción</Th>
-                              <Th>Responsable</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {eventosRecientes.map((evento, index) => (
-                              <Tr key={index}>
-                                <Td>
-                                  {format(
-                                    evento.fecha instanceof Date ? evento.fecha : evento.fecha?.toDate() || new Date(),
-                                    'dd/MM/yyyy',
-                                    { locale: es }
-                                  )}
-                                </Td>
-                                <Td>
-                                  <VStack align="start" spacing={0}>
-                                    <Text fontWeight="medium">{evento.nombreUsuario}</Text>
-                                    <Text fontSize="xs" color="gray.500">{evento.emailUsuario}</Text>
-                                  </VStack>
-                                </Td>                                <Td>
-                                  <HStack>
-                                    {obtenerIconoTipoEvento(evento.tipoEvento as TipoEventoUsuario)}
-                                    <Badge colorScheme="blue">
-                                      {evento.tipoEvento}
-                                    </Badge>
-                                  </HStack>
-                                </Td>
-                                <Td>
-                                  <Text fontSize="sm">{evento.descripcion}</Text>
-                                </Td>
-                                <Td>
-                                  <Text fontSize="sm">{evento.responsableNombre}</Text>
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-                      </Box>
-                    ) : (
-                      <Alert status="info">
-                        <AlertIcon />
-                        <Box>
-                          <AlertTitle>No hay eventos recientes</AlertTitle>
-                          <AlertDescription>
-                            No se encontraron eventos de usuarios para el año {añoSeleccionado}.
-                          </AlertDescription>
-                        </Box>
-                      </Alert>
-                    )}
-                  </CardBody>
-                </Card>
-              </TabPanel>
-
-              {/* Panel Usuarios Problemáticos */}
-              <TabPanel>
-                <Card>
-                  <CardHeader>
-                    <Heading size="md">Usuarios que Requieren Atención</Heading>
-                  </CardHeader>
-                  <CardBody>
-                    {usuariosProblematicos.length > 0 ? (
-                      <VStack spacing={4} align="stretch">
-                        {usuariosProblematicos.map((usuario, index) => (
-                          <Card key={index} variant="outline">
-                            <CardBody>
-                              <Flex justify="space-between" align="start">
-                                <VStack align="start" spacing={2}>
-                                  <HStack>
-                                    <Text fontWeight="bold">{usuario.nombreUsuario}</Text>
-                                    <Badge
-                                      colorScheme={obtenerColorEstado(usuario.estadoActual.aprobacion)}
-                                    >
-                                      {usuario.estadoActual.aprobacion}
-                                    </Badge>
-                                    <Badge
-                                      colorScheme={obtenerColorEstado(usuario.estadoActual.actividad)}
-                                    >
-                                      {usuario.estadoActual.actividad}
-                                    </Badge>
-                                  </HStack>
-                                  <Text fontSize="sm" color="gray.600">{usuario.emailUsuario}</Text>                                  <Text fontSize="sm">
-                                    <strong>Recomendaciones:</strong> {usuario.recomendaciones.join(', ')}
-                                  </Text>
-                                </VStack>
-                                <VStack align="end">
-                                  <Badge
-                                    colorScheme={obtenerColorEstado(usuario.gravedad)}
-                                    size="lg"
-                                  >
-                                    {usuario.gravedad}
-                                  </Badge>                                  <Text fontSize="xs" color="gray.500">
-                                    Último evento: {format(
-                                      usuario.ultimoEvento instanceof Date 
-                                        ? usuario.ultimoEvento 
-                                        : usuario.ultimoEvento?.toDate() || new Date(),
-                                      'dd/MM/yyyy'
-                                    )}
-                                  </Text>
-                                </VStack>
-                              </Flex>
-                            </CardBody>
-                          </Card>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Alert status="success">
-                        <AlertIcon />
-                        <Box>
-                          <AlertTitle>¡Excelente!</AlertTitle>
-                          <AlertDescription>
-                            No se detectaron usuarios problemáticos para el año {añoSeleccionado}.
-                          </AlertDescription>
-                        </Box>
-                      </Alert>
-                    )}
-                  </CardBody>
-                </Card>
-              </TabPanel>
-
               {/* Panel Comparación */}
               <TabPanel>
                 {comparacionAños ? (
@@ -1359,11 +1291,93 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                         isLoading={cargando}
                       >
                         Generar Reporte Anual
-                      </Button>
-                    </VStack>
+                      </Button>                    </VStack>
                   </CardBody>
                 </Card>
               </TabPanel>
+
+              {/* Panel Herramientas Administrativas - Solo para admins */}
+              {esAdmin && (
+                <TabPanel px={{ base: 1, md: 4 }}>
+                  <VStack spacing={{ base: 4, md: 6 }} align="stretch">
+                    <Alert status="info">
+                      <AlertIcon />
+                      <Box>
+                        <AlertTitle>Herramientas Administrativas</AlertTitle>
+                        <AlertDescription>
+                          Herramientas especializadas para gestión y corrección de datos de usuarios.
+                        </AlertDescription>
+                      </Box>
+                    </Alert>
+
+                    {/* Herramientas de Debug */}
+                    <Card borderLeft="4px" borderColor="orange.500">
+                      <CardHeader>
+                        <Heading size={{ base: 'sm', md: 'md' }} color="orange.600">
+                          🔧 Herramientas de Debug
+                        </Heading>
+                      </CardHeader>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          <Text fontSize="sm" color="gray.600">
+                            Herramientas de depuración y pruebas para desarrollo y diagnóstico.
+                          </Text>
+                          <Flex wrap="wrap" gap={3}>
+                            <Button 
+                              colorScheme="blue" 
+                              onClick={() => cargarDatos(false)}
+                              leftIcon={<FiRefreshCw />}
+                              isLoading={cargando}
+                              size={{ base: 'sm', md: 'md' }}
+                            >
+                              Recargar Datos
+                            </Button>
+                            
+                            <Button 
+                              colorScheme="orange" 
+                              onClick={debugConexion}
+                              leftIcon={<FiEye />}
+                              size={{ base: 'sm', md: 'md' }}
+                            >
+                              Probar Conexión
+                            </Button>
+                                <Button 
+                              colorScheme="green" 
+                              onClick={generarDatosIniciales}
+                              leftIcon={<FiUserPlus />}
+                              isLoading={cargandoMigracion}
+                              loadingText="Generando..."
+                              size={{ base: 'sm', md: 'md' }}
+                            >
+                              Generar Datos Iniciales
+                            </Button>                            <Button 
+                              colorScheme="purple" 
+                              onClick={limpiarLogs}
+                              leftIcon={<FiRefreshCw />}
+                              variant="outline"
+                              size={{ base: 'sm', md: 'md' }}
+                            >
+                              Limpiar Logs
+                            </Button>
+                          </Flex>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                    
+                    {/* Componente de reparación de usuarios desactualizados */}
+                    <ReparacionUsuariosDesactualizados />
+                    
+                    {/* Componente de diagnóstico detallado */}
+                    <DiagnosticoDetalladoUsuarios />
+                    
+                    {/* Componente de diagnóstico de usuarios inactivos */}
+                    <DiagnosticoUsuariosInactivos />
+                    
+                    {/* Componente de recálculo de estados */}
+                    <RecalcularEstadosUsuarios />
+                  </VStack>
+                </TabPanel>
+              )}
             </TabPanels>
           </Tabs>
         )}

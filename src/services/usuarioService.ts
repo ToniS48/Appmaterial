@@ -177,10 +177,16 @@ export const actualizarUsuario = async (uid: string, updates: {
   apellidos?: string;
   rol?: RolUsuario;
   activo?: boolean;
+  estadoAprobacion?: EstadoAprobacion;
+  estadoActividad?: EstadoActividad;
   telefono?: string;
   telefonosEmergencia?: string[];
   observaciones?: string;
-}): Promise<void> => {
+  fechaCreacion?: any;
+  fechaRegistro?: any;
+  eliminado?: boolean;
+  pendienteVerificacion?: boolean;
+}, eliminarCampos?: string[]): Promise<void> => {
   try {
     const usuarioRef = doc(db, 'usuarios', uid);
     
@@ -189,6 +195,14 @@ export const actualizarUsuario = async (uid: string, updates: {
       ...updates,
       fechaActualizacion: Timestamp.now()
     };
+    
+    // Si hay campos para eliminar, usar deleteField
+    if (eliminarCampos && eliminarCampos.length > 0) {
+      const { deleteField } = await import('firebase/firestore');
+      for (const campo of eliminarCampos) {
+        updateData[campo] = deleteField();
+      }
+    }
     
     await updateDoc(usuarioRef, updateData);
   } catch (error) {

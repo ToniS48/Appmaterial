@@ -1,6 +1,6 @@
 /**
- * Página principal de Seguimiento de Usuarios
- * Integra el dashboard de seguimiento con la navegación y control de acceso
+ * Página principal de Gestión de Usuarios
+ * Integra el dashboard de gestión con la navegación y control de acceso
  */
 import React from 'react';
 import { 
@@ -23,10 +23,9 @@ const UsuarioSeguimientoPage: React.FC = () => {
   const navigate = useNavigate();
 
   // Verificar permisos - solo admins y vocales pueden acceder
-  const tienePermisos = userProfile && (userProfile.rol === 'admin' || userProfile.rol === 'vocal');
-  if (!userProfile) {
+  const tienePermisos = userProfile && (userProfile.rol === 'admin' || userProfile.rol === 'vocal');  if (!userProfile) {
     return (
-      <DashboardLayout title="Seguimiento de Usuarios">
+      <DashboardLayout title="Gestión de Usuarios">
         <Container maxW="container.lg" py={8}>
           <Alert status="warning">
             <AlertIcon />
@@ -39,10 +38,9 @@ const UsuarioSeguimientoPage: React.FC = () => {
       </DashboardLayout>
     );
   }
-
   if (!tienePermisos) {
     return (
-      <DashboardLayout title="Seguimiento de Usuarios">
+      <DashboardLayout title="Gestión de Usuarios">
         <Container maxW="container.lg" py={8}>
           <VStack spacing={6}>
             <Alert status="error">
@@ -50,7 +48,7 @@ const UsuarioSeguimientoPage: React.FC = () => {
               <Box>
                 <AlertTitle>Acceso restringido</AlertTitle>
                 <AlertDescription>
-                  No tienes permisos para acceder al seguimiento de usuarios. 
+                  No tienes permisos para acceder a la gestión de usuarios. 
                   Esta funcionalidad está disponible solo para administradores y vocales.
                 </AlertDescription>
               </Box>
@@ -64,7 +62,7 @@ const UsuarioSeguimientoPage: React.FC = () => {
       </DashboardLayout>
     );
   }  return (
-    <DashboardLayout title="Seguimiento de Usuarios">
+    <DashboardLayout title="Gestión de Usuarios">
       {/* Contenido principal */}
       <UsuarioSeguimientoDashboard />
 
@@ -72,10 +70,10 @@ const UsuarioSeguimientoPage: React.FC = () => {
       <Box bg="white" borderRadius="md" borderWidth="1px" p={6} mt={8}>
         <VStack spacing={2} color="gray.600" fontSize="sm">
           <Text textAlign="center">
-            Sistema de Seguimiento de Usuarios - Gestión de estados de aprobación y actividad
+            Sistema de Gestión de Usuarios - Administración completa de usuarios del sistema
           </Text>
           <Text textAlign="center">
-            Los usuarios activos son aquellos que han participado en actividades en los últimos 6 meses
+            Incluye gestión, seguimiento, estadísticas y herramientas de diagnóstico
           </Text>
         </VStack>
       </Box>

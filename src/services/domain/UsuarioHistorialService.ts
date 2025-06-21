@@ -81,8 +81,7 @@ export class UsuarioHistorialService {
         año: fecha.getFullYear(),
         mes: fecha.getMonth() + 1,
         fechaRegistro: Timestamp.now()
-      };
-    });
+      };    });
     
     const ids = await usuarioHistorialRepository.registrarEventosBulk(eventosCompletos);
 
@@ -90,32 +89,25 @@ export class UsuarioHistorialService {
     const eventosConIds: EventoUsuario[] = eventosCompletos.map((evento, index) => ({
       ...evento,
       id: ids[index]
-    }));    // Actualizar estadísticas para todos los años afectados usando los eventos recién creados
-    const añosAfectados = Array.from(new Set(eventosCompletos.map(e => e.año)));
+    }));
+
+    // Actualizar estadísticas para todos los años afectados usando los eventos recién creados
+    const añosAfectados = Array.from(new Set(eventosCompletos.map((e: any) => e.año)));
     for (const año of añosAfectados) {
       // Por ahora usamos el método normal, pero los eventos ya están en memoria
-      await this.actualizarResumenAnual('bulk-update', año);
+      await this.actualizarResumenAnual('bulk-update', año as number);
     }
     
     console.log(`👥 ${eventos.length} eventos de usuarios registrados en bulk con eventos devueltos`);
     return { ids, eventos: eventosConIds };
   }
-
   /**
    * Calcular el estado de actividad de un usuario basado en participación en actividades
-   */
-  async calcularEstadoActividad(usuarioId: string): Promise<EstadoActividad> {
+   */  async calcularEstadoActividad(usuarioId: string): Promise<EstadoActividad> {
     try {
-      // Obtener eventos de participación en actividades de los últimos 6 meses
-      const fechaLimite = subMonths(new Date(), this.MESES_INACTIVIDAD);
+      console.log(`🔍 Calculando estado de actividad para usuario: ${usuarioId}`);
       
-      const eventosActividad = await usuarioHistorialRepository.obtenerEventosPorFiltros({
-        usuarioId,
-        tipoEvento: [TipoEventoUsuario.ULTIMA_CONEXION], // Aquí se integraría con eventos de participación
-        fechaInicio: fechaLimite
-      });
-
-      // Verificar si está suspendido
+      // Verificar si está suspendido primero
       const eventosSuspension = await usuarioHistorialRepository.obtenerEventosPorFiltros({
         usuarioId,
         tipoEvento: [TipoEventoUsuario.SUSPENSION],
@@ -134,19 +126,63 @@ export class UsuarioHistorialService {
         const ultimaReactivacion = eventosReactivacion[0];
         
         if (!ultimaReactivacion || ultimaSuspension.fecha > ultimaReactivacion.fecha) {
+          console.log(`⚠️ Usuario ${usuarioId} está suspendido`);
           return EstadoActividad.SUSPENDIDO;
         }
       }
 
+      // Calcular actividad basada en participación real en actividades
+      const fechaLimite = subMonths(new Date(), this.MESES_INACTIVIDAD);
+      console.log(`📅 Buscando actividades desde: ${fechaLimite.toISOString()}`);
+      
+      // Importar el servicio de actividades dinámicamente para evitar dependencias circulares
+      const { listarActividades } = await import('../actividadService');
+      const actividades = await listarActividades();
+      console.log(`📋 Total de actividades en el sistema: ${actividades.length}`);
+      
+      // Filtrar actividades donde el usuario ha participado en los últimos 6 meses
+      const actividadesRecientes = actividades.filter(actividad => {
+        // Verificar si el usuario participa en la actividad
+        const esParticipante = actividad.participanteIds?.includes(usuarioId);
+        const esCreador = actividad.creadorId === usuarioId;
+        const esResponsableActividad = actividad.responsableActividadId === usuarioId;
+        const esResponsableMaterial = actividad.responsableMaterialId === usuarioId;
+        
+        const participa = esParticipante || esCreador || esResponsableActividad || esResponsableMaterial;
+        
+        if (!participa) return false;        // Verificar si la actividad es dentro del período de actividad
+        let fechaActividad: Date;
+        if (actividad.fechaInicio instanceof Date) {
+          fechaActividad = actividad.fechaInicio;
+        } else if (actividad.fechaInicio && typeof (actividad.fechaInicio as any)?.toDate === 'function') {
+          fechaActividad = (actividad.fechaInicio as any).toDate();
+        } else {
+          // Fallback para otros tipos de fecha
+          fechaActividad = new Date(actividad.fechaInicio as unknown as string);
+        }
+          
+        const esDentroDelPeriodo = fechaActividad >= fechaLimite;
+        
+        if (participa && esDentroDelPeriodo) {
+          console.log(`🎯 Actividad válida encontrada para ${usuarioId}: "${actividad.nombre}" (${fechaActividad.toISOString().split('T')[0]}) - Rol: ${esCreador ? 'Creador' : esResponsableActividad ? 'Resp. Actividad' : esResponsableMaterial ? 'Resp. Material' : 'Participante'}`);
+        }
+        
+        return esDentroDelPeriodo;
+      });
+      
+      console.log(`📊 Usuario ${usuarioId}: ${actividadesRecientes.length} actividades en últimos ${this.MESES_INACTIVIDAD} meses de ${actividades.length} total`);
+
       // Determinar actividad basada en participación
-      if (eventosActividad.length >= this.MINIMO_ACTIVIDADES_ACTIVO) {
+      if (actividadesRecientes.length >= this.MINIMO_ACTIVIDADES_ACTIVO) {
+        console.log(`✅ Usuario ${usuarioId} está ACTIVO (${actividadesRecientes.length} actividades válidas)`);
         return EstadoActividad.ACTIVO;
       } else {
+        console.log(`💤 Usuario ${usuarioId} está INACTIVO (${actividadesRecientes.length} actividades válidas, mínimo requerido: ${this.MINIMO_ACTIVIDADES_ACTIVO})`);
         return EstadoActividad.INACTIVO;
       }
       
     } catch (error) {
-      console.error('Error al calcular estado de actividad:', error);
+      console.error(`❌ Error al calcular estado de actividad para usuario ${usuarioId}:`, error);
       return EstadoActividad.INACTIVO;
     }
   }
@@ -664,6 +700,185 @@ Sistema de Seguimiento de Usuarios - AppMaterial
       logger.error('Error al obtener eventos recientes:', error);
       throw error;
     }
+  }
+
+  /**
+   * Recalcular y actualizar el estado de actividad de todos los usuarios
+   * Útil para corregir estados incorrectos o después de cambios en la lógica
+   */
+  async recalcularEstadosActividad(): Promise<{ 
+    usuariosActualizados: number, 
+    cambios: Array<{ uid: string, nombre: string, estadoAnterior: string, estadoNuevo: string }>
+  }> {
+    try {
+      console.log('🔄 Iniciando recálculo de estados de actividad para todos los usuarios...');
+      
+      // Obtener todos los usuarios activos
+      const { listarUsuarios } = await import('../usuarioService');
+      const usuarios = await listarUsuarios();
+      
+      const cambios: Array<{ uid: string, nombre: string, estadoAnterior: string, estadoNuevo: string }> = [];
+      let usuariosActualizados = 0;
+      
+      for (const usuario of usuarios) {
+        try {
+          const estadoAnterior = usuario.estadoActividad;
+          const estadoNuevo = await this.calcularEstadoActividad(usuario.uid);
+          
+          // Solo actualizar si hay cambio
+          if (estadoAnterior !== estadoNuevo) {            // Actualizar en la base de datos
+            const { actualizarUsuario } = await import('../usuarioService');
+            await actualizarUsuario(usuario.uid, { 
+              estadoActividad: estadoNuevo 
+            });
+            
+            // Registrar el cambio de estado
+            await this.registrarEvento({
+              usuarioId: usuario.uid,
+              nombreUsuario: `${usuario.nombre} ${usuario.apellidos}`,
+              emailUsuario: usuario.email,
+              tipoEvento: estadoNuevo === EstadoActividad.ACTIVO 
+                ? TipoEventoUsuario.REACTIVACION 
+                : TipoEventoUsuario.DESACTIVACION,
+              descripcion: `Estado de actividad actualizado automáticamente: ${estadoAnterior} → ${estadoNuevo}`,
+              fecha: new Date(),
+              responsableId: 'sistema',
+              responsableNombre: 'Sistema de Recálculo Automático'
+            });
+            
+            cambios.push({
+              uid: usuario.uid,
+              nombre: `${usuario.nombre} ${usuario.apellidos}`,
+              estadoAnterior: estadoAnterior || 'no definido',
+              estadoNuevo
+            });
+            
+            usuariosActualizados++;
+            console.log(`✅ Usuario ${usuario.nombre}: ${estadoAnterior} → ${estadoNuevo}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error procesando usuario ${usuario.email}:`, error);
+        }
+      }
+      
+      console.log(`🎉 Recálculo completado: ${usuariosActualizados} usuarios actualizados de ${usuarios.length} total`);
+      
+      if (cambios.length > 0) {
+        console.log('\n📋 Resumen de cambios:');
+        cambios.forEach(cambio => {
+          console.log(`  • ${cambio.nombre}: ${cambio.estadoAnterior} → ${cambio.estadoNuevo}`);
+        });
+      }
+      
+      return { usuariosActualizados, cambios };
+      
+    } catch (error) {
+      console.error('❌ Error en recálculo de estados de actividad:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Diagnosticar usuarios que deberían estar activos pero aparecen como inactivos
+   */
+  async diagnosticarUsuariosInactivos(): Promise<{
+    usuariosProblematicos: Array<{
+      usuario: Usuario;
+      problemas: string[];
+      actividadesRecientes: number;
+      estadoEsperado: EstadoActividad;
+      estadoActual: EstadoActividad;
+    }>;
+    resumen: {
+      totalUsuarios: number;
+      usuariosConProblemas: number;
+      usuariosAprobadosPeroInactivos: number;
+      usuariosConActividadPeroInactivos: number;
+    };
+  }> {
+    console.log('🔍 Iniciando diagnóstico de usuarios inactivos...');
+    
+    const { listarUsuarios } = await import('../usuarioService');
+    const usuarios = await listarUsuarios();
+    const { listarActividades } = await import('../actividadService');
+    const actividades = await listarActividades();
+    
+    const fechaLimite = subMonths(new Date(), this.MESES_INACTIVIDAD);
+    const usuariosProblematicos: any[] = [];
+    
+    let usuariosAprobadosPeroInactivos = 0;
+    let usuariosConActividadPeroInactivos = 0;
+    
+    for (const usuario of usuarios) {
+      const problemas: string[] = [];
+      
+      // Contar actividades del usuario
+      const actividadesUsuario = actividades.filter(actividad => {
+        const participa = actividad.participanteIds?.includes(usuario.uid) ||
+                         actividad.creadorId === usuario.uid ||
+                         actividad.responsableActividadId === usuario.uid ||
+                         actividad.responsableMaterialId === usuario.uid;
+        
+        if (!participa) return false;
+        
+        let fechaActividad: Date;
+        if (actividad.fechaInicio instanceof Date) {
+          fechaActividad = actividad.fechaInicio;
+        } else if (actividad.fechaInicio && typeof (actividad.fechaInicio as any)?.toDate === 'function') {
+          fechaActividad = (actividad.fechaInicio as any).toDate();
+        } else {
+          fechaActividad = new Date(actividad.fechaInicio as unknown as string);
+        }
+        
+        return fechaActividad >= fechaLimite;
+      });
+      
+      const estadoEsperado = await this.calcularEstadoActividad(usuario.uid);
+      const estadoActual = usuario.estadoActividad || EstadoActividad.INACTIVO;
+      
+      // Detectar problemas
+      if (usuario.estadoAprobacion === EstadoAprobacion.APROBADO && usuario.estadoActividad === EstadoActividad.INACTIVO) {
+        if (actividadesUsuario.length > 0) {
+          problemas.push(`Usuario aprobado con ${actividadesUsuario.length} actividades recientes pero marcado como inactivo`);
+          usuariosConActividadPeroInactivos++;
+        } else {
+          problemas.push('Usuario aprobado pero sin actividades recientes');
+        }
+        usuariosAprobadosPeroInactivos++;
+      }
+      
+      if (estadoEsperado !== estadoActual) {
+        problemas.push(`Estado actual (${estadoActual}) no coincide con el esperado (${estadoEsperado})`);
+      }
+      
+      if (actividadesUsuario.length >= this.MINIMO_ACTIVIDADES_ACTIVO && usuario.estadoActividad === EstadoActividad.INACTIVO) {
+        problemas.push(`Tiene ${actividadesUsuario.length} actividades pero está marcado como inactivo`);
+      }
+      
+      if (problemas.length > 0) {
+        usuariosProblematicos.push({
+          usuario,
+          problemas,
+          actividadesRecientes: actividadesUsuario.length,
+          estadoEsperado,
+          estadoActual
+        });
+      }
+    }
+    
+    const resumen = {
+      totalUsuarios: usuarios.length,
+      usuariosConProblemas: usuariosProblematicos.length,
+      usuariosAprobadosPeroInactivos,
+      usuariosConActividadPeroInactivos
+    };
+    
+    console.log('📊 Diagnóstico completado:', resumen);
+    
+    return {
+      usuariosProblematicos,
+      resumen
+    };
   }
 }
 

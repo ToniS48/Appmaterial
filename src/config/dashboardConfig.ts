@@ -38,11 +38,10 @@ export const adminDashboardCards: DashboardCard[] = [
     colorScheme: "blue",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "reportes generados"
-  },
-  {
+  },  {
     title: "Gestión Usuarios",
     icon: FaUsers,
-    route: "/admin/usuarios",
+    route: "/admin/usuarios/gestion",
     description: "Gestión completa de usuarios",
     colorScheme: "linkedin",
     statValue: 0, // Se calculará dinámicamente
@@ -93,11 +92,10 @@ export const vocalDashboardCards: DashboardCard[] = [
     colorScheme: "blue",
     statValue: 0, // Se calculará dinámicamente
     statLabel: "reportes generados"
-  },
-  {
+  },  {
     title: "Gestión Usuarios",
     icon: FaUsers,
-    route: "/vocal/usuarios",
+    route: "/vocal/usuarios/gestion",
     description: "Supervisión de usuarios activos",
     colorScheme: "linkedin",
     statValue: 0, // Se calculará dinámicamente
