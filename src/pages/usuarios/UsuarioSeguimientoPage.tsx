@@ -14,7 +14,7 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import UsuarioSeguimientoDashboard from '../../components/usuarios/UsuarioSeguimientoDashboard';
+import DashboardUsuarios from '../../components/usuarios/DashboardUsuarios';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 
@@ -64,7 +64,7 @@ const UsuarioSeguimientoPage: React.FC = () => {
   }  return (
     <DashboardLayout title="Gestión de Usuarios">
       {/* Contenido principal */}
-      <UsuarioSeguimientoDashboard />
+      <DashboardUsuarios />
 
       {/* Información adicional en el footer */}
       <Box bg="white" borderRadius="md" borderWidth="1px" p={6} mt={8}>

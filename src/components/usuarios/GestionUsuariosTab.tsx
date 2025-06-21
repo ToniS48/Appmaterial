@@ -151,14 +151,15 @@ const GestionUsuariosTab: React.FC<GestionUsuariosTabProps> = ({ onUsuariosChang
     const señalReparacion = localStorage.getItem('reparacion_completada');
     
     if (señalRecalculo || señalReparacion) {
-      console.log('🔄 Señales pendientes detectadas, actualizando lista...');
+      console.log('🔄 Detectada señal pendiente, recargando usuarios...');
       setTimeout(() => {
         cargarUsuarios();
-        if (señalRecalculo) localStorage.removeItem('recalculo_completado');
-        if (señalReparacion) localStorage.removeItem('reparacion_completada');
-      }, 500);
+        // Limpiar las señales
+        localStorage.removeItem('recalculo_completado');
+        localStorage.removeItem('reparacion_completada');
+      }, 1000);
     }
-
+    
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -166,80 +167,67 @@ const GestionUsuariosTab: React.FC<GestionUsuariosTabProps> = ({ onUsuariosChang
 
   useEffect(() => {
     cargarUsuarios();
-  }, []);
+  }, [userProfile]);
 
-  // Filtrar usuarios según criterios
+  // Filtros
   const usuariosFiltrados = usuarios.filter(usuario => {
-    const matchesBusqueda = !busqueda || 
+    const matchesBusqueda = busqueda === '' || 
       usuario.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       usuario.apellidos.toLowerCase().includes(busqueda.toLowerCase()) ||
       usuario.email.toLowerCase().includes(busqueda.toLowerCase());
     
-    const matchesRol = !filtroRol || usuario.rol === filtroRol;
+    const matchesRol = filtroRol === '' || usuario.rol === filtroRol;
     
     return matchesBusqueda && matchesRol;
   });
 
-  // Funciones de manejo
+  // Handlers
   const handleEdit = (usuario: Usuario) => {
-    if (!permisos.puedeEditarRoles.includes(usuario.rol as RolUsuario)) {
-      toast({
-        title: "Sin permisos",
-        description: "No tiene permisos para editar este usuario",
-        status: "warning",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-    
     setSelectedUsuario(usuario);
     onFormOpen();
   };
 
   const handleDelete = (usuario: Usuario) => {
-    if (!permisos.puedeEliminarRoles.includes(usuario.rol as RolUsuario)) {
-      toast({
-        title: "Sin permisos",
-        description: "No tiene permisos para eliminar este usuario",
-        status: "warning",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-    
     setSelectedUsuario(usuario);
     onDeleteOpen();
   };
-  
+
+  const verificarEstadoUsuario = (usuario: Usuario) => {
+    toast({
+      title: "Estado del Usuario",
+      description: `${usuario.nombre} ${usuario.apellidos} - Estado: ${usuario.estadoAprobacion || 'No definido'}`,
+      status: "info",
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
   const confirmarEliminacion = async () => {
     if (!selectedUsuario) return;
     
     try {
       await eliminarUsuario(selectedUsuario.uid);
-      onDeleteClose();
-      cargarUsuarios();
-      
       toast({
         title: "Usuario eliminado",
-        description: "El usuario ha sido eliminado correctamente",
+        description: `El usuario ${selectedUsuario.nombre} ${selectedUsuario.apellidos} ha sido eliminado correctamente`,
         status: "success",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
+      onDeleteClose();
+      cargarUsuarios();
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al eliminar el usuario",
+        description: "No se pudo eliminar el usuario",
         status: "error",
         duration: 5000,
         isClosable: true,
       });
     }
   };
-  
+
   const getRolBadgeColor = (rol: string) => {
     switch (rol) {
       case 'admin':
@@ -255,72 +243,22 @@ const GestionUsuariosTab: React.FC<GestionUsuariosTabProps> = ({ onUsuariosChang
     }
   };
 
-  const formatearFecha = (fecha: any): string => {
+  const formatearFecha = (fecha: any) => {
     if (!fecha) return "Nunca";
     
     try {
-      if (fecha instanceof Timestamp) {
+      if (fecha.toDate) {
         return fecha.toDate().toLocaleString();
       } else if (fecha instanceof Date) {
         return fecha.toLocaleString();
-      } else if (fecha.toDate && typeof fecha.toDate === 'function') {
+      } else if (fecha.seconds) {
         return fecha.toDate().toLocaleString();
       } else {
         return "Formato inválido";
       }
     } catch (error) {
-      console.error("Error al formatear fecha:", error);
+      console.error('Error formateando fecha:', error);
       return "Error de formato";
-    }
-  };
-
-  const verificarEstadoUsuario = async (usuario: Usuario) => {
-    try {
-      console.log(`🔍 Verificando estado para usuario: ${usuario.nombre} ${usuario.apellidos} (${usuario.email})`);
-      
-      const { usuarioHistorialService } = await import('../../services/domain/UsuarioHistorialService');
-      
-      const estadoEsperado = await usuarioHistorialService.calcularEstadoActividad(usuario.uid);
-      const estadoActual = usuario.estadoActividad || 'inactivo';
-      const estadoLegacy = getEstadoActivoLegacy(usuario);
-      
-      console.log(`📊 Resultados para ${usuario.email}:`);
-      console.log(`   • Estado de aprobación: ${usuario.estadoAprobacion || 'no definido'}`);
-      console.log(`   • Estado de actividad actual: ${estadoActual}`);
-      console.log(`   • Estado de actividad esperado: ${estadoEsperado}`);
-      console.log(`   • Estado legacy (mostrado en tabla): ${estadoLegacy ? 'Activo' : 'Inactivo'}`);
-      
-      const problemas: string[] = [];
-      if (estadoActual !== estadoEsperado) {
-        problemas.push(`Estado actual (${estadoActual}) difiere del esperado (${estadoEsperado})`);
-      }
-      
-      if (usuario.estadoAprobacion === 'aprobado' && estadoEsperado === 'activo' && !estadoLegacy) {
-        problemas.push('Usuario debería aparecer como Activo pero aparece como Inactivo');
-      }
-      
-      const mensaje = problemas.length > 0 
-        ? `⚠️ Problemas detectados:\n${problemas.join('\n')}`
-        : '✅ Usuario sin problemas detectados';
-      
-      toast({
-        title: `Verificación: ${usuario.nombre} ${usuario.apellidos}`,
-        description: mensaje,
-        status: problemas.length > 0 ? 'warning' : 'success',
-        duration: 8000,
-        isClosable: true,
-        position: 'top-right',
-      });
-      
-    } catch (error) {
-      console.error('Error al verificar estado:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo verificar el estado del usuario",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
     }
   };
 
@@ -332,7 +270,8 @@ const GestionUsuariosTab: React.FC<GestionUsuariosTabProps> = ({ onUsuariosChang
           Gestión de Usuarios ({usuariosFiltrados.length})
         </Text>
         
-        {permisos.puedeCrear && (          <Button 
+        {permisos.puedeCrear && (
+          <Button 
             leftIcon={<FiUserPlus />}
             colorScheme="brand" 
             onClick={() => {

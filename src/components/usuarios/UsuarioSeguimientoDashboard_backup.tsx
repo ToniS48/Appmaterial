@@ -104,6 +104,7 @@ import DiagnosticoUsuariosInactivos from '../admin/DiagnosticoUsuariosInactivos'
 import DiagnosticoDetalladoUsuarios from '../admin/DiagnosticoDetalladoUsuarios';
 import ReparacionUsuariosDesactualizados from '../admin/ReparacionUsuariosDesactualizados';
 import GestionUsuariosTab from './GestionUsuariosTab';
+import { GraficosDinamicosUsuarios } from './graficos';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -131,8 +132,8 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
   
   // Estados
   const [añoSeleccionado, setAñoSeleccionado] = useState(añoInicial || new Date().getFullYear());
-  const [estadisticas, setEstadisticas] = useState<EstadisticasAnualesUsuarios | null>(null);
-  const [eventosRecientes, setEventosRecientes] = useState<EventoUsuario[]>([]);
+  const [estadisticas, setEstadisticas] = useState<EstadisticasAnualesUsuarios | null>(null);  const [eventosRecientes, setEventosRecientes] = useState<EventoUsuario[]>([]);
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [usuariosProblematicos, setUsuariosProblematicos] = useState<UsuarioProblematico[]>([]);
   const [comparacionAños, setComparacionAños] = useState<any>(null);  const [cargando, setCargando] = useState(false);
   const [cargandoMigracion, setCargandoMigracion] = useState(false);
@@ -197,9 +198,14 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
       console.log('✅ Eventos cargados:', eventosFiltrados.length);
       setEventosRecientes(eventosFiltrados);
 
-      const problematicos = await usuarioHistorialService.obtenerUsuariosProblematicos(añoSeleccionado);
-      console.log('✅ Usuarios problemáticos cargados:', problematicos.length);
+      const problematicos = await usuarioHistorialService.obtenerUsuariosProblematicos(añoSeleccionado);      console.log('✅ Usuarios problemáticos cargados:', problematicos.length);
       setUsuariosProblematicos(problematicos);
+
+      // Cargar usuarios para gráficos dinámicos
+      console.log('👥 Cargando usuarios para gráficos dinámicos...');
+      const usuariosData = await listarUsuarios();
+      console.log('✅ Usuarios cargados:', usuariosData.length);
+      setUsuarios(usuariosData);
 
       if (añoSeleccionado > 2020) {
         console.log('📈 Cargando comparación con año anterior...');
@@ -1223,10 +1229,18 @@ const UsuarioSeguimientoDashboard: React.FC<UsuarioSeguimientoDashboardProps> = 
                               Actividad vs año anterior
                             </Text>
                           </VStack>
-                        </Grid>
-                      </CardBody>
+                        </Grid>                      </CardBody>
                     </Card>
                   )}
+
+                  {/* Gráficos Dinámicos */}
+                  <Card>
+                    <CardHeader>
+                      <Heading size="md">🎯 Gráficos Dinámicos Configurables</Heading>
+                    </CardHeader>                    <CardBody>
+                      <GraficosDinamicosUsuarios usuarios={usuarios} />
+                    </CardBody>
+                  </Card>
                 </VStack>
               </TabPanel>
 
