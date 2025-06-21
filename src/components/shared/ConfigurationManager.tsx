@@ -11,23 +11,17 @@ import {
   TabList,
   Tab,
   TabPanels,
-  TabPanel,
-  Button,
-  Alert,
-  AlertIcon,
-  useToast
+  Button
 } from '@chakra-ui/react';
-import {
-  ConfigSettings
-} from '../../types/configuration';
+import { ConfigSettings } from '../../types/configuration';
 import { useConfigurationData } from '../../hooks/configuration/useConfigurationData';
 import { useConfigurationHandlers } from '../../hooks/configuration/useConfigurationHandlers';
-import { WithPermissions, PermissionManager } from '../permissions';
 import {
   VariablesTab,
   MaterialTab,
   ApisTab,
   SecurityTab,
+  PermissionsTab,
   DropdownsTab,
   SystemViewerTab,
   TabConfig
@@ -47,7 +41,11 @@ interface ConfigurationManagerProps {
 const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
   userRole,
   title = 'Configuración del Sistema'
-}) => {  // Cargar datos iniciales
+}) => {
+  // Estado para la pestaña activa
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+
+  // Cargar datos iniciales
   const { settings: initialSettings } = useConfigurationData(userRole);
   
   // Hooks personalizados para manejo de estado y handlers
@@ -57,37 +55,27 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
     handleVariableChange, 
     handleSettingsChange, 
     handleSubmit 
-  } = useConfigurationHandlers(initialSettings);
-  
-  // Estado para controlar la pestaña activa
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const toast = useToast();// Configuración de pestañas disponibles según el rol
+  } = useConfigurationHandlers(initialSettings);  // Configuración de pestañas disponibles según el rol
   const tabs: TabConfig[] = [
     { id: 'variables', label: 'General', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'material', label: 'Material', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'apis', label: 'APIs', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'security', label: 'Seguridad', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'permissions', label: 'Permisos', roles: ['admin'] as ('admin' | 'vocal')[] },
+    { id: 'dropdowns', label: 'Formularios Material', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'system-viewer', label: 'Visor Sistema', roles: ['admin'] as ('admin' | 'vocal')[] }
   ].filter(tab => tab.roles.includes(userRole));
-  // Determinar si la pestaña actual necesita el botón de guardado global
+
+  // Determinar si la pestaña actual necesita guardado global
   const currentTab = tabs[activeTabIndex];
-  const needsGlobalSave = currentTab && ['variables', 'material', 'apis', 'security', 'system-viewer'].includes(currentTab.id);
-  
-  // Función para manejar el guardado con feedback específico
+  const needsGlobalSave = currentTab && !['permissions'].includes(currentTab.id);
+
+  // Handler para guardado global
   const handleGlobalSave = async () => {
     try {
       await handleSubmit();
-      // El toast de éxito ya lo maneja handleSubmit
     } catch (error) {
       console.error('Error al guardar configuración:', error);
-      toast({
-        title: "Error al guardar",
-        description: "No se pudieron guardar los cambios de configuración",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
     }
   };
 
@@ -116,92 +104,70 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
             <Tab key={tab.id}>{tab.label}</Tab>
           ))}
         </TabList>
-          <TabPanels>
-          {/* Variables del Sistema */}
+        
+        <TabPanels>          {/* Variables del Sistema */}
           {tabs.find(t => t.id === 'variables') && (
-            <WithPermissions 
-              section="variables" 
-              requiredLevel="read" 
+            <VariablesTab
+              settings={settings}
               userRole={userRole}
-            >              <VariablesTab
-                settings={settings}
-                userRole={userRole}
-                onVariableChange={handleVariableChange}
-              />
-            </WithPermissions>
+              onVariableChange={handleVariableChange}
+            />
           )}
 
           {/* Material */}
           {tabs.find(t => t.id === 'material') && (
-            <WithPermissions 
-              section="material" 
-              requiredLevel="read" 
+            <MaterialTab
+              settings={settings}
               userRole={userRole}
-            >
-              <MaterialTab
-                settings={settings}
-                userRole={userRole}
-                onVariableChange={handleVariableChange}
-              />
-            </WithPermissions>
-          )}
-
-          {/* APIs */}
+              onVariableChange={handleVariableChange}
+            />
+          )}          {/* APIs */}
           {tabs.find(t => t.id === 'apis') && (
-            <WithPermissions 
-              section="apis" 
-              requiredLevel="read" 
+            <ApisTab
+              settings={settings}
               userRole={userRole}
-            >
-              <ApisTab
-                settings={settings}
-                userRole={userRole}
-                onSettingsChange={handleSettingsChange}
-                onApiChange={(apiName, value) => {
-                  handleSettingsChange({
-                    apis: {
-                      ...settings.apis,
-                      [apiName]: value
-                    }
-                  });
-                }}
-                onVariableChange={handleVariableChange}
-              />
-            </WithPermissions>
-          )}          {/* Seguridad (solo admin) */}
+              onSettingsChange={handleSettingsChange}
+              onApiChange={(apiName, value) => {
+                handleSettingsChange({
+                  apis: {
+                    ...settings.apis,
+                    [apiName]: value
+                  }
+                });
+              }}
+              onVariableChange={handleVariableChange}
+            />
+          )}{/* Seguridad (solo admin) */}
           {tabs.find(t => t.id === 'security') && (
-            <WithPermissions 
-              section="security" 
-              requiredLevel="read" 
+            <SecurityTab
+              settings={settings}
               userRole={userRole}
-              fallbackMessage="Solo los administradores pueden acceder a la configuración de seguridad."
-            >
-              <SecurityTab
-                settings={settings}
-                userRole={userRole}
-                onVariableChange={handleVariableChange}
-              />
-            </WithPermissions>
-          )}          {/* Gestión de Permisos (solo admin) */}
-          {tabs.find(t => t.id === 'permissions') && (
-            <TabPanel>
-              <PermissionManager userRole={userRole} />
-            </TabPanel>
+              onVariableChange={handleVariableChange}
+            />
           )}
 
-          {/* Visor Sistema (solo admin) */}
-          {tabs.find(t => t.id === 'system-viewer') && (
-            <WithPermissions 
-              section="systemViewer" 
-              requiredLevel="read" 
+          {/* Permisos (solo admin) */}
+          {tabs.find(t => t.id === 'permissions') && (
+            <PermissionsTab
+              settings={settings}
               userRole={userRole}
-              fallbackMessage="Solo los administradores pueden acceder al visor del sistema."
-            >
-              <SystemViewerTab
-                settings={settings}
-                userRole={userRole}
-              />
-            </WithPermissions>          )}
+              onVariableChange={handleVariableChange}
+            />
+          )}
+
+          {/* Formularios Material (solo admin) */}
+          {tabs.find(t => t.id === 'dropdowns') && (
+            <DropdownsTab
+              settings={settings}
+              userRole={userRole}
+            />
+          )}          {/* Visor Sistema (solo admin) */}
+          {tabs.find(t => t.id === 'system-viewer') && (
+            <SystemViewerTab
+              settings={settings}
+              userRole={userRole}
+            />
+          )}
         </TabPanels>
         
         {/* Botón de guardado global para pestañas que lo necesiten */}
