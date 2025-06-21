@@ -372,19 +372,88 @@ const ActividadesPage: React.FC = () => {
                     )}                    {/* Separador y actividades antiguas */}
                     {actividadesSeparadas.antiguas.length > 0 && (
                       <>
-                        <Divider my={6} />
-                        <Box mb={8}>
-                          <Text 
-                            fontSize="lg" 
-                            color="gray.600" 
+                        <Divider my={6} />                        <Box 
+                          mb={6}
+                          position="relative"
+                          overflow="hidden"
+                          borderRadius="xl"
+                          bgGradient="linear(135deg, brand.500, brand.400, brand.300)"
+                          py={3}
+                          px={6}
+                          boxShadow="xl"
+                          border="1px solid"
+                          borderColor="rgba(255,255,255,0.2)"
+                          _before={{
+                            content: '""',
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            bgGradient: "linear(to-br, rgba(255,255,255,0.1), transparent)",
+                            pointerEvents: "none"
+                          }}
+                          transition="all 0.3s ease"
+                          _hover={{
+                            transform: "translateY(-2px)",
+                            boxShadow: "2xl"
+                          }}
+                        >
+                          <Text
+                            fontSize="lg"
+                            color="white"
                             textAlign="center"
-                            fontWeight="semibold"
-                            mb={3}
-                            pb={2}
+                            fontWeight="bold"
+                            textShadow="0 2px 4px rgba(0,0,0,0.4)"
+                            letterSpacing="wide"
+                            position="relative"
+                            zIndex={2}
                           >
                             Actividades Realizadas
                           </Text>
-                          <Divider />
+                          
+                          {/* Enhanced decorative elements */}
+                          <Box
+                            position="absolute"
+                            top="-15px"
+                            right="-15px"
+                            w="60px"
+                            h="60px"
+                            bg="rgba(255,255,255,0.08)"
+                            borderRadius="full"
+                            opacity={0.8}
+                            _before={{
+                              content: '""',
+                              position: "absolute",
+                              top: "50%",
+                              left: "50%",
+                              transform: "translate(-50%, -50%)",
+                              w: "30px",
+                              h: "30px",
+                              bg: "rgba(255,255,255,0.1)",
+                              borderRadius: "full"
+                            }}
+                          />
+                          <Box
+                            position="absolute"
+                            bottom="-8px"
+                            left="30px"
+                            w="32px"
+                            h="32px"
+                            bg="rgba(255,255,255,0.06)"
+                            borderRadius="full"
+                            opacity={0.6}
+                          />
+                          <Box
+                            position="absolute"
+                            top="20px"
+                            left="-10px"
+                            w="24px"
+                            h="24px"
+                            bg="rgba(255,255,255,0.05)"
+                            borderRadius="full"
+                            opacity={0.4}
+                          />
                         </Box>
                         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                           {actividadesSeparadas.antiguas.map(actividad => renderActividadCard(actividad))}
