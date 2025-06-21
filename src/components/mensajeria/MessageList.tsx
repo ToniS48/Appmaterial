@@ -33,6 +33,19 @@ const MessageList: React.FC<MessageListProps> = ({
   // Referencias
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+    // Log para debugging
+  console.log('📋 [MessageList] Renderizando con:', {
+    conversacionId,
+    mensajesCount: mensajes.length,
+    cargandoMensajes,
+    error,
+    mensajesDetalle: mensajes.map(m => ({ 
+      id: m.id, 
+      contenido: m.contenido?.substring(0, 50) + '...', 
+      remitente: m.remitenteNombre,
+      fecha: m.fechaEnvio 
+    }))
+  });
     // Colores del tema
   const bgColor = useColorModeValue('gray.50', 'gray.800');
   const dividerColor = useColorModeValue('gray.300', 'gray.600');

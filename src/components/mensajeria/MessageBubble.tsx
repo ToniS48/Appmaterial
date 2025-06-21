@@ -12,7 +12,6 @@ import {
   MenuList,
   MenuItem,
   useColorModeValue,
-  Tooltip,
   Link,
   Image,
   useDisclosure,

@@ -33,7 +33,7 @@ export const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
 }) => {
   const [conversacionSeleccionada, setConversacionSeleccionada] = useState<Conversacion | null>(null);
   const [filtroTexto, setFiltroTexto] = useState('');
-    const { conversaciones, marcarComoLeido } = useMensajeria();
+    const { conversaciones, conversacionActual, marcarComoLeido, seleccionarConversacion } = useMensajeria();
   const { currentUser } = useAuth();
   
   const {
@@ -49,10 +49,15 @@ export const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   } = useDisclosure();
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const emptyBgColor = useColorModeValue('gray.50', 'gray.900');
-  const handleConversacionSelect = (conversacion: Conversacion) => {
+  const emptyBgColor = useColorModeValue('gray.50', 'gray.900');  const handleConversacionSelect = (conversacion: Conversacion) => {
+    console.log('🎯 [MESSAGING-INTERFACE] Seleccionando conversación:', conversacion.id, conversacion.nombre);
+    
     setConversacionSeleccionada(conversacion);
-    // Marcar como leída (simplificado por ahora)
+    
+    // Activar el listener de mensajes en tiempo real a través del contexto
+    seleccionarConversacion(conversacion.id);
+    
+    // Marcar como leída
     marcarComoLeido(conversacion.id);
   };
 
@@ -137,11 +142,11 @@ export const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
           </Box>
         </Box>        {/* Main Chat Area */}
         <Box flex={1} bg={bgColor}>
-          {conversacionSeleccionada ? (
+          {conversacionActual ? (
             <VStack h="full" spacing={0}>
-              <MessageList conversacionId={conversacionSeleccionada.id} />
-              <MessageInput conversacionId={conversacionSeleccionada.id} />
-            </VStack>          ) : (
+              <MessageList conversacionId={conversacionActual.id} />
+              <MessageInput conversacionId={conversacionActual.id} />
+            </VStack>) : (
             <Flex
               h="full"
               align="center"

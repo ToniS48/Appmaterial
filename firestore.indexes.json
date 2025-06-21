@@ -195,13 +195,57 @@
         {
           "fieldPath": "costoAsociado",
           "order": "ASCENDING"
-        },
-        {
+        },        {
           "fieldPath": "año",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "costoAsociado",
+          "order": "DESCENDING"
+        }
+      ]    },
+    {
+      "collectionGroup": "participantesConversacion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "conversacionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "usuarioId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "participantesConversacion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "conversacionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "usuarioId",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mensajes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "conversacionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eliminado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaEnvio",
           "order": "DESCENDING"
         }
       ]

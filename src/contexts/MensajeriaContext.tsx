@@ -10,8 +10,11 @@ import {
   buscarMensajes,
   eliminarMensaje,
   editarMensaje,
-  abandonarConversacion
+  abandonarConversacion,
+  eliminarConversacion,
+  obtenerMensajes
 } from '../services/mensajeriaService';
+import { diagnosticarFirestore } from '../utils/diagnosticoFirestore';
 import {
   Conversacion,
   Mensaje,
@@ -30,11 +33,11 @@ interface MensajeriaContextType {
   cargandoMensajes: boolean;
   mensajesNoLeidos: number;
   error: string | null;
-
   // Acciones de conversaciones
   crearNuevaConversacion: (datos: NuevaConversacion) => Promise<string>;
   seleccionarConversacion: (conversacionId: string) => void;
   salirConversacion: (conversacionId: string) => Promise<void>;
+  eliminarConversacionCompleta: (conversacionId: string) => Promise<void>;
   cargarConversaciones: () => Promise<void>;
   
   // Acciones de mensajes
@@ -43,9 +46,9 @@ interface MensajeriaContextType {
   eliminarMensajeExistente: (mensajeId: string) => Promise<void>;
   marcarComoLeido: (conversacionId: string) => Promise<void>;
   buscarEnMensajes: (filtros: FiltroMensajes) => Promise<Mensaje[]>;
-  
-  // Utilidades
+    // Utilidades
   limpiarError: () => void;
+  ejecutarDiagnostico: (conversacionId: string) => Promise<boolean>;
 }
 
 const MensajeriaContext = createContext<MensajeriaContextType | undefined>(undefined);
@@ -78,11 +81,28 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isClosable: true,
     });
   }, [toast]);
-
   // Función para limpiar errores
   const limpiarError = useCallback(() => {
     setError(null);
   }, []);
+
+  // Función de diagnóstico
+  const ejecutarDiagnostico = useCallback(async (conversacionId: string) => {
+    if (!currentUser) {
+      console.error('❌ [DIAGNÓSTICO] Usuario no autenticado');
+      return false;
+    }
+
+    try {
+      console.log('🚀 [DIAGNÓSTICO] Iniciando diagnóstico desde contexto...');
+      const resultado = await diagnosticarFirestore(currentUser.uid, conversacionId);
+      console.log('📊 [DIAGNÓSTICO] Resultado:', resultado ? 'ÉXITO' : 'FALLO');
+      return resultado;
+    } catch (error) {
+      console.error('❌ [DIAGNÓSTICO] Error en diagnóstico desde contexto:', error);
+      return false;
+    }
+  }, [currentUser]);
 
   // Función para cargar conversaciones
   const cargarConversaciones = useCallback(async () => {
@@ -101,20 +121,37 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setCargandoConversaciones(false);
     }
   }, [currentUser, manejarError]);
-
   // Función para crear conversación
   const crearNuevaConversacion = useCallback(async (datos: NuevaConversacion): Promise<string> => {
-    if (!currentUser || !userProfile) throw new Error('Usuario no autenticado');
+    if (!currentUser || !userProfile) {
+      console.error('❌ Error en crearNuevaConversacion: Usuario no autenticado');
+      console.error('   - currentUser:', !!currentUser);
+      console.error('   - userProfile:', !!userProfile);
+      throw new Error('Usuario no autenticado');
+    }
+    
+    console.log('🔄 Creando conversación en contexto:', {
+      datos,
+      currentUserId: currentUser.uid,
+      userProfile: {
+        nombre: userProfile.nombre,
+        apellidos: userProfile.apellidos,
+        rol: userProfile.rol
+      }
+    });
     
     try {
       setCargandoConversaciones(true);
       setError(null);
-        const conversacion = await crearConversacion(
+      
+      const conversacion = await crearConversacion(
         datos,
         currentUser.uid,
         userProfile.nombre + ' ' + userProfile.apellidos,
         userProfile.rol
       );
+      
+      console.log('✅ Conversación creada en servicio:', conversacion);
       
       toast({
         title: "Éxito",
@@ -126,58 +163,96 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Recargar conversaciones
       await cargarConversaciones();
-      
-      return conversacion.id;
+        return conversacion.id;
     } catch (error) {
+      console.error('❌ Error en contexto al crear conversación:', error);
+      console.error('❌ Tipo de error:', typeof error);
+      console.error('❌ Error completo:', JSON.stringify(error, null, 2));
       manejarError(error, 'Error al crear conversación');
       throw error;
     } finally {
       setCargandoConversaciones(false);
     }
   }, [currentUser, userProfile, manejarError, toast, cargarConversaciones]);
-
   // Función para seleccionar conversación
   const seleccionarConversacion = useCallback(async (conversacionId: string) => {
     if (!currentUser) return;
+    
+    console.log('🎯 [CONTEXTO] Seleccionando conversación:', conversacionId);
     
     try {
       setCargandoMensajes(true);
       
       // Limpiar listener anterior de mensajes
       if (unsubscribeMensajes) {
+        console.log('🧹 [CONTEXTO] Limpiando listener anterior');
         unsubscribeMensajes();
         setUnsubscribeMensajes(null);
       }
       
       // Encontrar conversación
       const conversacion = conversaciones.find(c => c.id === conversacionId);
-      setConversacionActual(conversacion || null);
-      
-      // Configurar listener de mensajes en tiempo real
+      console.log('🔍 [CONTEXTO] Conversación encontrada:', conversacion?.nombre);
+      setConversacionActual(conversacion || null);      // Configurar listener de mensajes en tiempo real
+      console.log('🎧 [CONTEXTO] Configurando listener de mensajes para:', conversacionId);
       const unsubscribe = escucharMensajes(conversacionId, (mensajesActualizados: Mensaje[]) => {
+        console.log('📥 [CONTEXTO] Mensajes recibidos del listener:', mensajesActualizados.length);
+        console.log('📥 [CONTEXTO] Primeros mensajes:', mensajesActualizados.slice(0, 3).map(m => ({ id: m.id, contenido: m.contenido })));
         setMensajes(mensajesActualizados);
+        setCargandoMensajes(false);
+      }, (error) => {
+        console.error('❌ [CONTEXTO] Error en listener:', error);
+        manejarError(error, 'Error al cargar mensajes en tiempo real');
         setCargandoMensajes(false);
       });
       setUnsubscribeMensajes(() => unsubscribe);
+      
+      console.log('✅ [CONTEXTO] Listener configurado exitosamente');
       
     } catch (error) {
       manejarError(error, 'Error al cargar conversación');
       setCargandoMensajes(false);
     }
-  }, [currentUser, conversaciones, manejarError, unsubscribeMensajes]);
-
-  // Función para enviar mensaje
+  }, [currentUser, conversaciones, manejarError, unsubscribeMensajes]);// Función para enviar mensaje
   const enviarNuevoMensaje = useCallback(async (datos: NuevoMensaje) => {
-    if (!currentUser || !userProfile) return;
+    if (!currentUser || !userProfile) {
+      console.error('❌ [CONTEXTO] Error en enviarNuevoMensaje: Usuario no autenticado');
+      console.error('   - currentUser:', !!currentUser);
+      console.error('   - userProfile:', !!userProfile);
+      return;
+    }
     
-    try {      await enviarMensaje(
+    console.log('🔄 [CONTEXTO] Iniciando envío de mensaje:', datos);
+    console.log('🔄 [CONTEXTO] Usuario actual:', {
+      uid: currentUser.uid,
+      nombre: userProfile.nombre + ' ' + userProfile.apellidos,
+      rol: userProfile.rol
+    });
+      try {
+      console.log('📤 [CONTEXTO] Llamando al servicio enviarMensaje...');
+      const resultado = await enviarMensaje(
         datos,
         currentUser.uid,
         userProfile.nombre + ' ' + userProfile.apellidos,
         userProfile.rol
       );
+      
+      console.log('✅ [CONTEXTO] Mensaje enviado exitosamente:', resultado);
+      console.log('🎯 [CONTEXTO] Resultado del servicio:', {
+        id: resultado.id,
+        contenido: resultado.contenido,
+        estado: resultado.estado
+      });
+      
       // Los mensajes se actualizan automáticamente via el listener en tiempo real
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [CONTEXTO] Error al enviar mensaje:', error);
+      console.error('❌ [CONTEXTO] Tipo de error:', typeof error);
+      console.error('❌ [CONTEXTO] Error instanceof Error:', error instanceof Error);
+      console.error('❌ [CONTEXTO] Error name:', error?.name);
+      console.error('❌ [CONTEXTO] Error code:', error?.code);
+      console.error('❌ [CONTEXTO] Error message:', error?.message);
+      console.error('❌ [CONTEXTO] Stack:', error?.stack);
       manejarError(error, 'Error al enviar mensaje');
     }
   }, [currentUser, userProfile, manejarError]);
@@ -264,6 +339,39 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [currentUser, conversacionActual, unsubscribeMensajes, manejarError, toast, cargarConversaciones]);
 
+  // Función para eliminar conversación completamente
+  const eliminarConversacionCompleta = useCallback(async (conversacionId: string) => {
+    if (!currentUser) return;
+    
+    try {
+      await eliminarConversacion(conversacionId, currentUser.uid);
+      
+      toast({
+        title: "Conversación eliminada",
+        description: "La conversación ha sido eliminada completamente",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Si es la conversación actual, cerrarla
+      if (conversacionActual?.id === conversacionId) {
+        setConversacionActual(null);
+        setMensajes([]);
+        if (unsubscribeMensajes) {
+          unsubscribeMensajes();
+          setUnsubscribeMensajes(null);
+        }
+      }
+      
+      // Recargar conversaciones
+      await cargarConversaciones();
+      
+    } catch (error) {
+      manejarError(error, 'Error al eliminar la conversación');
+    }
+  }, [currentUser, conversacionActual, unsubscribeMensajes, manejarError, toast, cargarConversaciones]);
+
   // Función para buscar mensajes
   const buscarEnMensajes = useCallback(async (filtros: FiltroMensajes): Promise<Mensaje[]> => {
     try {
@@ -311,11 +419,11 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     cargandoMensajes,
     mensajesNoLeidos,
     error,
-    
-    // Acciones de conversaciones
+      // Acciones de conversaciones
     crearNuevaConversacion,
     seleccionarConversacion,
     salirConversacion,
+    eliminarConversacionCompleta,
     cargarConversaciones,
     
     // Acciones de mensajes
@@ -324,9 +432,9 @@ export const MensajeriaProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     eliminarMensajeExistente,
     marcarComoLeido,
     buscarEnMensajes,
-    
-    // Utilidades
+      // Utilidades
     limpiarError,
+    ejecutarDiagnostico,
   };
 
   return (

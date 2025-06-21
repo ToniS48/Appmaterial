@@ -182,16 +182,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </HStack>
 
           {/* Acciones */}
-          <HStack spacing={2}>
-            {/* Botón de información */}
+          <HStack spacing={2}>            {/* Botón de información */}
             <Tooltip label="Información de la conversación">
-              <IconButton
-                icon={<FiInfo />}
-                variant="ghost"
-                size="sm"
-                onClick={onInfoModalOpen}
-                aria-label="Información"
-              />
+              <Box>
+                <IconButton
+                  icon={<FiInfo />}
+                  variant="ghost"
+                  size="sm"
+                  onClick={onInfoModalOpen}
+                  aria-label="Información"
+                />
+              </Box>
             </Tooltip>
 
             {/* Menú de opciones */}

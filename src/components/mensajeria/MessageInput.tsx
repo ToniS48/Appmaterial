@@ -38,7 +38,7 @@ import {
   FiTrash2,
 } from 'react-icons/fi';
 import { useMensajeria } from '../../contexts/MensajeriaContext';
-import { TipoMensaje } from '../../types/mensaje';
+import { TipoMensaje, NuevoMensaje } from '../../types/mensaje';
 
 interface MessageInputProps {
   conversacionId: string;
@@ -75,23 +75,31 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const bgColor = useColorModeValue('white', 'gray.700');
   const inputBg = useColorModeValue('gray.50', 'gray.800');
-
   // Manejar envío del mensaje
   const handleEnviarMensaje = async () => {
-    if (!mensaje.trim() && archivos.length === 0 && !enlace.trim()) {
-      return;
-    }
+    console.log('🔄 [COMPONENT] Iniciando envío desde MessageInput:', {
+      mensaje: mensaje.trim(),
+      archivos: archivos.length,
+      enlace: enlace.trim(),
+      conversacionId,
+      tipoMensaje
+    });
 
-    try {
-      const data = {
+    if (!mensaje.trim() && archivos.length === 0 && !enlace.trim()) {
+      console.log('⚠️ [COMPONENT] Mensaje vacío, cancelando envío');
+      return;
+    }    try {
+      const data: NuevoMensaje = {
         conversacionId,
         contenido: mensaje.trim(),
-        tipo: tipoMensaje,
-        archivos: archivos.length > 0 ? archivos : undefined,
-        enlace: enlace.trim() || undefined,
+        tipo: tipoMensaje
       };
 
+      console.log('📝 [COMPONENT] Datos del mensaje a enviar:', data);
+
       await enviarNuevoMensaje(data);
+      
+      console.log('✅ [COMPONENT] Mensaje enviado, limpiando formulario');
       
       // Limpiar formulario
       setMensaje('');
@@ -110,8 +118,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
         onEnviarMensaje();
       }
       
-    } catch (error) {
-      console.error('Error al enviar mensaje:', error);
+    } catch (error: any) {
+      console.error('❌ [COMPONENT] Error detallado al enviar mensaje:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        conversacionId,
+        mensaje: mensaje.trim()
+      });
     }
   };
 
@@ -227,17 +241,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 boxShadow: "0 0 0 1px var(--chakra-colors-brand-500)",
               }}
             />
-          </Box>
-
-          {/* Botón de enviar */}
-          <Tooltip label="Enviar mensaje (Enter)">            <IconButton
-              icon={<FiSend />}
-              colorScheme="brand"
-              onClick={handleEnviarMensaje}
-              isDisabled={disabled || cargandoMensajes || (!mensaje.trim() && archivos.length === 0)}
-              isLoading={cargandoMensajes}
-              aria-label="Enviar mensaje"
-            />
+          </Box>          {/* Botón de enviar */}
+          <Tooltip label="Enviar mensaje (Enter)">
+            <Box>
+              <IconButton
+                icon={<FiSend />}
+                colorScheme="brand"
+                onClick={handleEnviarMensaje}
+                isDisabled={disabled || cargandoMensajes || (!mensaje.trim() && archivos.length === 0)}
+                isLoading={cargandoMensajes}
+                aria-label="Enviar mensaje"
+              />
+            </Box>
           </Tooltip>
         </HStack>
 

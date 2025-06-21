@@ -15,13 +15,19 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  MenuItem,
-  useColorModeValue,
-  Tooltip,
+  MenuItem,  useColorModeValue,
   Divider,
   Alert,
   AlertIcon,
   Button,
+  useToast,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+  useDisclosure,
 } from '@chakra-ui/react';
 import {
   FiSearch,
@@ -33,6 +39,7 @@ import {
   FiEyeOff,
   FiUserX,
   FiPlus,
+  FiTrash2,
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -51,12 +58,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onCrearConversacion,
   height = "400px"
 }) => {
-  const { conversaciones, conversacionActual, cargandoConversaciones, salirConversacion, seleccionarConversacion } = useMensajeria();
+  const { conversaciones, conversacionActual, cargandoConversaciones, salirConversacion, eliminarConversacionCompleta, seleccionarConversacion } = useMensajeria();
   const { userProfile } = useAuth();
+  const toast = useToast();
   
   // Estados
   const [filtro, setFiltro] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState<TipoConversacion | 'todas'>('todas');
+  const [conversacionAEliminar, setConversacionAEliminar] = useState<string | null>(null);
+  
+  // Modal de confirmación
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
     // Colores del tema
   const bgColor = useColorModeValue('white', 'gray.800');
   const hoverColor = useColorModeValue('gray.50', 'gray.700');
@@ -135,6 +148,43 @@ const ConversationList: React.FC<ConversationListProps> = ({
   const handleSalirConversacion = async (conversacionId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     await salirConversacion(conversacionId);
+  };
+  // Manejar eliminar conversación
+  const handleEliminarConversacion = async (conversacionId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setConversacionAEliminar(conversacionId);
+    onOpen();
+  };
+
+  // Confirmar eliminación
+  const confirmarEliminacion = async () => {
+    if (conversacionAEliminar) {
+      try {
+        await eliminarConversacionCompleta(conversacionAEliminar);
+        toast({
+          title: "Conversación eliminada",
+          description: "La conversación ha sido eliminada correctamente",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la conversación",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+      setConversacionAEliminar(null);
+      onClose();
+    }
+  };
+
+  // Verificar si el usuario es administrador de la conversación
+  const esAdministrador = (conversacion: Conversacion): boolean => {
+    return conversacion.administradores?.includes(userProfile?.uid || '') || false;
   };
 
   if (cargandoConversaciones) {
@@ -352,6 +402,15 @@ const ConversationList: React.FC<ConversationListProps> = ({
                                     Salir de conversación
                                   </MenuItem>
                                 )}
+                                {esAdministrador(conversacion) && (
+                                  <MenuItem
+                                    icon={<FiTrash2 />}
+                                    color="red.500"
+                                    onClick={(e) => handleEliminarConversacion(conversacion.id, e)}
+                                  >
+                                    Eliminar conversación
+                                  </MenuItem>
+                                )}
                               </MenuList>
                             </Menu>
                           </VStack>
@@ -373,8 +432,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                         {conversacion.tipo !== 'privada' && (
                           <Text fontSize="xs" color={textColor}>
                             {conversacion.participantes.length} participantes
-                          </Text>
-                        )}
+                          </Text>                        )}
                       </VStack>
                     </HStack>
                   </Box>
@@ -384,6 +442,35 @@ const ConversationList: React.FC<ConversationListProps> = ({
           )}
         </Box>
       </VStack>
+
+      {/* Modal de confirmación para eliminar */}
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Eliminar Conversación
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              ¿Estás seguro de que quieres eliminar esta conversación? 
+              Esta acción eliminará todos los mensajes y no se puede deshacer.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button colorScheme="red" onClick={confirmarEliminacion} ml={3}>
+                Eliminar
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };

@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  setDoc,
   query,
   where,
   getDocs,
@@ -69,23 +70,29 @@ export const crearConversacion = async (
     };
 
     const docRef = await addDoc(collection(db, 'conversaciones'), nuevaConversacion);
-    
-    // Crear registros de participantes
+      // Crear registros de participantes de forma más simple
     const participantes = nuevaConversacion.participantes;
-    const promesasParticipantes = participantes.map(usuarioId => 
-      addDoc(collection(db, 'participantesConversacion'), {
-        conversacionId: docRef.id,
-        usuarioId,
-        fechaUnion: serverTimestamp(),
-        mensajesNoLeidos: 0,
-        notificacionesActivas: true,
-        silenciada: false,
-        favorita: false,
-        rol: usuarioId === creadorId ? 'administrador' : 'miembro'
-      })
-    );
+    try {
+      const promesasParticipantes = participantes.map(usuarioId => 
+        addDoc(collection(db, 'participantesConversacion'), {
+          conversacionId: docRef.id,
+          usuarioId,
+          fechaUnion: serverTimestamp(),
+          mensajesNoLeidos: 0,
+          notificacionesActivas: true,
+          silenciada: false,
+          favorita: false,
+          rol: usuarioId === creadorId ? 'administrador' : 'miembro'
+        })
+      );
 
-    await Promise.all(promesasParticipantes);
+      await Promise.all(promesasParticipantes);
+    } catch (participantError) {
+      console.error('Error al crear participantes:', participantError);
+      // Si falla, eliminamos la conversación para mantener consistencia
+      await deleteDoc(doc(db, 'conversaciones', docRef.id));
+      throw new Error('Error al añadir participantes a la conversación');
+    }
 
     // Enviar notificaciones de invitación a los participantes (excepto al creador)
     try {
@@ -102,14 +109,17 @@ export const crearConversacion = async (
     } catch (notificationError) {
       // No fallar la creación si las notificaciones fallan
       console.error('Error al enviar notificaciones de invitación:', notificationError);
+    }    // Enviar mensaje de bienvenida
+    try {
+      await enviarMensaje({
+        conversacionId: docRef.id,
+        tipo: 'texto',
+        contenido: `${creadorNombre} ha creado la conversación "${datos.nombre}"`
+      }, creadorId, creadorNombre, creadorRol);
+    } catch (welcomeError) {
+      console.error('Error al enviar mensaje de bienvenida (no crítico):', welcomeError);
+      // No fallar la creación de conversación por esto
     }
-
-    // Enviar mensaje de bienvenida
-    await enviarMensaje({
-      conversacionId: docRef.id,
-      tipo: 'texto',
-      contenido: `${creadorNombre} ha creado la conversación "${datos.nombre}"`
-    }, creadorId, creadorNombre, creadorRol);
 
     return {
       id: docRef.id,
@@ -130,7 +140,7 @@ export const obtenerConversacionesUsuario = async (
 ): Promise<Conversacion[]> => {
   try {
     // Primero obtenemos las participaciones del usuario
-    let participacionesQuery = query(
+    const participacionesQuery = query(
       collection(db, 'participantesConversacion'),
       where('usuarioId', '==', usuarioId)
     );
@@ -142,45 +152,67 @@ export const obtenerConversacionesUsuario = async (
       return [];
     }
 
-    // Luego obtenemos las conversaciones
-    let conversacionesQuery = query(
-      collection(db, 'conversaciones'),
-      where('__name__', 'in', conversacionIds),
-      orderBy('fechaUltimoMensaje', 'desc'),
-      limit(limite)
-    );
-
-    // Aplicar filtros adicionales
-    if (filtros?.tipo) {
-      conversacionesQuery = query(
+    // Dividir en chunks si hay muchas conversaciones (Firestore limita 'in' a 10 elementos)
+    const chunks = [];
+    for (let i = 0; i < conversacionIds.length; i += 10) {
+      chunks.push(conversacionIds.slice(i, i + 10));
+    }    const conversacionesPromesas = chunks.map(async (chunk) => {
+      let conversacionesQuery = query(
         collection(db, 'conversaciones'),
-        where('__name__', 'in', conversacionIds),
-        where('tipo', '==', filtros.tipo),
+        where('__name__', 'in', chunk),
         orderBy('fechaUltimoMensaje', 'desc'),
         limit(limite)
       );
-    }
 
-    if (filtros?.activa !== undefined) {
-      conversacionesQuery = query(
-        collection(db, 'conversaciones'),
-        where('__name__', 'in', conversacionIds),
-        where('activa', '==', filtros.activa),
-        orderBy('fechaUltimoMensaje', 'desc'),
-        limit(limite)
-      );    }
+      // Aplicar filtros adicionales solo si es necesario
+      if (filtros?.tipo) {
+        conversacionesQuery = query(
+          collection(db, 'conversaciones'),
+          where('__name__', 'in', chunk),
+          where('tipo', '==', filtros.tipo),
+          orderBy('fechaUltimoMensaje', 'desc'),
+          limit(limite)
+        );
+      }
 
-    const snapshot = await getDocs(conversacionesQuery);
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        // NUEVA ESTRATEGIA: Mantener Timestamps internamente
-        fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion : (data.fechaCreacion ? Timestamp.fromDate(new Date(data.fechaCreacion)) : Timestamp.now()),
-        fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje : (data.fechaUltimoMensaje ? Timestamp.fromDate(new Date(data.fechaUltimoMensaje)) : Timestamp.now())
-      } as Conversacion;
+      if (filtros?.activa !== undefined) {
+        conversacionesQuery = query(
+          collection(db, 'conversaciones'),
+          where('__name__', 'in', chunk),
+          where('activa', '==', filtros.activa),
+          orderBy('fechaUltimoMensaje', 'desc'),
+          limit(limite)
+        );
+      }
+
+      const snapshot = await getDocs(conversacionesQuery);
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // NUEVA ESTRATEGIA: Mantener Timestamps internamente
+          fechaCreacion: data.fechaCreacion instanceof Timestamp ? data.fechaCreacion : (data.fechaCreacion ? Timestamp.fromDate(new Date(data.fechaCreacion)) : Timestamp.now()),
+          fechaUltimoMensaje: data.fechaUltimoMensaje instanceof Timestamp ? data.fechaUltimoMensaje : (data.fechaUltimoMensaje ? Timestamp.fromDate(new Date(data.fechaUltimoMensaje)) : Timestamp.now())
+        } as Conversacion;
+      });
     });
+
+    const resultadosChunks = await Promise.all(conversacionesPromesas);
+    const todasLasConversaciones = resultadosChunks.flat();
+      // Ordenar por fecha del último mensaje y limitar
+    return todasLasConversaciones
+      .sort((a, b) => {
+        const fechaA = a.fechaUltimoMensaje 
+          ? (a.fechaUltimoMensaje instanceof Timestamp ? a.fechaUltimoMensaje.toDate() : new Date(a.fechaUltimoMensaje))
+          : new Date(0);
+        const fechaB = b.fechaUltimoMensaje 
+          ? (b.fechaUltimoMensaje instanceof Timestamp ? b.fechaUltimoMensaje.toDate() : new Date(b.fechaUltimoMensaje))
+          : new Date(0);
+        return fechaB.getTime() - fechaA.getTime();
+      })
+      .slice(0, limite);
+      
   } catch (error) {
     console.error('Error al obtener conversaciones:', error);
     throw error;
@@ -220,74 +252,103 @@ export const enviarMensaje = async (
   remitenteRol: RolUsuario
 ): Promise<Mensaje> => {
   try {
+    console.log('🔄 [SERVICE] Iniciando enviarMensaje:', {
+      nuevoMensaje,
+      remitenteId,
+      remitenteNombre,
+      remitenteRol
+    });
+
+    // Crear objeto mensaje con estructura limpia
     const mensaje = {
-      ...nuevoMensaje,
+      conversacionId: nuevoMensaje.conversacionId,
+      contenido: nuevoMensaje.contenido,
+      tipo: nuevoMensaje.tipo,
       remitenteId,
       remitenteNombre,
       remitenteRol,
-      fechaEnvio: serverTimestamp(),
+      fechaEnvio: new Date(),
       estado: 'enviado',
       editado: false,
-      eliminado: false,
+      eliminado: false
+    };
+
+    console.log('📝 [SERVICE] Mensaje creado:', mensaje);    // Verificar participación en la conversación
+    const conversacion = await obtenerConversacion(nuevoMensaje.conversacionId);
+    if (!conversacion) {
+      throw new Error(`La conversación ${nuevoMensaje.conversacionId} no existe`);
+    }
+    
+    console.log('📋 [SERVICE] Conversación encontrada:', conversacion.nombre);
+    
+    if (!conversacion.participantes.includes(remitenteId)) {
+      throw new Error(`El usuario ${remitenteId} no es participante de la conversación`);
+    }
+
+    console.log('✅ [SERVICE] Usuario verificado como participante');
+
+    // Agregar reacciones como objeto vacío
+    const mensajeFinal = {
+      ...mensaje,
       reacciones: {}
     };
 
-    const docRef = await addDoc(collection(db, 'mensajes'), mensaje);
+    console.log('📦 [SERVICE] Mensaje final a guardar:', mensajeFinal);
 
-    // Actualizar última actividad de la conversación
+    // Guardar mensaje en Firestore
+    const mensajeId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const mensajeRef = doc(db, 'mensajes', mensajeId);
+    
+    console.log('💾 [SERVICE] Guardando mensaje con ID:', mensajeId);
+    await setDoc(mensajeRef, mensajeFinal);
+    console.log('✅ [SERVICE] Mensaje guardado en Firestore');
+      // Crear un objeto docRef compatible para el resto del código
+    const docRef = { id: mensajeId };
+
+    // Actualizar conversación
+    console.log('🔄 [SERVICE] Actualizando conversación...');
     await updateDoc(doc(db, 'conversaciones', nuevoMensaje.conversacionId), {
-      fechaUltimoMensaje: serverTimestamp(),
+      fechaUltimoMensaje: new Date(),
       ultimoMensaje: nuevoMensaje.contenido.substring(0, 100)
     });
+    console.log('✅ [SERVICE] Conversación actualizada');    // Actualizar contadores de participantes
+    console.log('🔄 [SERVICE] Actualizando contadores de participantes...');
+    
+    try {
+      const participantesQuery = query(
+        collection(db, 'participantesConversacion'),
+        where('conversacionId', '==', nuevoMensaje.conversacionId),
+        where('usuarioId', '!=', remitenteId)
+      );
 
-    // Incrementar contador de mensajes no leídos para otros participantes
-    const participantesQuery = query(
-      collection(db, 'participantesConversacion'),
-      where('conversacionId', '==', nuevoMensaje.conversacionId),
-      where('usuarioId', '!=', remitenteId)
-    );
-
-    const participantesSnapshot = await getDocs(participantesQuery);
-    const actualizacionesParticipantes = participantesSnapshot.docs.map(doc => 
-      updateDoc(doc.ref, {
-        mensajesNoLeidos: increment(1)
-      })
-    );
-
-    await Promise.all(actualizacionesParticipantes);
-
-    // Enviar notificaciones a los participantes (excepto al remitente)
-    try {      // Obtener información de la conversación para determinar si es grupal
-      const conversacion = await obtenerConversacion(nuevoMensaje.conversacionId);
-      const esGrupal = conversacion?.tipo === 'grupo' || conversacion?.tipo === 'general';
+      console.log('📋 [SERVICE] Consulta de participantes configurada, ejecutando...');
+      const participantesSnapshot = await getDocs(participantesQuery);
+      console.log(`📊 [SERVICE] Encontrados ${participantesSnapshot.docs.length} participantes para actualizar`);
       
-      // Enviar notificaciones a los participantes que no son el remitente
-      const notificacionesPromesas = participantesSnapshot.docs.map(async (participanteDoc) => {
-        const participanteData = participanteDoc.data();
-        if (participanteData.notificacionesActivas && !participanteData.silenciada) {
-          await notificarNuevoMensaje(
-            participanteData.usuarioId,
-            remitenteNombre,
-            nuevoMensaje.conversacionId,
-            nuevoMensaje.contenido,
-            esGrupal
-          );
-        }
-      });
-      
-      await Promise.all(notificacionesPromesas);
-    } catch (notificationError) {
-      // No fallar el envío del mensaje si las notificaciones fallan
-      console.error('Error al enviar notificaciones:', notificationError);
-    }
+      const actualizacionesParticipantes = participantesSnapshot.docs.map(doc => 
+        updateDoc(doc.ref, {
+          mensajesNoLeidos: increment(1)
+        })
+      );
 
-    return {
+      await Promise.all(actualizacionesParticipantes);
+      console.log('✅ [SERVICE] Contadores actualizados exitosamente');
+    } catch (participantesError) {
+      console.error('⚠️ [SERVICE] Error al actualizar contadores (no crítico):', participantesError);
+      // No lanzar el error, solo registrarlo
+    }    // Crear mensaje de retorno
+    const mensajeRetorno = {
       id: docRef.id,
-      ...mensaje,
+      ...mensajeFinal,
       fechaEnvio: new Date()
     } as Mensaje;
-  } catch (error) {
-    console.error('Error al enviar mensaje:', error);
+    
+    console.log('🎉 [SERVICE] Mensaje completado exitosamente:', mensajeRetorno);
+
+    return mensajeRetorno;} catch (error: unknown) {
+    console.error('❌ [SERVICE] Error crítico en enviarMensaje:', error);
+    console.error('❌ [SERVICE] Error stack:', error instanceof Error ? error.stack : 'No stack available');
+    console.error('❌ [SERVICE] Error message:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 };
@@ -343,6 +404,8 @@ export const escucharMensajes = (
   callback: (mensajes: Mensaje[]) => void,
   onError?: (error: Error) => void
 ) => {
+  console.log('🎧 [SERVICE] Configurando listener para conversación:', conversacionId);
+  
   const mensajesQuery = query(
     collection(db, 'mensajes'),
     where('conversacionId', '==', conversacionId),
@@ -351,10 +414,22 @@ export const escucharMensajes = (
     limit(50)
   );
 
+  console.log('📋 [SERVICE] Query configurada, iniciando onSnapshot...');
+
   return onSnapshot(
     mensajesQuery,
-    (snapshot) => {      const mensajes = snapshot.docs.map(doc => {
+    (snapshot) => {
+      console.log('🔔 [SERVICE] Listener activado exitosamente, documentos recibidos:', snapshot.docs.length);
+      
+      if (snapshot.docs.length === 0) {
+        console.log('📭 [SERVICE] No hay mensajes en esta conversación');
+        callback([]);
+        return;
+      }
+      
+      const mensajes = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('📨 [SERVICE] Procesando mensaje:', { id: doc.id, contenido: data.contenido, remitente: data.remitenteNombre });
         return {
           id: doc.id,
           ...data,
@@ -364,10 +439,56 @@ export const escucharMensajes = (
         } as Mensaje;
       }).reverse();
 
+      console.log('📋 [SERVICE] Mensajes procesados y enviados al callback:', mensajes.length);
       callback(mensajes);
     },
     (error) => {
-      console.error('Error en listener de mensajes:', error);
+      console.error('❌ [SERVICE] Error crítico en listener de mensajes:', error);
+      console.error('❌ [SERVICE] Error code:', error.code);
+      console.error('❌ [SERVICE] Error message:', error.message);
+      console.error('❌ [SERVICE] Error stack:', error.stack);
+      
+      // Si es un error de índice, intentar sin el orderBy
+      if (error.code === 'failed-precondition' || error.message.includes('index')) {
+        console.log('🔄 [SERVICE] Error de índice detectado, reintentando sin orderBy...');
+        
+        const mensajesQuerySimple = query(
+          collection(db, 'mensajes'),
+          where('conversacionId', '==', conversacionId),
+          where('eliminado', '==', false),
+          limit(50)
+        );
+        
+        return onSnapshot(
+          mensajesQuerySimple,
+          (snapshot) => {
+            console.log('🔔 [SERVICE] Listener simple activado, documentos:', snapshot.docs.length);
+            const mensajes = snapshot.docs.map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                ...data,
+                fechaEnvio: data.fechaEnvio instanceof Timestamp ? data.fechaEnvio : (data.fechaEnvio ? Timestamp.fromDate(new Date(data.fechaEnvio)) : Timestamp.now()),
+                fechaEdicion: data.fechaEdicion instanceof Timestamp ? data.fechaEdicion : (data.fechaEdicion ? Timestamp.fromDate(new Date(data.fechaEdicion)) : null)
+              } as Mensaje;
+            });
+            
+            // Ordenar manualmente por fecha
+            mensajes.sort((a, b) => {
+              const fechaA = a.fechaEnvio instanceof Timestamp ? a.fechaEnvio.toDate() : new Date(a.fechaEnvio);
+              const fechaB = b.fechaEnvio instanceof Timestamp ? b.fechaEnvio.toDate() : new Date(b.fechaEnvio);
+              return fechaA.getTime() - fechaB.getTime();
+            });
+            
+            callback(mensajes);
+          },
+          (retryError) => {
+            console.error('❌ [SERVICE] Error en listener simple también:', retryError);
+            if (onError) onError(retryError);
+          }
+        );
+      }
+      
       if (onError) onError(error);
     }
   );
@@ -786,6 +907,65 @@ export const obtenerEstadisticasMensajeria = async (): Promise<EstadisticasMensa
     };
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);
+    throw error;
+  }
+};
+
+// Eliminar conversación completamente
+export const eliminarConversacion = async (
+  conversacionId: string,
+  usuarioId: string
+): Promise<void> => {
+  try {
+    console.log('🗑️ [SERVICE] Iniciando eliminación de conversación:', conversacionId);
+    
+    // Verificar que el usuario sea administrador de la conversación
+    const conversacion = await obtenerConversacion(conversacionId);
+    if (!conversacion) {
+      throw new Error('La conversación no existe');
+    }
+
+    if (!conversacion.administradores.includes(usuarioId)) {
+      throw new Error('Solo los administradores pueden eliminar la conversación');
+    }
+
+    console.log('✅ [SERVICE] Usuario verificado como administrador');
+
+    // Eliminar todos los mensajes de la conversación
+    console.log('🗑️ [SERVICE] Eliminando mensajes...');
+    const mensajesQuery = query(
+      collection(db, 'mensajes'),
+      where('conversacionId', '==', conversacionId)
+    );
+    const mensajesSnapshot = await getDocs(mensajesQuery);
+    
+    const promesasEliminacionMensajes = mensajesSnapshot.docs.map(doc => 
+      deleteDoc(doc.ref)
+    );
+    await Promise.all(promesasEliminacionMensajes);
+    console.log(`✅ [SERVICE] ${mensajesSnapshot.docs.length} mensajes eliminados`);
+
+    // Eliminar todos los registros de participantes
+    console.log('🗑️ [SERVICE] Eliminando participantes...');
+    const participantesQuery = query(
+      collection(db, 'participantesConversacion'),
+      where('conversacionId', '==', conversacionId)
+    );
+    const participantesSnapshot = await getDocs(participantesQuery);
+    
+    const promesasEliminacionParticipantes = participantesSnapshot.docs.map(doc => 
+      deleteDoc(doc.ref)
+    );
+    await Promise.all(promesasEliminacionParticipantes);
+    console.log(`✅ [SERVICE] ${participantesSnapshot.docs.length} participantes eliminados`);
+
+    // Eliminar la conversación
+    console.log('🗑️ [SERVICE] Eliminando conversación...');
+    await deleteDoc(doc(db, 'conversaciones', conversacionId));
+    
+    console.log('✅ [SERVICE] Conversación eliminada completamente');
+  } catch (error) {
+    console.error('❌ [SERVICE] Error al eliminar conversación:', error);
     throw error;
   }
 };

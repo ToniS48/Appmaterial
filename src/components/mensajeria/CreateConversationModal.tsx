@@ -23,7 +23,7 @@ import {
   Badge,
   useToast,
 } from '@chakra-ui/react';
-import { Usuario } from '../../types/usuario';
+import { Usuario, RolUsuario } from '../../types/usuario';
 import { TipoConversacion } from '../../types/mensaje';
 import { useMensajeria } from '../../contexts/MensajeriaContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,24 +48,32 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
 
   const { crearNuevaConversacion } = useMensajeria();
   const { currentUser, userProfile } = useAuth();
-  const toast = useToast();  // Filtrar usuarios según el rol del usuario actual
+  const toast = useToast();  // Filtrar usuarios según el rol del usuario actual (menos restrictivo)
   const usuariosFiltrados = usuarios.filter((usuario) => {
     if (!userProfile) return false;
     
     // Admin puede crear conversaciones con cualquiera
     if (userProfile.rol === 'admin') return true;
     
-    // Vocal puede crear con socios y otros vocales
+    // Vocal puede crear con todos
     if (userProfile.rol === 'vocal') {
-      return ['socio', 'vocal'].includes(usuario.rol);
-    }    // Socio puede crear con otros socios y vocales
+      return true;
+    }
+
+    // Socio puede crear con TODOS (incluyendo invitados)
     if (userProfile.rol === 'socio') {
-      return ['socio', 'vocal'].includes(usuario.rol);
+      return true;
     }
     
-    // Invitado solo puede responder, no crear
-    return false;
-  });
+    // Invitado puede crear conversaciones con todos excepto otros invitados
+    if (userProfile.rol === 'invitado') {
+      return ['admin', 'vocal', 'socio'].includes(usuario.rol);
+    }
+    
+    // Por defecto, permitir
+    return true;
+  });  // Log simple para confirmar funcionamiento
+  console.log('✅ Modal conversación:', usuariosFiltrados.length, 'usuarios disponibles');
 
   const resetForm = () => {
     setTitulo('');
@@ -92,18 +100,24 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-  const handleSubmit = async () => {
+  };  const handleSubmit = async () => {
     if (!validateForm() || !currentUser) return;
 
+    console.log('🚀 Iniciando creación de conversación:', {
+      titulo,
+      tipo,
+      participantesSeleccionados,
+      usuarioActual: currentUser?.uid
+    });
+
     setLoading(true);
-    try {      await crearNuevaConversacion({
+    try {
+      const datosConversacion = {
         nombre: titulo,
         descripcion: descripcion || undefined,
         tipo,
-        participantes: [...participantesSeleccionados, currentUser?.uid || ''],
-        publica: tipo === 'general',
-        rolesPermitidos: tipo === 'general' ? ['admin', 'vocal', 'socio'] : [],
+        participantes: [...participantesSeleccionados, currentUser?.uid || ''],        publica: tipo === 'general',
+        rolesPermitidos: tipo === 'general' ? ['admin', 'vocal', 'socio'] as RolUsuario[] : [],
         configuracion: {
           permiteArchivos: true,
           permiteImagenes: true,
@@ -111,7 +125,13 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
           notificacionesActivas: true,
           limiteTamaño: 10
         }
-      });
+      };
+
+      console.log('📝 Datos de conversación a crear:', datosConversacion);
+
+      await crearNuevaConversacion(datosConversacion);
+
+      console.log('✅ Conversación creada exitosamente');
 
       toast({
         title: 'Conversación creada',
@@ -122,14 +142,16 @@ export const CreateConversationModal: React.FC<CreateConversationModalProps> = (
       });
 
       onClose();
-      resetForm();
-    } catch (error) {
-      console.error('Error creando conversación:', error);
+      resetForm();    } catch (error: any) {
+      console.error('❌ Error detallado creando conversación:', error);
+      console.error('❌ Stack trace:', error?.stack);
+      console.error('❌ Mensaje de error:', error?.message);
+      
       toast({
         title: 'Error',
-        description: 'No se pudo crear la conversación',
+        description: `Error al crear conversación: ${error?.message || 'Error desconocido'}`,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
     } finally {

@@ -92,17 +92,16 @@ service cloud.firestore {
       // Solo admins pueden eliminar conversaciones
       allow delete: if isAdmin();
     }
-    
-    // Reglas para mensajes
+      // Reglas para mensajes
     match /mensajes/{mensajeId} {
       // Los usuarios pueden leer mensajes de conversaciones donde participan
       allow read: if isAuthenticated() && 
                     request.auth.uid in get(/databases/$(database)/documents/conversaciones/$(resource.data.conversacionId)).data.participantes;
       
-      // Los usuarios pueden crear mensajes en conversaciones donde participan
+      // Los usuarios autenticados pueden crear mensajes (validación en el código)
+      // Simplificamos esta regla para evitar consultas anidadas que pueden causar cuelgues
       allow create: if isAuthenticated() && 
-                      request.auth.uid == request.resource.data.remitenteId &&
-                      request.auth.uid in get(/databases/$(database)/documents/conversaciones/$(request.resource.data.conversacionId)).data.participantes;
+                      request.auth.uid == request.resource.data.remitenteId;
       
       // Solo el remitente puede editar/eliminar sus propios mensajes (o admins)
       allow update, delete: if isAuthenticated() && 

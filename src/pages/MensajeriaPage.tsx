@@ -30,44 +30,47 @@ const MensajeriaPage: React.FC = () => {
 
       try {
         setLoading(true);
-        let usuariosQuery;        // Filtrar usuarios según el rol
+        let usuariosQuery;        // Filtrar usuarios según el rol (filtros menos restrictivos)
         switch (userProfile.rol) {
           case 'admin':
-            // Admin puede ver todos los usuarios
+            // Admin puede ver todos los usuarios activos
             usuariosQuery = query(collection(db, 'usuarios'));
             break;
           case 'vocal':
-            // Vocal puede ver socios y otros vocales
-            usuariosQuery = query(
-              collection(db, 'usuarios'),
-              where('rol', 'in', ['socio', 'vocal', 'admin'])
-            );
+            // Vocal puede ver todos los usuarios
+            usuariosQuery = query(collection(db, 'usuarios'));
             break;
           case 'socio':
-            // Socio puede ver otros socios y vocales
-            usuariosQuery = query(
-              collection(db, 'usuarios'),
-              where('rol', 'in', ['socio', 'vocal'])
-            );
+            // Socio puede ver TODOS los usuarios (incluyendo invitados)
+            usuariosQuery = query(collection(db, 'usuarios'));
             break;
           case 'invitado':
-            // Invitado solo puede ver a quien le da acceso (se maneja en el contexto)
+            // Invitado puede ver a todos excepto otros invitados
             usuariosQuery = query(
               collection(db, 'usuarios'),
-              where('rol', 'in', ['vocal', 'admin'])
+              where('rol', 'in', ['admin', 'vocal', 'socio'])
             );
             break;
           default:
+            // Por defecto, mostrar todos los usuarios
             usuariosQuery = query(collection(db, 'usuarios'));
+        }        const snapshot = await getDocs(usuariosQuery);
+        const todosLosUsuarios = snapshot.docs.map(doc => ({
+          uid: doc.id,
+          ...doc.data()
+        } as Usuario));
+        
+        const usuariosData = todosLosUsuarios.filter(usuario => {
+          // Filtrar usuarios eliminados y el usuario actual
+          return usuario.uid !== currentUser.uid && !usuario.eliminado;
+        });        console.log('✅ Mensajería cargada:', usuariosData.length, 'usuarios disponibles');
+        
+        if (usuariosData.length === 0) {
+          console.log('⚠️ NO HAY USUARIOS DISPONIBLES - Posibles causas:');
+          console.log('   1. No hay usuarios en la base de datos');
+          console.log('   2. Todos los usuarios están marcados como eliminados');
+          console.log('   3. El filtro de roles es demasiado restrictivo');
         }
-
-        const snapshot = await getDocs(usuariosQuery);
-        const usuariosData = snapshot.docs
-          .map(doc => ({
-            uid: doc.id,
-            ...doc.data()
-          } as Usuario))
-          .filter(usuario => usuario.uid !== currentUser.uid); // Excluir al usuario actual
 
         setUsuarios(usuariosData);
       } catch (err) {
