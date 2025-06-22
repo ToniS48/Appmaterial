@@ -39,18 +39,7 @@ const AdminEstadisticasActividadesPage: React.FC = () => {
     <DashboardLayout title="Estadísticas de Actividades - Admin">
       <Box bg={bgColor} minH="100vh" p={6}>
         {/* Header con navegación */}
-        <Box mb={6}>
-          <HStack justify="space-between" align="center" mb={4}>
-            <HStack>
-              <FiBarChart2 size={24} color="purple" />
-              <Heading size="lg" color="purple.500">
-                Estadísticas de Actividades - Administración
-              </Heading>
-            </HStack>
-            
-          </HStack>
-        </Box>
-
+        
         {/* Componente principal de estadísticas */}
         <EstadisticasAnualesActividades
           añoSeleccionado={añoSeleccionado}
