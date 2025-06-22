@@ -538,7 +538,7 @@ const MisActividadesPage: React.FC = () => {
               {/* Botón Cancelar para actividades activas */}
               <Button 
                 size={{ base: "sm", md: "md" }}
-                colorScheme="orange"
+                colorScheme="red"
                 leftIcon={<FiXCircle />}
                 onClick={() => handleCancelarActividad(actividad)}
                 width={{ base: "100%", sm: "auto" }}
