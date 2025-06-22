@@ -202,7 +202,6 @@ const GestionReportes: React.FC = () => {
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
-        <Heading size="lg" mb={4}>Reportes de Errores y Sugerencias</Heading>
         <HStack>
           <Select 
             value={filtroEstado} 
