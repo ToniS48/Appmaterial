@@ -11,7 +11,8 @@ import {
   TabList,
   Tab,
   TabPanels,
-  Button
+  Button,
+  Flex
 } from '@chakra-ui/react';
 import { ConfigSettings } from '../../types/configuration';
 import { useConfigurationData } from '../../hooks/configuration/useConfigurationData';
@@ -173,7 +174,12 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
         {/* Botón de guardado global para pestañas que lo necesiten */}
         {needsGlobalSave && (
           <Box mt={6} p={4} bg="gray.50" borderRadius="md" borderWidth="1px">
-            <HStack justify="space-between" align="center">
+            <Flex
+              direction={{ base: "column", md: "row" }}
+              justify="space-between"
+              align={{ base: "stretch", md: "center" }}
+              gap={4}
+            >
               <Box>
                 <Text fontWeight="bold" fontSize="sm" color="gray.700">
                   💾 Configuración de {currentTab?.label}
@@ -188,10 +194,12 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
                 isLoading={isLoading}
                 loadingText="Guardando..."
                 size="md"
+                width={{ base: "100%", md: "auto" }}
+                mt={{ base: 2, md: 0 }}
               >
                 💾 Guardar cambios
               </Button>
-            </HStack>
+            </Flex>
           </Box>
         )}
       </Tabs>
