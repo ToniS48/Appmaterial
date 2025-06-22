@@ -204,14 +204,6 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
             </ChakraTooltip>
           </HStack>
         </Flex>
-          {/* Estadísticas principales usando componente modular */}
-        <EstadisticasPrincipales
-          estadisticas={estadisticas}
-          comparacionAños={comparacionAños}
-          cargando={cargando}
-          onCargarDatos={() => cargarDatos(false)}
-          añoSeleccionado={añoSeleccionado}
-        />
 
         {/* Pestañas principales usando componentes modulares */}
         {estadisticas && (

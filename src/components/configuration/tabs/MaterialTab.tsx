@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   VStack,
@@ -13,8 +13,12 @@ import {
   FormLabel,
   Select,
   SimpleGrid,
-  Divider
+  Divider,
+  Collapse,
+  HStack,
+  IconButton
 } from '@chakra-ui/react';
+import { ChevronDownIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { ConfigSettings } from '../../../types/configuration';
 import DropdownsTab from './DropdownsTab';
 
@@ -33,17 +37,37 @@ const MaterialTab: React.FC<MaterialTabProps> = ({
   userRole,
   onVariableChange
 }) => {
+  // Estado para mostrar/ocultar los banners
+  const [showInfo, setShowInfo] = useState(true);
+  const [showWarning, setShowWarning] = useState(false);
+
   return (
     <TabPanel>
       <VStack spacing={8} align="stretch">
-        <Alert status="info">
-          <AlertIcon />
-          <Box>
-            <Text fontWeight="bold">Configuración de Material</Text>
-            <Text>
-              Gestiona los parámetros específicos para el material del club, 
-              incluyendo stock mínimo, revisiones periódicas y tiempo entre préstamos.
-            </Text>
+        {/* Banner informativo general colapsable */}
+        <Alert status="info" cursor="pointer" p={0}>
+          <Box w="100%">
+            <HStack px={4} py={2} userSelect="none">
+              <AlertIcon />
+              <Text fontWeight="bold" flex={1} onClick={() => setShowInfo((v) => !v)} _hover={{ textDecoration: 'underline' }}>
+                Configuración de Material
+              </Text>
+              <IconButton
+                aria-label={showInfo ? 'Ocultar info' : 'Mostrar info'}
+                icon={showInfo ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                size="sm"
+                variant="ghost"
+                tabIndex={-1}
+                pointerEvents="none"
+              />
+            </HStack>
+            <Collapse in={showInfo} animateOpacity>
+              <Box px={4} pb={3}>
+                <Text>
+                  Gestiona los parámetros específicos para el material del club, incluyendo stock mínimo, revisiones periódicas y tiempo entre préstamos. Las configuraciones detalladas de formularios de material están disponibles en la sección inferior (solo para administradores).
+                </Text>
+              </Box>
+            </Collapse>
           </Box>
         </Alert>
 
@@ -119,16 +143,7 @@ const MaterialTab: React.FC<MaterialTabProps> = ({
               </FormControl>
             </SimpleGrid>
           </CardBody>
-        </Card>        <Alert status="info">
-          <AlertIcon />
-          <Box>
-            <Text fontWeight="bold">Información adicional</Text>
-            <Text fontSize="sm">
-              Las configuraciones detalladas de formularios de material están disponibles 
-              en la sección de Formularios Material más abajo (solo para administradores).
-            </Text>
-          </Box>
-        </Alert>
+        </Card>
 
         {/* Formularios Material - Solo para administradores */}
         {userRole === 'admin' && (
@@ -139,21 +154,34 @@ const MaterialTab: React.FC<MaterialTabProps> = ({
                 <Heading size="sm" mb={4} color="orange.600">
                   📋 Formularios Material
                 </Heading>
-                <Alert status="warning" mb={4}>
-                  <AlertIcon />
-                  <Text fontSize="sm">
-                    Esta sección permite configurar los formularios dinámicos para la gestión de material.
-                    Solo los administradores pueden modificar estos parámetros.
-                  </Text>
+                {/* Banner de advertencia colapsable solo para admins */}
+                <Alert status="warning" cursor="pointer" p={0}>
+                  <Box w="100%">
+                    <HStack px={4} py={2} userSelect="none">
+                      <AlertIcon />
+                      <Text fontWeight="bold" flex={1} onClick={() => setShowWarning((v) => !v)} _hover={{ textDecoration: 'underline' }}>
+                        Atención: Solo administradores
+                      </Text>
+                      <IconButton
+                        aria-label={showWarning ? 'Ocultar advertencia' : 'Mostrar advertencia'}
+                        icon={showWarning ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                        size="sm"
+                        variant="ghost"
+                        tabIndex={-1}
+                        pointerEvents="none"
+                      />
+                    </HStack>
+                    <Collapse in={showWarning} animateOpacity>
+                      <Box px={4} pb={3}>
+                        <Text fontSize="sm">
+                          Esta sección permite configurar los formularios dinámicos para la gestión de material. Solo los administradores pueden modificar estos parámetros.
+                        </Text>
+                      </Box>
+                    </Collapse>
+                  </Box>
                 </Alert>
-                
                 {/* Integrar el componente DropdownsTab aquí */}
-                <Box>
-                  <DropdownsTab 
-                    settings={settings}
-                    userRole={userRole}
-                  />
-                </Box>
+                <DropdownsTab settings={settings} userRole={userRole} />
               </CardBody>
             </Card>
           </>
