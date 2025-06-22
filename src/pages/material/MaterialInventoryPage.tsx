@@ -6,6 +6,7 @@ import MaterialInventoryView from '../../components/material/MaterialInventoryVi
 const MaterialInventoryPage: React.FC = () => {
   return (
     <DashboardLayout title="Inventario de Material">
+      
       <Box 
         p={{ base: 3, md: 5 }} 
         shadow="md" 

@@ -152,7 +152,8 @@ const DashboardMateriales: React.FC<DashboardMaterialesProps> = ({
       <Box p={6} maxWidth="1400px" mx="auto">
       <VStack spacing={6} align="stretch">
         {/* Encabezado */}
-        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>          <Heading size="lg" color="purple.600">
+        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>          
+          <Heading size="lg" color="purple.600">
             Gestión de Materiales
           </Heading>
           
@@ -197,7 +198,8 @@ const DashboardMateriales: React.FC<DashboardMaterialesProps> = ({
                 maxHeight: 'fit-content',
                 alignItems: 'center',
               }}
-            >              <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
+            >              
+            <Tab minW={{ base: '50px', md: 'auto' }} px={{ base: 2, md: 4 }} py={{ base: 2, md: 3 }} h="fit-content">
                 <HStack spacing={{ base: 0, md: 2 }} align="center">
                   <FiBarChart />
                   <Box display={{ base: 'none', md: 'block' }}>Resumen</Box>

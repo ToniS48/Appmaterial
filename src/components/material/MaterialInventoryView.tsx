@@ -36,6 +36,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { listarMateriales } from '../../services/materialService';
 import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import messages from '../../constants/messages';
+import { EstadisticasPrincipalesMateriales, useDashboardMateriales } from './dashboard';
 
 // Estados de material con colores para el inventario
 const ESTADOS_MATERIAL = [
@@ -74,6 +75,12 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   // Contextos
   const { userProfile } = useAuth();
+
+  // Hook para estadísticas reales
+  const {
+    state: { estadisticas, cargando, añoSeleccionado },
+    actions: { cargarDatos }
+  } = useDashboardMateriales();
 
   // Cargar materiales al montar el componente
   useEffect(() => {
@@ -379,6 +386,15 @@ const MaterialInventoryView: React.FC<MaterialInventoryViewProps> = ({
         <Text color="gray.600">
           Consulta todo el material disponible en el club
         </Text>
+
+        {/* Tabs de estadísticas principales justo después del texto */}
+        <EstadisticasPrincipalesMateriales
+          estadisticas={estadisticas}
+          cargando={cargando}
+          añoSeleccionado={añoSeleccionado}
+          onCargarDatos={cargarDatos}
+          vistaExtendida={false}
+        />
       </Box>
 
       {/* Controles de filtrado */}
