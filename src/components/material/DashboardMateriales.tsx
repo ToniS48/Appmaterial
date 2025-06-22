@@ -180,14 +180,6 @@ const DashboardMateriales: React.FC<DashboardMaterialesProps> = ({
           </HStack>
         </Flex>
 
-        {/* Estadísticas principales */}
-        <EstadisticasPrincipalesMateriales
-          estadisticas={estadisticas}
-          cargando={cargando}
-          onCargarDatos={() => cargarDatos()}
-          añoSeleccionado={añoSeleccionado}
-        />
-
         {/* Pestañas principales */}
         {estadisticas && (
           <Tabs variant="enclosed" colorScheme="purple">
