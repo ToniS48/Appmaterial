@@ -372,7 +372,8 @@ const ActividadesPage: React.FC = () => {
                     )}                    {/* Separador y actividades antiguas */}
                     {actividadesSeparadas.antiguas.length > 0 && (
                       <>
-                        <Divider my={6} />                        <Box 
+                        <Divider my={6} />                        
+                        <Box 
                           mb={6}
                           position="relative"
                           overflow="hidden"
