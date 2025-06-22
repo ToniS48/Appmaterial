@@ -738,7 +738,8 @@ const MisActividadesPage: React.FC = () => {
         >
           <Heading 
             size="lg" 
-            textAlign="center" 
+            textAlign="left" 
+            color={"purple"}
             mb={2}
           >
             Mis Actividades

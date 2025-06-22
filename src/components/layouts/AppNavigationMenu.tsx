@@ -73,6 +73,13 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiCalendar,
       roles: ['admin', 'vocal', 'socio', 'invitado'] 
     },
+    // Mis Actividades - para todos los roles
+    {
+      label: 'Mis Actividades',
+      icon: FiCalendar,
+      to: '/mis-actividades',
+      roles: ['admin', 'vocal', 'socio', 'invitado']
+      },
     // Calendario - para todos los roles
     { 
       label: 'Calendario', 
