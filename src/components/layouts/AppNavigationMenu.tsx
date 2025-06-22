@@ -129,7 +129,7 @@ const AppNavigationMenu: React.FC<SidebarProps> = ({ userRole, onItemClick }) =>
       icon: FiUsers,
       roles: ['vocal']    },// Material - solo para admin y vocal
     { 
-      label: 'Material', 
+      label: 'Gestión de Material', 
       to: '/material/dashboard', 
       icon: FiBox,
       roles: ['admin', 'vocal'] 
