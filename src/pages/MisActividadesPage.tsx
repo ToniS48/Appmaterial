@@ -736,30 +736,43 @@ const MisActividadesPage: React.FC = () => {
           maxWidth="1200px" 
           p={{ base: 3, md: 5 }}
         >
-          <Flex justify="space-between" align="center" mb={6}>
-            <Heading size="lg" textAlign={{ base: "center", md: "left" }}>Mis Actividades</Heading>
-            <Flex gap={2}>
-              <Button 
-                leftIcon={<FiRefreshCw />} 
-                colorScheme="gray" 
-                variant="outline"
-                size="sm"
-                onClick={recargarActividades}
-                isLoading={isRefreshing}
-                loadingText="Recargando..."
-              >
-                Recargar
-              </Button>
-              <Button 
-                leftIcon={<AddIcon />} 
-                colorScheme="brand" 
-                onClick={() => navigate('/activities/create')}
-              >
-                Nueva Actividad
-              </Button>
-            </Flex>
-          </Flex>
-          
+          <Heading 
+            size="lg" 
+            textAlign="center" 
+            mb={2}
+          >
+            Mis Actividades
+          </Heading>
+          {/* Botones debajo del título, alineados a la derecha en escritorio */}
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            gap={2}
+            mb={6}
+            width="100%"
+            justify={{ base: "flex-start", md: "flex-end" }}
+            align="stretch"
+          >
+            <Button 
+              leftIcon={<FiRefreshCw />} 
+              colorScheme="gray" 
+              variant="outline"
+              size="sm"
+              onClick={recargarActividades}
+              isLoading={isRefreshing}
+              loadingText="Recargando..."
+              width={{ base: "100%", md: "auto" }}
+            >
+              Recargar
+            </Button>
+            <Button 
+              leftIcon={<AddIcon />} 
+              colorScheme="brand" 
+              onClick={() => navigate('/activities/create')}
+              width={{ base: "100%", md: "auto" }}
+            >
+              Nueva Actividad
+            </Button>
+          </Flex>      
           {isLoading ? (
             <Flex justify="center" align="center" height="200px">
               <Spinner size="xl" />

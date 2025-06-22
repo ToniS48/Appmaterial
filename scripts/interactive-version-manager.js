@@ -53,7 +53,8 @@ function checkGitStatus() {
 
 function getLastCommits(count = 5) {
   try {
-    const commits = execSync(`git log --oneline -${count}`, { encoding: 'utf8' })
+    // Cambia este comando para obtener TODOS los commits
+    const commits = execSync(`git log --oneline`, { encoding: 'utf8' })
       .trim()
       .split('\n')
       .map(line => {
