@@ -585,7 +585,12 @@ const EstadisticasAnualesActividades: React.FC<EstadisticasAnualesActividadesPro
       {/* Selector de año */}
       <Card bg={cardBg} borderColor={borderColor}>
         <CardBody>
-          <HStack justify="space-between" align="center">
+          <Flex
+            direction={{ base: "column", md: "row" }}
+            justify="space-between"
+            align={{ base: "flex-start", md: "center" }}
+            gap={2}
+          >
             <Heading size="lg">
               <HStack>
                 <FiCalendar />
@@ -596,12 +601,13 @@ const EstadisticasAnualesActividades: React.FC<EstadisticasAnualesActividadesPro
               value={añoSeleccionado}
               onChange={(e) => onCambioAño?.(parseInt(e.target.value))}
               width="150px"
+              mt={{ base: 2, md: 0 }}
             >
               {añosDisponibles.map(año => (
                 <option key={año} value={año}>{año}</option>
               ))}
             </Select>
-          </HStack>
+          </Flex>
         </CardBody>
       </Card>
 

@@ -47,14 +47,7 @@ const AdminEstadisticasActividadesPage: React.FC = () => {
                 Estadísticas de Actividades - Administración
               </Heading>
             </HStack>
-            <Button
-              leftIcon={<FiArrowLeft />}
-              onClick={handleVolverDashboard}
-              variant="outline"
-              colorScheme="gray"
-            >
-              Volver al Dashboard
-            </Button>
+            
           </HStack>
         </Box>
 
