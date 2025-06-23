@@ -8,15 +8,17 @@ import {
   TabPanel,
   Collapse,
   HStack,
-  IconButton
+  IconButton,
+  Button
 } from '@chakra-ui/react';
-import { ChevronDownIcon, ChevronRightIcon } from '@chakra-ui/icons';
+import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { ConfigSettings } from '../../../types/configuration';
 import MaterialDropdownManagerFunctional from '../../admin/MaterialDropdownManagerFunctional';
 
 interface DropdownsTabProps {
   settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
+  save: (data: ConfigSettings) => Promise<void>;
 }
 
 /**
@@ -25,10 +27,28 @@ interface DropdownsTabProps {
  */
 const DropdownsTab: React.FC<DropdownsTabProps> = ({
   settings,
-  userRole
+  userRole,
+  save
 }) => {
-  // El hook debe ir siempre antes de cualquier return o condicional
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(true);
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(settings);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
 
   if (userRole !== 'admin') {
     return null;
@@ -49,7 +69,7 @@ const DropdownsTab: React.FC<DropdownsTabProps> = ({
               <Text fontWeight="bold" flex={1}>Gestión de Formularios de Material</Text>
               <IconButton
                 aria-label={showInfo ? 'Ocultar info' : 'Mostrar info'}
-                icon={showInfo ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                icon={showInfo ? <FiChevronDown /> : <FiChevronRight />}
                 size="sm"
                 variant="ghost"
                 tabIndex={-1}
@@ -67,6 +87,9 @@ const DropdownsTab: React.FC<DropdownsTabProps> = ({
         </Alert>
 
         <MaterialDropdownManagerFunctional />
+        {/* Eliminado el botón Guardar duplicado */}
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
       </VStack>
     </TabPanel>
   );

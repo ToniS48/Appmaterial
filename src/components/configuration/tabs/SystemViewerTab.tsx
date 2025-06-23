@@ -13,6 +13,7 @@ import SystemVariablesViewer from '../../admin/SystemVariablesViewer';
 interface SystemViewerTabProps {
   settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
+  onConfigReload?: () => void;
 }
 
 /**
@@ -21,7 +22,8 @@ interface SystemViewerTabProps {
  */
 const SystemViewerTab: React.FC<SystemViewerTabProps> = ({
   settings,
-  userRole
+  userRole,
+  onConfigReload
 }) => {
   if (userRole !== 'admin') {
     return null;

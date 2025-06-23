@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -7,36 +7,69 @@ import {
   FormLabel,
   Select,
   Text,
-  SimpleGrid
+  SimpleGrid,
+  Box
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
+import { FiRepeat } from 'react-icons/fi';
 
 interface LoanManagementSectionProps {
-  settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
-  onVariableChange: (key: string, value: any) => void;
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
 }
 
 /**
  * Sección de Gestión de Préstamos y Devoluciones
  */
 const LoanManagementSection: React.FC<LoanManagementSectionProps> = ({
-  settings,
   userRole,
-  onVariableChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      variables: {
+        ...prev.variables,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(config);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="blue.600">
-          📦 Gestión de Préstamos y Devoluciones
-        </Heading>
+        <Text fontSize="lg" fontWeight="semibold" color="cyan.600" display="flex" alignItems="center">
+          <FiRepeat style={{ marginRight: 8 }} />
+          Gestión de Préstamos
+        </Text>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
             <FormLabel fontSize="sm">Días de gracia para devolución</FormLabel>
             <Select
-              value={settings.variables.diasGraciaDevolucion}
-              onChange={(e) => onVariableChange('diasGraciaDevolucion', parseInt(e.target.value))}
+              value={config.variables.diasGraciaDevolucion}
+              onChange={e => handleChange('diasGraciaDevolucion', parseInt(e.target.value))}
             >
               <option value="1">1 día</option>
               <option value="2">2 días</option>
@@ -49,12 +82,11 @@ const LoanManagementSection: React.FC<LoanManagementSectionProps> = ({
             </Text>
           </FormControl>
 
-          {/* ...existing code... */}
           <FormControl>
             <FormLabel fontSize="sm">Días máximos de retraso</FormLabel>
             <Select
-              value={settings.variables.diasMaximoRetraso}
-              onChange={(e) => onVariableChange('diasMaximoRetraso', parseInt(e.target.value))}
+              value={config.variables.diasMaximoRetraso}
+              onChange={e => handleChange('diasMaximoRetraso', parseInt(e.target.value))}
             >
               <option value="7">7 días</option>
               <option value="15">15 días</option>
@@ -69,8 +101,8 @@ const LoanManagementSection: React.FC<LoanManagementSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Días de bloqueo por retraso grave</FormLabel>
             <Select
-              value={settings.variables.diasBloqueoPorRetraso}
-              onChange={(e) => onVariableChange('diasBloqueoPorRetraso', parseInt(e.target.value))}
+              value={config.variables.diasBloqueoPorRetraso}
+              onChange={e => handleChange('diasBloqueoPorRetraso', parseInt(e.target.value))}
             >
               <option value="15">15 días</option>
               <option value="30">30 días</option>
@@ -85,8 +117,8 @@ const LoanManagementSection: React.FC<LoanManagementSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Tiempo mínimo entre préstamos</FormLabel>
             <Select
-              value={settings.variables.tiempoMinimoEntrePrestamos}
-              onChange={(e) => onVariableChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
+              value={config.variables.tiempoMinimoEntrePrestamos}
+              onChange={e => handleChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
             >
               <option value="0">Sin restricción</option>
               <option value="1">1 día</option>
@@ -98,6 +130,19 @@ const LoanManagementSection: React.FC<LoanManagementSectionProps> = ({
             </Text>
           </FormControl>
         </SimpleGrid>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <Box display="flex" justifyContent="flex-end" mt={4}>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              background: '#3182ce', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </Box>
       </CardBody>
     </Card>
   );

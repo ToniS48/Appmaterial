@@ -45,3 +45,21 @@ export interface PermissionContext {
   canEdit: (section: string, subsection?: string) => boolean;
   canRead: (section: string, subsection?: string) => boolean;
 }
+
+export interface UserPermission {
+  id: string;
+  userId: string;
+  userName: string;
+  email: string;
+  canBorrowMaterials: boolean;
+  canRequestSpecialItems: boolean;
+  canViewHistory: boolean;
+  canSubmitFeedback: boolean;
+  maxSimultaneousLoans: number;
+  isBlocked: boolean;
+  blockReason?: string;
+}
+
+export interface UserPermissionsConfig {
+  userPermissions: UserPermission[];
+}

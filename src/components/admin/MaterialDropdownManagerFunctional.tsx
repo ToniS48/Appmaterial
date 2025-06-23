@@ -547,23 +547,26 @@ const MaterialDropdownManagerFunctional: React.FC = () => {
               )}            </CardBody>
         </Card>
 
-        {/* Botones de acción */}
-        <HStack spacing={4}>
+        {/* Botones de acción alineados a la derecha */}
+        <Flex justify="flex-end" gap={2} mt={4}>
           <Button
             leftIcon={<FiRefreshCw />}
             onClick={loadConfig}
             isDisabled={isSaving}
+            variant="outline"
+            colorScheme="gray"
           >
             Recargar
           </Button>
-          <Spacer />
-          {isSaving && (
-            <HStack>
-              <Spinner size="sm" />
-              <Text>Guardando...</Text>
-            </HStack>
-          )}
-        </HStack>
+          <Button
+            colorScheme="blue"
+            onClick={() => saveConfig(config!)}
+            isLoading={isSaving}
+          >
+            Guardar
+          </Button>
+        </Flex>
+        {/* Fin botones de acción */}
       </VStack>
 
       {/* Modal para agregar/editar */}

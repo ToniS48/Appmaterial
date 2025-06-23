@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   FormControl,
@@ -14,19 +14,25 @@ import {
   SimpleGrid,
   Divider
 } from '@chakra-ui/react';
+import { FiCloud, FiRadio, FiSettings } from 'react-icons/fi';
 
-interface WeatherServicesSectionProps {
+interface WeatherSettingsSectionProps {
   userRole: 'admin' | 'vocal';
   config: any;
   setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
 }
 
-const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
+const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
   userRole,
   config,
-  setConfig
+  setConfig,
+  save
 }) => {
-  // Handlers para switches y cambios de input/select
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleSwitchChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setConfig((prev: any) => ({
       ...prev,
@@ -45,12 +51,29 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
       },
     }));
   };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(config);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="blue.600">
-          🌤️ Servicios Meteorológicos
-        </Heading>
+        <Text fontSize="lg" fontWeight="semibold" color="blue.600" display="flex" alignItems="center">
+          <FiCloud style={{ marginRight: 8 }} />
+          Configuración Meteorológica
+        </Text>
         <VStack spacing={4} align="stretch">
           <FormControl display="flex" alignItems="center" justifyContent="space-between">
             <Box>
@@ -73,7 +96,10 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
           {/* Open-Meteo Configuration */}
           <Box>
-            <Text fontWeight="semibold" mb={2} color="blue.700">📡 Open-Meteo (API gratuita)</Text>
+            <Text fontWeight="semibold" mb={2} color="blue.700" display="flex" alignItems="center">
+              <FiRadio style={{ marginRight: 8 }} />
+              Open-Meteo (API gratuita)
+            </Text>
             <Text fontSize="xs" color="gray.600" mb={3}>
               Servicio meteorológico de código abierto y completamente gratuito. No requiere API key.
             </Text>
@@ -95,7 +121,7 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
           <Divider />
 
-          {/* AEMET Configuration */}
+          {/* AEMET Configuration (solo switches y uso, sin API key) */}
           <Box>
             <Text fontWeight="semibold" mb={2} color="orange.700">🇪🇸 AEMET - España</Text>
             <Text fontSize="xs" color="gray.600" mb={3}>
@@ -119,34 +145,6 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
                   isDisabled={!config.apis.weatherEnabled}
                 />
               </FormControl>
-
-              <FormControl>
-                <FormLabel fontSize="sm">API Key de AEMET</FormLabel>
-                <Input
-                  name="aemetApiKey"
-                  value={config.apis.aemetApiKey}
-                  onChange={e => handleInputChange('aemetApiKey', e.target.value)}
-                  placeholder="Introduce tu API key de AEMET"
-                  type={userRole === 'vocal' ? 'password' : 'text'}
-                  isReadOnly={userRole === 'vocal'}
-                  bg={userRole === 'vocal' ? "gray.50" : undefined}
-                  isDisabled={!config.apis.weatherEnabled || !config.apis.aemetEnabled}
-                />
-                <Text fontSize="xs" color="gray.500" mt={1}>
-                  {userRole === 'vocal'
-                    ? 'Solo administradores pueden modificar las claves de API'
-                    : (
-                      <>
-                        Obtén tu API key gratuita en{' '}
-                        <Text as="span" color="blue.500" textDecoration="underline">
-                          opendata.aemet.es
-                        </Text>
-                      </>
-                    )
-                  }
-                </Text>
-              </FormControl>
-
               <FormControl display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <FormLabel htmlFor="aemetUseForSpain" mb="0" fontSize="sm">
@@ -171,7 +169,10 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
           {/* Configuración de Unidades */}
           <Box>
-            <Text fontWeight="semibold" mb={2} color="teal.700">⚙️ Configuración de Unidades</Text>
+            <Text fontWeight="semibold" mb={2} color="teal.700" display="flex" alignItems="center">
+              <FiSettings style={{ marginRight: 8 }} />
+              Configuración de Unidades
+            </Text>
             <Text fontSize="xs" color="gray.600" mb={3}>
               Personaliza las unidades de medida para mostrar en los pronósticos.
             </Text>
@@ -188,7 +189,6 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
                   <option value="fahrenheit">Fahrenheit (°F)</option>
                 </Select>
               </FormControl>
-
               <FormControl>
                 <FormLabel fontSize="sm">Velocidad del viento</FormLabel>
                 <Select
@@ -202,7 +202,6 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
                   <option value="mph">mph</option>
                 </Select>
               </FormControl>
-
               <FormControl>
                 <FormLabel fontSize="sm">Precipitación</FormLabel>
                 <Select
@@ -218,9 +217,22 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
             </SimpleGrid>
           </Box>
         </VStack>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <Box display="flex" justifyContent="flex-end" mt={4}>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              background: '#3182ce', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </Box>
       </CardBody>
     </Card>
   );
 };
 
-export default WeatherServicesSection;
+export default WeatherSettingsSection;

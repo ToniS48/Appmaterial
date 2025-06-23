@@ -1,18 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TabPanel,
-  VStack,
-  Alert,
-  AlertIcon,
-  Text
+  VStack
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
+import { useSectionConfig } from '../../../hooks/configuration/useSectionConfig';
 import { PermissionsSection } from '../sections';
 
+const defaultPermissionsConfig = {
+  vocalPermissions: [],
+  userPermissions: [],
+};
+
 interface PermissionsTabProps {
-  settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
-  onVariableChange: (key: string, value: any) => void;
 }
 
 /**
@@ -20,27 +20,36 @@ interface PermissionsTabProps {
  * Solo disponible para administradores
  */
 const PermissionsTab: React.FC<PermissionsTabProps> = ({
-  settings,
-  userRole,
-  onVariableChange
+  userRole
 }) => {
+  const { data: config, setData: setConfig, loading, save } = useSectionConfig('permissions', defaultPermissionsConfig);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    try {
+      await save(config);
+      setSuccess(true);
+      setError(null);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+      setSuccess(false);
+    }
+  };
+
+  if (loading) return <VStack><span>Cargando configuración...</span></VStack>;
+
   return (
     <TabPanel>
-      <VStack spacing={6} align="stretch">
-        <Alert status="info">
-          <AlertIcon />
-          <Text>
-            <Text fontWeight="bold" display="inline">Gestión de Permisos - </Text>
-            Administra los permisos y accesos de vocales y usuarios del sistema de materiales.
-          </Text>
-        </Alert>
-
-        <PermissionsSection
-          settings={settings}
-          userRole={userRole}
-          onVariableChange={onVariableChange}
-        />
-      </VStack>
+      <PermissionsSection
+        config={config}
+        setConfig={setConfig}
+        userRole={userRole}
+        onSave={handleSave}
+        saveSuccess={success}
+        saveError={error}
+      />
     </TabPanel>
   );
 };

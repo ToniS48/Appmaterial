@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FormControl,
   FormLabel,
@@ -7,17 +7,47 @@ import {
   Text,
   Card,
   CardBody,
-  Heading
+  Heading,
+  Button,
+  useToast
 } from '@chakra-ui/react';
-import { SectionProps } from '../../../types/configuration';
 
-interface GoogleDriveSectionProps extends SectionProps {}
+interface GoogleDriveSectionProps {
+  userRole: 'admin' | 'vocal';
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
+}
 
 const GoogleDriveSection: React.FC<GoogleDriveSectionProps> = ({
   userRole,
-  settings,
-  handleApiChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const handleInputChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      apis: {
+        ...prev.apis,
+        [key]: value,
+      },
+    }));
+  };
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await save(config);
+      toast({ title: 'Guardado', description: 'Configuración de Google Drive guardada.', status: 'success' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', status: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Card>
       <CardBody>
@@ -29,15 +59,15 @@ const GoogleDriveSection: React.FC<GoogleDriveSectionProps> = ({
             <FormLabel fontSize="sm">URL principal de Google Drive</FormLabel>
             <Input
               name="googleDriveUrl"
-              value={settings.apis.googleDriveUrl}
-              onChange={(e) => handleApiChange('googleDriveUrl', e.target.value)}
+              value={config.apis.googleDriveUrl}
+              onChange={e => handleInputChange('googleDriveUrl', e.target.value)}
               isReadOnly={userRole === 'vocal'}
               bg={userRole === 'vocal' ? "gray.50" : undefined}
               placeholder={userRole === 'vocal' ? "Solo administradores pueden modificar" : "https://drive.google.com/drive/folders/XXXX"}
             />
             <Text fontSize="xs" color="gray.500" mt={1}>
-              {userRole === 'vocal' 
-                ? 'Solo administradores pueden modificar los enlaces del club' 
+              {userRole === 'vocal'
+                ? 'Solo administradores pueden modificar los enlaces del club'
                 : 'URL de la carpeta compartida principal del club'
               }
             </Text>
@@ -47,8 +77,8 @@ const GoogleDriveSection: React.FC<GoogleDriveSectionProps> = ({
             <FormLabel fontSize="sm">Subcarpeta de Topografías</FormLabel>
             <Input
               name="googleDriveTopoFolder"
-              value={settings.apis.googleDriveTopoFolder}
-              onChange={(e) => handleApiChange('googleDriveTopoFolder', e.target.value)}
+              value={config.apis.googleDriveTopoFolder}
+              onChange={e => handleInputChange('googleDriveTopoFolder', e.target.value)}
               isReadOnly={userRole === 'vocal'}
               bg={userRole === 'vocal' ? "gray.50" : undefined}
               placeholder={userRole === 'vocal' ? "Solo administradores pueden modificar" : "topografias"}
@@ -62,8 +92,8 @@ const GoogleDriveSection: React.FC<GoogleDriveSectionProps> = ({
             <FormLabel fontSize="sm">Subcarpeta de Documentos</FormLabel>
             <Input
               name="googleDriveDocFolder"
-              value={settings.apis.googleDriveDocFolder}
-              onChange={(e) => handleApiChange('googleDriveDocFolder', e.target.value)}
+              value={config.apis.googleDriveDocFolder}
+              onChange={e => handleInputChange('googleDriveDocFolder', e.target.value)}
               isReadOnly={userRole === 'vocal'}
               bg={userRole === 'vocal' ? "gray.50" : undefined}
               placeholder={userRole === 'vocal' ? "Solo administradores pueden modificar" : "documentos"}
@@ -72,6 +102,9 @@ const GoogleDriveSection: React.FC<GoogleDriveSectionProps> = ({
               Nombre de la subcarpeta que contiene los documentos del club
             </Text>
           </FormControl>
+          <Button colorScheme="blue" onClick={handleSave} isLoading={loading} alignSelf="flex-end">
+            Guardar
+          </Button>
         </VStack>
       </CardBody>
     </Card>

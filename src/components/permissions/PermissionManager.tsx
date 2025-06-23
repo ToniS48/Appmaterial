@@ -29,6 +29,7 @@ import { db } from '../../config/firebase';
 import { ConfigurationPermissions, PermissionLevel } from '../../types/permissions';
 import { DEFAULT_PERMISSIONS, CUSTOMIZABLE_VOCAL_PERMISSIONS } from '../../config/permissions';
 import UserPermissionsTab from '../configuration/sections/UserPermissionsTab';
+import type { UserPermissionsConfig } from '../../types/permissions';
 
 interface PermissionManagerProps {
   userRole: 'admin' | 'vocal';
@@ -49,6 +50,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
   const [vocalPermissions, setVocalPermissions] = useState<ConfigurationPermissions>(
     DEFAULT_PERMISSIONS.vocal
   );
+  const [userPermissionsConfig, setUserPermissionsConfig] = useState<UserPermissionsConfig>({ userPermissions: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   useEffect(() => {
@@ -227,7 +229,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ userRole }) => {
 
           {/* Pestaña de Permisos de Usuarios */}
           <TabPanel>
-            <UserPermissionsTab onVariableChange={() => {}} />
+            <UserPermissionsTab config={userPermissionsConfig} setConfig={setUserPermissionsConfig} />
           </TabPanel>
         </TabPanels>
       </Tabs>

@@ -11,20 +11,32 @@ import {
   CardBody,
   Heading
 } from '@chakra-ui/react';
-import { SectionProps } from '../../../types/configuration';
 
-interface BackupAnalyticsSectionProps extends SectionProps {}
+interface BackupAnalyticsSectionProps {
+  config: any;
+  setConfig: (cfg: any) => void;
+  userRole: 'admin' | 'vocal';
+}
 
 const BackupAnalyticsSection: React.FC<BackupAnalyticsSectionProps> = ({
-  userRole,
-  settings,
-  handleApiChange,
-  handleApiSwitchChange
+  config,
+  setConfig,
+  userRole
 }) => {
   // Solo mostrar para administradores
   if (userRole !== 'admin') {
     return null;
   }
+
+  const handleChange = (section: string, key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [key]: value,
+      },
+    }));
+  };
 
   return (
     <>
@@ -38,8 +50,8 @@ const BackupAnalyticsSection: React.FC<BackupAnalyticsSectionProps> = ({
               <FormLabel fontSize="sm">Clave de API para backup</FormLabel>
               <Input
                 name="backupApiKey"
-                value={settings.apis.backupApiKey}
-                onChange={(e) => handleApiChange('backupApiKey', e.target.value)}
+                value={config.apis?.backupApiKey || ''}
+                onChange={e => handleChange('apis', 'backupApiKey', e.target.value)}
                 placeholder="Clave de API para servicio de backup automático"
                 type="password"
               />
@@ -68,8 +80,8 @@ const BackupAnalyticsSection: React.FC<BackupAnalyticsSectionProps> = ({
               </Box>
               <Switch
                 id="analyticsEnabled"
-                isChecked={settings.apis.analyticsEnabled}
-                onChange={handleApiSwitchChange('analyticsEnabled')}
+                isChecked={config.apis?.analyticsEnabled || false}
+                onChange={e => handleChange('apis', 'analyticsEnabled', e.target.checked)}
                 colorScheme="brand"
               />
             </FormControl>
@@ -78,8 +90,8 @@ const BackupAnalyticsSection: React.FC<BackupAnalyticsSectionProps> = ({
               <FormLabel fontSize="sm">Clave de Analytics</FormLabel>
               <Input
                 name="analyticsKey"
-                value={settings.apis.analyticsKey}
-                onChange={(e) => handleApiChange('analyticsKey', e.target.value)}
+                value={config.apis?.analyticsKey || ''}
+                onChange={e => handleChange('apis', 'analyticsKey', e.target.value)}
                 placeholder="Clave de Google Analytics o similar"
                 type="password"
               />

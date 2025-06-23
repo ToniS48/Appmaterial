@@ -8,27 +8,21 @@ import {
   Select,
   Text,
   SimpleGrid,
-  Button,
-  useToast
+  Button
 } from '@chakra-ui/react';
-import { FiTool } from 'react-icons/fi';
+import { FiPackage } from 'react-icons/fi';
 
-interface MaterialManagementSectionProps {
+interface MaterialStockSectionProps {
   config: any;
   setConfig: (cfg: any) => void;
   save: (data: any) => Promise<void>;
 }
 
-/**
- * Sección de Gestión de Material
- */
-const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
-  config,
-  setConfig,
-  save
-}) => {
+const MaterialStockSection: React.FC<MaterialStockSectionProps> = ({ config, setConfig, save }) => {
   const [loading, setLoading] = useState(false);
-  const toast = useToast();
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleChange = (key: string, value: any) => {
     setConfig((prev: any) => ({
       ...prev,
@@ -38,30 +32,35 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
       },
     }));
   };
+
   const handleSave = async () => {
     setLoading(true);
+    setError(null);
+    setSuccess(false);
     try {
       await save(config);
-      toast({ title: 'Guardado', description: 'Configuración de material guardada.', status: 'success' });
-    } catch (e) {
-      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', status: 'error' });
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
     } finally {
       setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
     }
   };
+
   return (
     <Card>
       <CardBody>
         <Text fontSize="lg" fontWeight="semibold" color="orange.600" display="flex" alignItems="center">
-          <FiTool style={{ marginRight: 8 }} />
-          Gestión de Materiales
+          <FiPackage style={{ marginRight: 8 }} />
+          Gestión de Stock y Mantenimiento
         </Text>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
             <FormLabel fontSize="sm">Porcentaje mínimo de stock</FormLabel>
             <Select
               value={config.variables.porcentajeStockMinimo}
-              onChange={(e) => handleChange('porcentajeStockMinimo', parseInt(e.target.value))}
+              onChange={e => handleChange('porcentajeStockMinimo', parseInt(e.target.value))}
             >
               <option value="10">10%</option>
               <option value="15">15%</option>
@@ -78,7 +77,7 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
             <FormLabel fontSize="sm">Días de revisión periódica</FormLabel>
             <Select
               value={config.variables.diasRevisionPeriodica}
-              onChange={(e) => handleChange('diasRevisionPeriodica', parseInt(e.target.value))}
+              onChange={e => handleChange('diasRevisionPeriodica', parseInt(e.target.value))}
             >
               <option value="90">90 días (3 meses)</option>
               <option value="180">180 días (6 meses)</option>
@@ -93,7 +92,7 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
             <FormLabel fontSize="sm">Tiempo mínimo entre préstamos</FormLabel>
             <Select
               value={config.variables.tiempoMinimoEntrePrestamos}
-              onChange={(e) => handleChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
+              onChange={e => handleChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
             >
               <option value="0">Sin restricción</option>
               <option value="1">1 día</option>
@@ -109,7 +108,7 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
             <FormLabel fontSize="sm">Días de antelación para revisión</FormLabel>
             <Select
               value={config.variables.diasAntelacionRevision}
-              onChange={(e) => handleChange('diasAntelacionRevision', parseInt(e.target.value))}
+              onChange={e => handleChange('diasAntelacionRevision', parseInt(e.target.value))}
             >
               <option value="15">15 días antes</option>
               <option value="30">30 días antes</option>
@@ -121,6 +120,8 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
             </Text>
           </FormControl>
         </SimpleGrid>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
           <Button colorScheme="blue" onClick={handleSave} isLoading={loading}>
             Guardar
@@ -131,4 +132,4 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
   );
 };
 
-export default MaterialManagementSection;
+export default MaterialStockSection;

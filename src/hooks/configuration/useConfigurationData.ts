@@ -78,34 +78,36 @@ export const useConfigurationData = (userRole: 'admin' | 'vocal') => {
   });
 
   // Cargar configuraciones desde Firebase
-  useEffect(() => {
-    const cargarConfiguraciones = async () => {
-      try {
-        setIsLoading(true);
-        const docRef = doc(db, "configuracion", "global");
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setSettings(prev => ({ ...prev, ...docSnap.data() }));
-        }
-      } catch (error) {
-        console.error("Error al cargar la configuración:", error);
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la configuración",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });      } finally {
-        setIsLoading(false);
+  const reload = async () => {
+    try {
+      setIsLoading(true);
+      const docRef = doc(db, "configuracion", "global");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSettings(prev => ({ ...prev, ...docSnap.data() }));
       }
-    };
+    } catch (error) {
+      console.error("Error al cargar la configuración:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la configuración",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    cargarConfiguraciones();
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line
   }, [toast]);
 
   return {
     settings,
-    isLoading
+    isLoading,
+    reload
   };
 };

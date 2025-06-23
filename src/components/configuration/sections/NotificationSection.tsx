@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -9,32 +9,64 @@ import {
   Text,
   SimpleGrid
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
+import { FiBell } from 'react-icons/fi';
 
 interface NotificationSectionProps {
-  settings: ConfigSettings;
-  onVariableChange: (key: string, value: any) => void;
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
 }
 
 /**
  * Sección de Notificaciones Automáticas
  */
 const NotificationSection: React.FC<NotificationSectionProps> = ({
-  settings,
-  onVariableChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      variables: {
+        ...prev.variables,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(config);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="green.600">
-          🔔 Notificaciones Automáticas
-        </Heading>
+        <Text fontSize="lg" fontWeight="semibold" color="pink.600" display="flex" alignItems="center">
+          <FiBell style={{ marginRight: 8 }} />
+          Notificaciones del Sistema
+        </Text>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
             <FormLabel fontSize="sm">Recordatorio pre-actividad</FormLabel>
             <Select
-              value={settings.variables.recordatorioPreActividad}
-              onChange={(e) => onVariableChange('recordatorioPreActividad', parseInt(e.target.value))}
+              value={config.variables?.recordatorioPreActividad || 1}
+              onChange={e => handleChange('recordatorioPreActividad', parseInt(e.target.value))}
             >
               <option value="1">1 día antes</option>
               <option value="3">3 días antes</option>
@@ -49,8 +81,8 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Recordatorio de devolución</FormLabel>
             <Select
-              value={settings.variables.recordatorioDevolucion}
-              onChange={(e) => onVariableChange('recordatorioDevolucion', parseInt(e.target.value))}
+              value={config.variables?.recordatorioDevolucion || 1}
+              onChange={e => handleChange('recordatorioDevolucion', parseInt(e.target.value))}
             >
               <option value="1">1 día antes</option>
               <option value="2">2 días antes</option>
@@ -58,41 +90,23 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({
               <option value="5">5 días antes</option>
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Días antes del vencimiento para recordar devolución
-            </Text>
-          </FormControl>
-
-          <FormControl>
-            <FormLabel fontSize="sm">Notificación por retraso</FormLabel>
-            <Select
-              value={settings.variables.notificacionRetrasoDevolucion}
-              onChange={(e) => onVariableChange('notificacionRetrasoDevolucion', parseInt(e.target.value))}
-            >
-              <option value="1">Al día siguiente</option>
-              <option value="3">3 días después</option>
-              <option value="7">7 días después</option>
-            </Select>
-            <Text fontSize="xs" color="gray.600" mt={1}>
-              Días de retraso para notificar automáticamente
-            </Text>
-          </FormControl>
-
-          <FormControl>
-            <FormLabel fontSize="sm">Recordatorio de revisión de material</FormLabel>
-            <Select
-              value={settings.variables.diasAntelacionRevision}
-              onChange={(e) => onVariableChange('diasAntelacionRevision', parseInt(e.target.value))}
-            >
-              <option value="15">15 días antes</option>
-              <option value="30">30 días antes</option>
-              <option value="60">60 días antes</option>
-              <option value="90">90 días antes</option>
-            </Select>
-            <Text fontSize="xs" color="gray.600" mt={1}>
-              Días de antelación para recordar revisión de material
+              Días de antelación para recordar devoluciones de material
             </Text>
           </FormControl>
         </SimpleGrid>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              background: '#38A169', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
       </CardBody>
     </Card>
   );

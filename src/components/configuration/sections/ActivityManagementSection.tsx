@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -7,34 +7,67 @@ import {
   FormLabel,
   Select,
   Text,
-  SimpleGrid
+  SimpleGrid,
+  Box
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
+import { FiCalendar } from 'react-icons/fi';
 
 interface ActivityManagementSectionProps {
-  settings: ConfigSettings;
-  onVariableChange: (key: string, value: any) => void;
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
 }
 
 /**
  * Sección de Gestión de Actividades
  */
 const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
-  settings,
-  onVariableChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      variables: {
+        ...prev.variables,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(config);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="purple.600">
-          🗓️ Gestión de Actividades
-        </Heading>
+        <Text fontSize="lg" fontWeight="semibold" color="blue.600" display="flex" alignItems="center">
+          <FiCalendar style={{ marginRight: 8 }} />
+          Gestión de Actividades
+        </Text>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
             <FormLabel fontSize="sm">Antelación mínima para crear actividad</FormLabel>
             <Select
-              value={settings.variables.diasMinimoAntelacionCreacion}
-              onChange={(e) => onVariableChange('diasMinimoAntelacionCreacion', parseInt(e.target.value))}
+              value={config.variables.diasMinimoAntelacionCreacion}
+              onChange={e => handleChange('diasMinimoAntelacionCreacion', parseInt(e.target.value))}
             >
               <option value="1">1 día</option>
               <option value="3">3 días</option>
@@ -49,8 +82,8 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Límite para modificar actividad</FormLabel>
             <Select
-              value={settings.variables.diasMaximoModificacion}
-              onChange={(e) => onVariableChange('diasMaximoModificacion', parseInt(e.target.value))}
+              value={config.variables.diasMaximoModificacion}
+              onChange={e => handleChange('diasMaximoModificacion', parseInt(e.target.value))}
             >
               <option value="1">1 día antes</option>
               <option value="2">2 días antes</option>
@@ -65,8 +98,8 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Límite de participantes por defecto</FormLabel>
             <Select
-              value={settings.variables.limiteParticipantesPorDefecto}
-              onChange={(e) => onVariableChange('limiteParticipantesPorDefecto', parseInt(e.target.value))}
+              value={config.variables.limiteParticipantesPorDefecto}
+              onChange={e => handleChange('limiteParticipantesPorDefecto', parseInt(e.target.value))}
             >
               <option value="10">10 participantes</option>
               <option value="15">15 participantes</option>
@@ -79,6 +112,19 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
             </Text>
           </FormControl>
         </SimpleGrid>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <Box display="flex" justifyContent="flex-end" mt={4}>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              background: '#805ad5', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </Box>
       </CardBody>
     </Card>
   );

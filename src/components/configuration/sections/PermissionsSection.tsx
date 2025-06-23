@@ -7,20 +7,21 @@ import {
   AlertIcon,
   Text,
   Box,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel
+  Button,
+  VStack
 } from '@chakra-ui/react';
+import { FiLock } from 'react-icons/fi';
 import { ConfigSettings } from '../../../types/configuration';
 import VocalPermissionsTab from './VocalPermissionsTab';
 import UserPermissionsTab from './UserPermissionsTab';
 
-interface PermissionsSectionProps {
-  settings: ConfigSettings;
+export interface PermissionsSectionProps {
+  config: any;
+  setConfig: (cfg: any) => void;
   userRole: 'admin' | 'vocal';
-  onVariableChange: (key: string, value: any) => void;
+  onSave: () => void;
+  saveSuccess: boolean;
+  saveError: string | null;
 }
 
 /**
@@ -28,9 +29,12 @@ interface PermissionsSectionProps {
  * Contiene pestañas para permisos de vocales y usuarios
  */
 const PermissionsSection: React.FC<PermissionsSectionProps> = ({
-  settings,
+  config,
+  setConfig,
   userRole,
-  onVariableChange
+  onSave,
+  saveSuccess,
+  saveError
 }) => {
   if (userRole !== 'admin') {
     return (
@@ -48,8 +52,9 @@ const PermissionsSection: React.FC<PermissionsSectionProps> = ({
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="purple.600">
-          🔐 Gestión de Permisos
+        <Heading size="sm" mb={4} color="purple.600" display="flex" alignItems="center">
+          <FiLock style={{ marginRight: 8 }} />
+          Gestión de Permisos
         </Heading>
         
         <Alert status="info" mb={4}>
@@ -57,30 +62,22 @@ const PermissionsSection: React.FC<PermissionsSectionProps> = ({
           <Box>
             <Text fontWeight="bold">Gestión de Permisos del Sistema</Text>
             <Text fontSize="sm">
-              Administra los permisos para vocales y usuarios del sistema de materiales.            </Text>
+              Administra los permisos para vocales y usuarios del sistema de materiales.
+            </Text>
           </Box>
         </Alert>
 
-        <Tabs variant="enclosed" colorScheme="purple" defaultIndex={0}>
-          <TabList>
-            <Tab _selected={{ bg: "purple.100", borderColor: "purple.300" }}>
-              👥 Permisos de Vocales
-            </Tab>
-            <Tab _selected={{ bg: "blue.100", borderColor: "blue.300" }}>
-              👤 Permisos de Usuarios
-            </Tab>
-          </TabList>          <TabPanels>
-            {/* Pestaña de Permisos de Vocales */}
-            <TabPanel>
-              <VocalPermissionsTab onVariableChange={onVariableChange} />
-            </TabPanel>
+        <VocalPermissionsTab config={config} setConfig={setConfig} />
+        <Box h={{ base: 6, md: 8 }} />
+        <UserPermissionsTab config={config} setConfig={setConfig} />
 
-            {/* Pestaña de Permisos de Usuarios */}
-            <TabPanel>
-              <UserPermissionsTab onVariableChange={onVariableChange} />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+        <VStack align="flex-end" mt={6} spacing={2}>
+          {saveError && <Text color="red.500">{saveError}</Text>}
+          {saveSuccess && <Text color="green.500">¡Guardado correctamente!</Text>}
+          <Button colorScheme="blue" onClick={onSave} alignSelf="flex-end">
+            Guardar
+          </Button>
+        </VStack>
       </CardBody>
     </Card>
   );

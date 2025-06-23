@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   FormControl,
@@ -9,18 +9,56 @@ import {
   Text,
   Card,
   CardBody,
-  Heading
+  Heading,
+  Button,
+  useToast
 } from '@chakra-ui/react';
-import { SectionProps } from '../../../types/configuration';
 
-interface NotificationServicesSectionProps extends SectionProps {}
+interface NotificationServicesSectionProps {
+  userRole: 'admin' | 'vocal';
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
+}
 
 const NotificationServicesSection: React.FC<NotificationServicesSectionProps> = ({
   userRole,
-  settings,
-  handleApiChange,
-  handleApiSwitchChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const handleSwitchChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      apis: {
+        ...prev.apis,
+        [key]: e.target.checked,
+      },
+    }));
+  };
+  const handleInputChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      apis: {
+        ...prev.apis,
+        [key]: value,
+      },
+    }));
+  };
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await save(config);
+      toast({ title: 'Guardado', description: 'Configuración de notificaciones guardada.', status: 'success' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', status: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Card>
       <CardBody>
@@ -39,8 +77,8 @@ const NotificationServicesSection: React.FC<NotificationServicesSectionProps> = 
             </Box>
             <Switch
               id="notificationsEnabled"
-              isChecked={settings.apis.notificationsEnabled}
-              onChange={handleApiSwitchChange('notificationsEnabled')}
+              isChecked={config.apis.notificationsEnabled}
+              onChange={handleSwitchChange('notificationsEnabled')}
               colorScheme="brand"
             />
           </FormControl>
@@ -49,16 +87,16 @@ const NotificationServicesSection: React.FC<NotificationServicesSectionProps> = 
             <FormLabel fontSize="sm">Clave del servicio de correo</FormLabel>
             <Input
               name="emailServiceKey"
-              value={settings.apis.emailServiceKey}
-              onChange={(e) => handleApiChange('emailServiceKey', e.target.value)}
+              value={config.apis.emailServiceKey}
+              onChange={e => handleInputChange('emailServiceKey', e.target.value)}
               placeholder="Clave de API para servicio de correo"
               type={userRole === 'vocal' ? 'password' : 'text'}
               isReadOnly={userRole === 'vocal'}
               bg={userRole === 'vocal' ? "gray.50" : undefined}
             />
             <Text fontSize="xs" color="gray.500" mt={1}>
-              {userRole === 'vocal' 
-                ? 'Solo administradores pueden modificar las claves' 
+              {userRole === 'vocal'
+                ? 'Solo administradores pueden modificar las claves'
                 : 'Para servicios como SendGrid, Mailgun, etc.'
               }
             </Text>
@@ -68,20 +106,23 @@ const NotificationServicesSection: React.FC<NotificationServicesSectionProps> = 
             <FormLabel fontSize="sm">Clave del servicio SMS</FormLabel>
             <Input
               name="smsServiceKey"
-              value={settings.apis.smsServiceKey}
-              onChange={(e) => handleApiChange('smsServiceKey', e.target.value)}
+              value={config.apis.smsServiceKey}
+              onChange={e => handleInputChange('smsServiceKey', e.target.value)}
               placeholder="Clave de API para servicio SMS"
               type={userRole === 'vocal' ? 'password' : 'text'}
               isReadOnly={userRole === 'vocal'}
               bg={userRole === 'vocal' ? "gray.50" : undefined}
             />
             <Text fontSize="xs" color="gray.500" mt={1}>
-              {userRole === 'vocal' 
-                ? 'Solo administradores pueden modificar las claves' 
+              {userRole === 'vocal'
+                ? 'Solo administradores pueden modificar las claves'
                 : 'Para servicios como Twilio, Nexmo, etc.'
               }
             </Text>
           </FormControl>
+          <Button colorScheme="blue" onClick={handleSave} isLoading={loading} alignSelf="flex-end">
+            Guardar
+          </Button>
         </VStack>
       </CardBody>
     </Card>

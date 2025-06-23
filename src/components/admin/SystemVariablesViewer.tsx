@@ -19,6 +19,7 @@ import {
   StatHelpText,
   useColorModeValue
 } from '@chakra-ui/react';
+import { FiBarChart2, FiPackage, FiBell, FiCalendar, FiTool, FiFolder } from 'react-icons/fi';
 import { useSystemConfig } from '../../services/SystemConfigService';
 
 /**
@@ -61,7 +62,10 @@ const SystemVariablesViewer: React.FC = () => {
       <VStack spacing={6} align="stretch">
         <Card bg={cardBg} borderColor={borderColor}>
           <CardHeader>
-            <Heading size="md">📊 Variables del Sistema - Vista de Desarrollador</Heading>
+            <Heading size="md" display="flex" alignItems="center">
+              <FiBarChart2 style={{ marginRight: 8 }} />
+              Variables del Sistema - Vista de Desarrollador
+            </Heading>
             <Text fontSize="sm" color="gray.600">
               Ejemplo de cómo acceder y utilizar las variables del sistema en componentes
             </Text>
@@ -71,8 +75,9 @@ const SystemVariablesViewer: React.FC = () => {
         {/* Variables de Préstamos */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardBody>
-            <Heading size="sm" mb={4} color="blue.600">
-              📦 Variables de Préstamos y Devoluciones
+            <Heading size="sm" mb={4} color="blue.600" display="flex" alignItems="center">
+              <FiPackage style={{ marginRight: 8 }} />
+              Variables de Préstamos y Devoluciones
             </Heading>
             <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={4}>
               <Stat>
@@ -102,8 +107,9 @@ const SystemVariablesViewer: React.FC = () => {
         {/* Variables de Notificaciones */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardBody>
-            <Heading size="sm" mb={4} color="green.600">
-              🔔 Variables de Notificaciones
+            <Heading size="sm" mb={4} color="green.600" display="flex" alignItems="center">
+              <FiBell style={{ marginRight: 8 }} />
+              Variables de Notificaciones
             </Heading>
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
               <Stat>
@@ -128,8 +134,9 @@ const SystemVariablesViewer: React.FC = () => {
         {/* Variables de Actividades */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardBody>
-            <Heading size="sm" mb={4} color="purple.600">
-              🗓️ Variables de Actividades
+            <Heading size="sm" mb={4} color="purple.600" display="flex" alignItems="center">
+              <FiCalendar style={{ marginRight: 8 }} />
+              Variables de Actividades
             </Heading>
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
               <Stat>
@@ -154,8 +161,9 @@ const SystemVariablesViewer: React.FC = () => {
         {/* Ejemplos de uso práctico */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardBody>
-            <Heading size="sm" mb={4} color="orange.600">
-              🔧 Ejemplos de Uso Práctico
+            <Heading size="sm" mb={4} color="orange.600" display="flex" alignItems="center">
+              <FiTool style={{ marginRight: 8 }} />
+              Ejemplos de Uso Práctico
             </Heading>
             
             <VStack spacing={4} align="stretch">
@@ -253,8 +261,9 @@ const SystemVariablesViewer: React.FC = () => {
         {/* Variables completas */}
         <Card bg={cardBg} borderColor={borderColor}>
           <CardBody>
-            <Heading size="sm" mb={4} color="gray.600">
-              🗂️ Todas las Variables (JSON)
+            <Heading size="sm" mb={4} color="gray.600" display="flex" alignItems="center">
+              <FiFolder style={{ marginRight: 8 }} />
+              Todas las Variables (JSON)
             </Heading>
             <Box p={4} bg="gray.50" borderRadius="md" fontFamily="monospace" fontSize="sm">
               <pre>{JSON.stringify(variables, null, 2)}</pre>

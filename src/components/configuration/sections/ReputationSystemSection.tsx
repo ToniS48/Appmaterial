@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardBody,
@@ -7,34 +7,67 @@ import {
   FormLabel,
   Select,
   Text,
-  SimpleGrid
+  SimpleGrid,
+  Box
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
+import { FiStar } from 'react-icons/fi';
 
 interface ReputationSystemSectionProps {
-  settings: ConfigSettings;
-  onVariableChange: (key: string, value: any) => void;
+  config: any;
+  setConfig: (cfg: any) => void;
+  save: (data: any) => Promise<void>;
 }
 
 /**
  * Sección del Sistema de Puntuación y Reputación
  */
 const ReputationSystemSection: React.FC<ReputationSystemSectionProps> = ({
-  settings,
-  onVariableChange
+  config,
+  setConfig,
+  save
 }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (key: string, value: any) => {
+    setConfig((prev: any) => ({
+      ...prev,
+      variables: {
+        ...prev.variables,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await save(config);
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message || 'Error al guardar');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="orange.600">
-          ⭐ Sistema de Puntuación y Reputación
-        </Heading>
+        <Text fontSize="lg" fontWeight="semibold" color="yellow.600" display="flex" alignItems="center">
+          <FiStar style={{ marginRight: 8 }} />
+          Sistema de Reputación
+        </Text>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
             <FormLabel fontSize="sm">Penalización por retraso</FormLabel>
             <Select
-              value={settings.variables.penalizacionRetraso}
-              onChange={(e) => onVariableChange('penalizacionRetraso', parseInt(e.target.value))}
+              value={config.variables.penalizacionRetraso}
+              onChange={e => handleChange('penalizacionRetraso', parseInt(e.target.value))}
             >
               <option value="1">1 punto</option>
               <option value="3">3 puntos</option>
@@ -49,8 +82,8 @@ const ReputationSystemSection: React.FC<ReputationSystemSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Bonificación por devolución temprana</FormLabel>
             <Select
-              value={settings.variables.bonificacionDevolucionTemprana}
-              onChange={(e) => onVariableChange('bonificacionDevolucionTemprana', parseInt(e.target.value))}
+              value={config.variables.bonificacionDevolucionTemprana}
+              onChange={e => handleChange('bonificacionDevolucionTemprana', parseInt(e.target.value))}
             >
               <option value="1">1 punto</option>
               <option value="2">2 puntos</option>
@@ -65,8 +98,8 @@ const ReputationSystemSection: React.FC<ReputationSystemSectionProps> = ({
           <FormControl>
             <FormLabel fontSize="sm">Umbral de inactividad de usuario</FormLabel>
             <Select
-              value={settings.variables.umbraLinactividadUsuario}
-              onChange={(e) => onVariableChange('umbraLinactividadUsuario', parseInt(e.target.value))}
+              value={config.variables.umbraLinactividadUsuario}
+              onChange={e => handleChange('umbraLinactividadUsuario', parseInt(e.target.value))}
             >
               <option value="180">180 días (6 meses)</option>
               <option value="365">365 días (1 año)</option>
@@ -77,6 +110,19 @@ const ReputationSystemSection: React.FC<ReputationSystemSectionProps> = ({
             </Text>
           </FormControl>
         </SimpleGrid>
+        {error && <Text color="red.500" mt={2}>{error}</Text>}
+        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <Box display="flex" justifyContent="flex-end" mt={4}>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              background: '#ed8936', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </Box>
       </CardBody>
     </Card>
   );

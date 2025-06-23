@@ -23,7 +23,7 @@ import {
   Input,
   Switch
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { FiPlus, FiTrash2, FiEdit2, FiUsers } from 'react-icons/fi';
 
 interface VocalPermission {
   id: string;
@@ -36,48 +36,32 @@ interface VocalPermission {
   isActive: boolean;
 }
 
+interface VocalPermissionsConfig {
+  vocalPermissions: VocalPermission[];
+}
+
 interface VocalPermissionsTabProps {
-  onVariableChange: (key: string, value: any) => void;
+  config: VocalPermissionsConfig;
+  setConfig: (cfg: VocalPermissionsConfig) => void;
 }
 
 /**
  * Componente para gestionar permisos de vocales
  */
-const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableChange }) => {
+const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ config, setConfig }) => {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editingPermission, setEditingPermission] = useState<VocalPermission | null>(null);
   const [formData, setFormData] = useState<Partial<VocalPermission>>({});
 
-  // Datos mock para permisos de vocales (en producción vendrían del estado global)
-  const [vocalPermissions, setVocalPermissions] = useState<VocalPermission[]>([
-    {
-      id: '1',
-      name: 'Vocal Principal',
-      canManageMaterials: true,
-      canViewReports: true,
-      canManageLoans: true,
-      canModifyConfiguration: false,
-      canAccessAnalytics: true,
-      isActive: true
-    },
-    {
-      id: '2',
-      name: 'Vocal Secundario',
-      canManageMaterials: true,
-      canViewReports: false,
-      canManageLoans: true,
-      canModifyConfiguration: false,
-      canAccessAnalytics: false,
-      isActive: true
-    }
-  ]);
-
   const handleSave = () => {
     if (editingPermission) {
-      setVocalPermissions(prev => 
-        prev.map(p => p.id === editingPermission.id ? { ...editingPermission, ...formData } : p)
-      );
+      setConfig({
+        ...config,
+        vocalPermissions: config.vocalPermissions.map((p: VocalPermission) =>
+          p.id === editingPermission.id ? { ...editingPermission, ...formData } : p
+        )
+      });
       toast({
         title: 'Permisos actualizados',
         description: 'Los permisos del vocal han sido actualizados correctamente.',
@@ -96,7 +80,10 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
         canAccessAnalytics: formData.canAccessAnalytics || false,
         isActive: formData.isActive !== false
       };
-      setVocalPermissions(prev => [...prev, newPermission]);
+      setConfig({
+        ...config,
+        vocalPermissions: [...config.vocalPermissions, newPermission]
+      });
       toast({
         title: 'Vocal agregado',
         description: 'El nuevo vocal ha sido agregado con sus permisos.',
@@ -105,17 +92,16 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
         isClosable: true,
       });
     }
-    
-    // Notificar al componente padre sobre los cambios
-    onVariableChange('vocalPermissions', vocalPermissions);
-    
     setEditingPermission(null);
     setFormData({});
     onClose();
   };
 
   const handleDelete = (id: string) => {
-    setVocalPermissions(prev => prev.filter(p => p.id !== id));
+    setConfig({
+      ...config,
+      vocalPermissions: config.vocalPermissions.filter((p: VocalPermission) => p.id !== id)
+    });
     toast({
       title: 'Vocal eliminado',
       description: 'El vocal ha sido eliminado del sistema.',
@@ -123,9 +109,6 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
       duration: 3000,
       isClosable: true,
     });
-    
-    // Notificar al componente padre sobre los cambios
-    onVariableChange('vocalPermissions', vocalPermissions.filter(p => p.id !== id));
   };
 
   const openEditModal = (permission: VocalPermission) => {
@@ -156,11 +139,12 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
     <>
       <VStack spacing={4} align="stretch">
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Text fontSize="lg" fontWeight="semibold" color="purple.600">
-            👥 Vocales del Sistema
+          <Text fontSize="lg" fontWeight="semibold" color="purple.600" display="flex" alignItems="center">
+            <FiUsers style={{ marginRight: 8 }} />
+            Vocales del Sistema
           </Text>
           <Button 
-            leftIcon={<AddIcon />} 
+            leftIcon={<FiPlus />} 
             colorScheme="purple" 
             size="sm"
             onClick={openAddModal}
@@ -174,7 +158,7 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
         </Text>
 
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-          {vocalPermissions.map((vocal) => (
+          {config.vocalPermissions.map((vocal: VocalPermission) => (
             <Card key={vocal.id} variant="outline" borderColor="purple.200">
               <CardBody>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={3}>
@@ -187,7 +171,7 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
                   <Box>
                     <IconButton
                       aria-label="Editar"
-                      icon={<EditIcon />}
+                      icon={<FiEdit2 />} // FiEdit2 en vez de EditIcon
                       size="sm"
                       mr={2}
                       colorScheme="purple"
@@ -196,7 +180,7 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
                     />
                     <IconButton
                       aria-label="Eliminar"
-                      icon={<DeleteIcon />}
+                      icon={<FiTrash2 />} // FiTrash2 en vez de DeleteIcon
                       size="sm"
                       colorScheme="red"
                       variant="ghost"
@@ -217,7 +201,7 @@ const VocalPermissionsTab: React.FC<VocalPermissionsTabProps> = ({ onVariableCha
           ))}
         </SimpleGrid>
 
-        {vocalPermissions.length === 0 && (
+        {config.vocalPermissions.length === 0 && (
           <Card variant="outline">
             <CardBody textAlign="center" py={8}>
               <Text color="gray.500" mb={4}>No hay vocales registrados en el sistema</Text>

@@ -24,8 +24,9 @@ import {
   Switch,
   Select
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { FiPlus, FiTrash2, FiEdit2, FiUser } from 'react-icons/fi';
 
+// Asegúrate de tener las interfaces:
 interface UserPermission {
   id: string;
   userId: string;
@@ -39,54 +40,32 @@ interface UserPermission {
   isBlocked: boolean;
   blockReason?: string;
 }
+interface UserPermissionsConfig {
+  userPermissions: UserPermission[];
+}
 
 interface UserPermissionsTabProps {
-  onVariableChange: (key: string, value: any) => void;
+  config: any;
+  setConfig: (cfg: any) => void;
 }
 
 /**
  * Componente para gestionar permisos de usuarios
  */
-const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChange }) => {
+const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ config, setConfig }) => {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editingPermission, setEditingPermission] = useState<UserPermission | null>(null);
   const [formData, setFormData] = useState<Partial<UserPermission>>({});
 
-  // Datos mock para permisos de usuarios (en producción vendrían del estado global)
-  const [userPermissions, setUserPermissions] = useState<UserPermission[]>([
-    {
-      id: '1',
-      userId: 'user_001',
-      userName: 'María García',
-      email: 'maria@example.com',
-      canBorrowMaterials: true,
-      canRequestSpecialItems: true,
-      canViewHistory: true,
-      canSubmitFeedback: true,
-      maxSimultaneousLoans: 3,
-      isBlocked: false
-    },
-    {
-      id: '2',
-      userId: 'user_002',
-      userName: 'Juan Pérez',
-      email: 'juan@example.com',
-      canBorrowMaterials: false,
-      canRequestSpecialItems: false,
-      canViewHistory: true,
-      canSubmitFeedback: true,
-      maxSimultaneousLoans: 0,
-      isBlocked: true,
-      blockReason: 'Retraso en devolución repetitivo'
-    }
-  ]);
+  const userPermissions = config.userPermissions || [];
 
   const handleSave = () => {
     if (editingPermission) {
-      setUserPermissions(prev => 
-        prev.map(p => p.id === editingPermission.id ? { ...editingPermission, ...formData } : p)
-      );
+      setConfig((prev: UserPermissionsConfig) => ({
+        ...prev,
+        userPermissions: prev.userPermissions.map((p: UserPermission) => p.id === editingPermission.id ? { ...editingPermission, ...formData } : p)
+      }));
       toast({
         title: 'Permisos actualizados',
         description: 'Los permisos del usuario han sido actualizados correctamente.',
@@ -108,7 +87,7 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
         isBlocked: formData.isBlocked || false,
         blockReason: formData.blockReason || ''
       };
-      setUserPermissions(prev => [...prev, newPermission]);
+      setConfig((prev: UserPermissionsConfig) => ({ ...prev, userPermissions: [...prev.userPermissions, newPermission] }));
       toast({
         title: 'Usuario agregado',
         description: 'El nuevo usuario ha sido agregado con sus permisos.',
@@ -117,17 +96,16 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
         isClosable: true,
       });
     }
-    
-    // Notificar al componente padre sobre los cambios
-    onVariableChange('userPermissions', userPermissions);
-    
     setEditingPermission(null);
     setFormData({});
     onClose();
   };
 
   const handleDelete = (id: string) => {
-    setUserPermissions(prev => prev.filter(p => p.id !== id));
+    setConfig((prev: UserPermissionsConfig) => ({
+      ...prev,
+      userPermissions: prev.userPermissions.filter((p: UserPermission) => p.id !== id)
+    }));
     toast({
       title: 'Usuario eliminado',
       description: 'El usuario ha sido eliminado del sistema.',
@@ -135,9 +113,6 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
       duration: 3000,
       isClosable: true,
     });
-    
-    // Notificar al componente padre sobre los cambios
-    onVariableChange('userPermissions', userPermissions.filter(p => p.id !== id));
   };
 
   const openEditModal = (permission: UserPermission) => {
@@ -171,11 +146,12 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
     <>
       <VStack spacing={4} align="stretch">
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Text fontSize="lg" fontWeight="semibold" color="blue.600">
-            👤 Usuarios del Sistema
+          <Text fontSize="lg" fontWeight="semibold" color="blue.600" display="flex" alignItems="center">
+            <FiUser style={{ marginRight: 8 }} />
+            Usuarios del Sistema
           </Text>
           <Button 
-            leftIcon={<AddIcon />} 
+            leftIcon={<FiPlus />} 
             colorScheme="blue" 
             size="sm"
             onClick={openAddModal}
@@ -189,7 +165,7 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
         </Text>
 
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-          {userPermissions.map((user) => (
+          {userPermissions.map((user: UserPermission) => (
             <Card key={user.id} variant="outline" borderColor="blue.200">
               <CardBody>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={3}>
@@ -208,7 +184,7 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
                   <Box>
                     <IconButton
                       aria-label="Editar"
-                      icon={<EditIcon />}
+                      icon={<FiEdit2 />} // FiEdit2 en vez de EditIcon
                       size="sm"
                       mr={2}
                       colorScheme="blue"
@@ -217,7 +193,7 @@ const UserPermissionsTab: React.FC<UserPermissionsTabProps> = ({ onVariableChang
                     />
                     <IconButton
                       aria-label="Eliminar"
-                      icon={<DeleteIcon />}
+                      icon={<FiTrash2 />} // FiTrash2 en vez de DeleteIcon
                       size="sm"
                       colorScheme="red"
                       variant="ghost"
