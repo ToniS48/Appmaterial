@@ -127,6 +127,14 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
           ))}
         </TabList>
         <TabPanels>
+          {/* General (antes Visor Sistema) */}
+          {tabs.find(t => t.id === 'system-viewer') && (
+            <SystemViewerTab
+              settings={settings}
+              userRole={userRole}
+              onConfigReload={reload}
+            />
+          )}
           {/* Variables del Sistema */}
           {tabs.find(t => t.id === 'variables') && (
             <VariablesTab userRole={userRole} />
@@ -146,14 +154,6 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
           {/* Permisos (solo admin) */}
           {tabs.find(t => t.id === 'permissions') && (
             <PermissionsTab userRole={userRole} />
-          )}
-          {/* Visor Sistema (solo admin) */}
-          {tabs.find(t => t.id === 'system-viewer') && (
-            <SystemViewerTab
-              settings={settings}
-              userRole={userRole}
-              onConfigReload={reload}
-            />
           )}
         </TabPanels>
         {/* Botón de guardado global para pestañas que lo necesiten */}
