@@ -19,6 +19,7 @@
 .env.test.local
 .env.production.local
 
+
 # archivos generados por el script de versión
 /src/version-info.json
 
@@ -30,3 +31,4 @@ yarn-error.log*
 
 # firebase
 .firebase/
+scripts/serviceAccountKey.json
