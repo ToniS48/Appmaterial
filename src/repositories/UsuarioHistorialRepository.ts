@@ -7,16 +7,12 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
-  getDocs, 
-  getDoc, 
+  getDocs,  
   query, 
-  where, 
-  orderBy, 
+  where,  
   limit as firestoreLimit,
-  startAfter,
   Timestamp,
   writeBatch,
-  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { BaseRepository } from './BaseRepository';
@@ -24,9 +20,7 @@ import {
   EventoUsuario, 
   ResumenAnualUsuarios, 
   FiltroHistorialUsuarios,
-  TipoEventoUsuario,
-  EstadoAprobacion,
-  EstadoActividad
+  TipoEventoUsuario
 } from '../types/usuarioHistorial';
 
 export class UsuarioHistorialRepository extends BaseRepository<EventoUsuario> {

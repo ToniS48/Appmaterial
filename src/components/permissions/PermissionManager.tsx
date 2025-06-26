@@ -28,7 +28,7 @@ import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { ConfigurationPermissions, PermissionLevel } from '../../types/permissions';
 import { DEFAULT_PERMISSIONS, CUSTOMIZABLE_VOCAL_PERMISSIONS } from '../../config/permissions';
-import UserPermissionsTab from '../configuration/sections/UserPermissionsTab';
+import UserPermissionsTab from '../configuration/sections/Permisos/UserPermissionsTab';
 import type { UserPermissionsConfig } from '../../types/permissions';
 
 interface PermissionManagerProps {

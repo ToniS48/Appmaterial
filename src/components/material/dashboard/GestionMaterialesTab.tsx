@@ -49,7 +49,7 @@ import {
   FiTool,
   FiSend
 } from 'react-icons/fi';
-import { listarMateriales, eliminarMaterial } from '../../../services/materialService';
+import { listarMateriales, eliminarMaterial } from '../../../services/MaterialService';
 import { Material } from '../../../types/material';
 import { Timestamp } from 'firebase/firestore';
 import MaterialForm from '../MaterialForm';

@@ -10,24 +10,19 @@ import {
   Td,
   Badge,
   Flex,
-  IconButton,
   Button,
   ButtonGroup,
   useDisclosure,
   useToast,
   Tooltip
 } from '@chakra-ui/react';
-import { FiCheck, FiUsers, FiRefreshCw, FiCheckSquare } from 'react-icons/fi';
+import { FiUsers, FiRefreshCw, FiCheckSquare } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
-  listarPrestamosPorResponsabilidad, 
-  registrarDevolucion,
-  devolverTodosLosMaterialesActividad
+  listarPrestamosPorResponsabilidad
 } from '../../services/prestamoService';
 import { Prestamo } from '../../types/prestamo';
-import { formatFecha } from '../../utils/dateUtils';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
-import messages from '../../constants/messages';
 import DevolucionAvanzadaForm from '../../components/prestamos/DevolucionAvanzadaForm';
 import DevolucionBulkForm from '../../components/prestamos/DevolucionBulkForm';
 

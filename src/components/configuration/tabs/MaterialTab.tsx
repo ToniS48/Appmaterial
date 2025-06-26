@@ -11,63 +11,37 @@ import {
   Heading,
   Divider,
   Collapse,
-  HStack,
-  IconButton
+  HStack,  IconButton,
+  Spinner
 } from '@chakra-ui/react';
 import { FiChevronDown, FiChevronRight, FiFileText } from 'react-icons/fi';
-import { useSectionConfig } from '../../../hooks/configuration/useSectionConfig';
+import { useUnifiedConfig } from '../../../hooks/configuration/useUnifiedConfig';
 import { guardarConfiguracionGeneral } from '../../../services/configuracionService';
 import { ConfigSettings } from '../../../types/configuration';
+import MaterialManagementSection from '../sections/Material/MaterialManagementSection';
 import DropdownsTab from './DropdownsTab';
-import MaterialStockSection from '../sections/MaterialStockSection';
 
 interface MaterialTabProps {
   userRole: 'admin' | 'vocal';
 }
 
 // Asegúrate de que el objeto de configuración de MaterialTab tenga la estructura de ConfigSettings
-const defaultMaterialConfig: ConfigSettings = {
-  variables: {
-    porcentajeStockMinimo: 10,
-    diasRevisionPeriodica: 90,
-    tiempoMinimoEntrePrestamos: 0,
-    diasAntelacionRevision: 15,
-    // ...agrega valores por defecto para todas las variables requeridas por ConfigSettings...
-    diasGraciaDevolucion: 0,
-    diasMaximoRetraso: 0,
-    diasBloqueoPorRetraso: 0,
-    recordatorioPreActividad: 1,
-    recordatorioDevolucion: 1,
-    notificacionRetrasoDevolucion: 0,
-    diasMinimoAntelacionCreacion: 0,
-    diasMaximoModificacion: 0,
-    limiteParticipantesPorDefecto: 0,
-    penalizacionRetraso: 0,
-    bonificacionDevolucionTemprana: 0,
-    umbraLinactividadUsuario: 0,
-    diasHistorialReportes: 0,
-    limiteElementosExportacion: 0
-  },
-  apis: {
-    googleDriveUrl: '',
-    googleDriveTopoFolder: '',
-    googleDriveDocFolder: '',
-    weatherEnabled: false,
-    weatherApiKey: '',
-    weatherApiUrl: '',
-    aemetEnabled: false,
-    aemetApiKey: '',
-    aemetUseForSpain: false,
-    temperatureUnit: '',
-    windSpeedUnit: '',
-    precipitationUnit: '',
-    backupApiKey: '',
-    emailServiceKey: '',
-    smsServiceKey: '',
-    notificationsEnabled: false,
-    analyticsKey: '',
-    analyticsEnabled: false
-  }
+const defaultMaterialConfig = {
+  porcentajeStockMinimo: 10,
+  diasRevisionPeriodica: 90,
+  tiempoMinimoEntrePrestamos: 0,
+  diasAntelacionRevision: 15,
+  diasGraciaDevolucion: 0,
+  diasMaximoRetraso: 0,
+  diasBloqueoPorRetraso: 0,
+  diasMinimoAntelacionCreacion: 0,
+  diasMaximoModificacion: 0,
+  limiteParticipantesPorDefecto: 0,
+  penalizacionRetraso: 0,
+  bonificacionDevolucionTemprana: 0,
+  umbraLinactividadUsuario: 0,
+  diasHistorialReportes: 0,
+  limiteElementosExportacion: 0
 };
 
 /**
@@ -75,12 +49,17 @@ const defaultMaterialConfig: ConfigSettings = {
  * Contiene configuraciones específicas para el manejo de material del club
  */
 const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
-  const { data: config, setData: setConfig, loading, save } = useSectionConfig('material', defaultMaterialConfig);
+  const { data: material, setData: setMaterial, loading, save } = useUnifiedConfig('material', defaultMaterialConfig);
   const [showInfo, setShowInfo] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
 
+  // Función wrapper para compatibilidad de tipos
+  const saveWrapper = async (data: any) => {
+    await save(data);
+  };
+
   const handleVariableChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({
+    setMaterial((prev: any) => ({
       ...prev,
       variables: {
         ...prev.variables,
@@ -90,10 +69,17 @@ const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
   };
 
   const handleSave = async () => {
-    await save(config);
+    await save(material);
   };
 
-  if (loading) return <Text>Cargando configuración...</Text>;
+  if (loading) {
+    return (
+      <VStack spacing={4} p={6} align="center">
+        <Spinner size="lg" color="blue.500" />
+        <Text color="gray.600">Cargando configuración de material...</Text>
+      </VStack>
+    );
+  }
 
   return (
     <TabPanel>
@@ -126,7 +112,7 @@ const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
         </Alert>
 
         {/* Configuración de Stock y Mantenimiento */}
-        <MaterialStockSection config={config} setConfig={setConfig} save={save} />
+        <MaterialManagementSection config={material} setConfig={setMaterial} save={saveWrapper} />
 
         {/* Formularios Material - Solo para administradores */}
         {userRole === 'admin' && (
@@ -165,7 +151,7 @@ const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
                   </Box>
                 </Alert>
                 {/* Integrar el componente DropdownsTab aquí */}
-                <DropdownsTab settings={config} userRole={userRole} save={save} />
+                <DropdownsTab userRole={userRole} />
               </CardBody>
             </Card>
           </>

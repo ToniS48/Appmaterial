@@ -4,12 +4,12 @@ import {
   obtenerActividad,
   listarActividades,
   guardarActividad
-} from '../../services/actividadService';
-import { Actividad } from '../../types/actividad';
-import { db } from '../../config/firebase';
+} from '../../src/services/actividadService';
+import { Actividad } from '../../src/types/actividad';
+import { db } from '../../src/config/firebase';
 import { collection, addDoc, doc, getDoc, deleteDoc, Timestamp } from 'firebase/firestore';
-import { getUniqueParticipanteIds } from '../../utils/actividadUtils';
-import { obtenerPrestamosPorActividad } from '../../services/prestamoService';
+import { getUniqueParticipanteIds } from '../../src/utils/actividadUtils';
+import { obtenerPrestamosPorActividad } from '../../src/services/prestamoService';
 
 // Importar los mocks de Firebase
 const mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
@@ -79,7 +79,7 @@ jest.mock('../../services/usuarioService', () => ({
   obtenerUsuarioPorId: jest.fn()
 }));
 
-jest.mock('../../services/materialService', () => ({
+jest.mock('../../services/MaterialService', () => ({
   obtenerMaterial: jest.fn()
 }));
 

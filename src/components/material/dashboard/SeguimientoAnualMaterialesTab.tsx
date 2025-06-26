@@ -86,7 +86,7 @@ import {
 } from 'react-icons/fi';
 import { Material } from '../../../types/material';
 import { DashboardMaterialesState } from './types';
-import { listarMateriales, eliminarMaterial } from '../../../services/materialService';
+import { listarMateriales, eliminarMaterial } from '../../../services/MaterialService';
 import MaterialForm from '../MaterialForm';
 import EstadisticasAnualesActividades from '../../actividades/estadisticas/EstadisticasAnualesActividades';
 

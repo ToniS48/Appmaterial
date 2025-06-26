@@ -33,7 +33,7 @@ import {
 } from '@chakra-ui/react';
 import { FiSearch, FiEye, FiFilter } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
-import { listarMateriales } from '../../services/materialService';
+import { listarMateriales } from '../../services/MaterialService';
 import { PrestamoRepository } from '../../repositories/PrestamoRepository';
 import messages from '../../constants/messages';
 import { EstadisticasPrincipalesMateriales, useDashboardMateriales } from './dashboard';

@@ -50,8 +50,8 @@ import {
 } from '@chakra-ui/icons';
 import { FiBox, FiDownload, FiUpload } from 'react-icons/fi';
 import { useAuth } from '../../../contexts/AuthContext';
-import { listarMateriales, eliminarMaterial } from '../../../services/materialService';
-import { materialService } from '../../../services/MaterialServiceRefactored';
+import { listarMateriales, eliminarMaterial } from '../../../services/MaterialService';
+import { materialService } from '../../../services/MaterialService';
 import { PrestamoRepository } from '../../../repositories/PrestamoRepository';
 import MaterialForm from '../../material/MaterialForm';
 import MaterialExportManager from '../../admin/MaterialExportManager';

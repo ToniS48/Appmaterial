@@ -30,7 +30,7 @@ import {
   Grid,
   GridItem
 } from '@chakra-ui/react';
-import { listarMateriales } from '../../services/materialService';
+import { listarMateriales } from '../../services/MaterialService';
 import { Material } from '../../types/material';
 import { Timestamp } from 'firebase/firestore';
 

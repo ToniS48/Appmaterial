@@ -20,8 +20,7 @@ import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const UsuarioSeguimientoPage: React.FC = () => {
   const { userProfile } = useAuth();
-  const navigate = useNavigate();
-
+  
   // Verificar permisos - solo admins y vocales pueden acceder
   const tienePermisos = userProfile && (userProfile.rol === 'admin' || userProfile.rol === 'vocal');  if (!userProfile) {
     return (

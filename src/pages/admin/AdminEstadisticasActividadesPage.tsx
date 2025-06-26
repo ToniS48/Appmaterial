@@ -10,12 +10,8 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Heading,
-  HStack,
-  Button,
   useColorModeValue
 } from '@chakra-ui/react';
-import { FiArrowLeft, FiBarChart2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { EstadisticasAnualesActividades } from '../../components/actividades/estadisticas';

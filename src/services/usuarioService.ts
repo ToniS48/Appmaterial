@@ -3,13 +3,8 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  serverTimestamp,
+  getDocs,
   updateDoc,
-  arrayUnion,
-  deleteDoc,
   Timestamp 
 } from 'firebase/firestore';
 import { 
@@ -23,7 +18,6 @@ import { EstadoAprobacion, EstadoActividad } from '../types/usuarioHistorial';
 import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
 import { handleFirebaseError } from '../utils/errorHandling';
 import { checkEmailAvailability } from '../utils/validationUtils';
-import messages from '../constants/messages';
 import { enviarNotificacionMasiva } from './notificacionService';
 
 // Función de registro de usuario

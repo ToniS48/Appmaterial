@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { Timestamp } from 'firebase/firestore';
-import { listarMateriales } from '../../../services/materialService';
+import { listarMateriales } from '../../../services/MaterialService';
 import { Material } from '../../../types/material';
 import { 
   DashboardMaterialesState, 

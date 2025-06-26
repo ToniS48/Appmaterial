@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext'; 
 import { registrarUsuario } from '../../services/usuarioService';
 import { EstadoAprobacion, EstadoActividad } from '../../types/usuarioHistorial';
+import { normalizeString } from '../utils/Normalizer';
+import { normalizeEmail } from '../utils/EmailNormalizer';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -53,13 +55,16 @@ const RegisterForm: React.FC = () => {
       try {
         // Dividir el nombre completo en nombre y apellidos
         const nameParts = formData.name.trim().split(' ');
-        const nombre = nameParts[0];
-        const apellidos = nameParts.slice(1).join(' ');
+        // Normalizar nombre y apellidos (capitalizar cada palabra)
+        const nombre = normalizeString(nameParts[0], 'capitalizeEach');
+        const apellidos = normalizeString(nameParts.slice(1).join(' '), 'capitalizeEach');
+        // Normalizar email (minúsculas y sin espacios)
+        const email = normalizeEmail(formData.email);
         
         // Actualmente solo se registra en consola pero no realiza el registro en Firebase
         console.log('Registro de usuario:', formData);        // Llamar al servicio de registro
         await registrarUsuario({
-          email: formData.email,
+          email,
           password: formData.password,
           nombre,
           apellidos,

@@ -13,10 +13,9 @@ import {
   Alert,
   AlertIcon,
   Stack,
-  VStack,
-  Button
+  VStack
 } from '@chakra-ui/react';
-import { obtenerMaterial } from '../../services/materialService';
+import { obtenerMaterial } from '../../services/MaterialService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const MaterialDetallePage: React.FC = () => {

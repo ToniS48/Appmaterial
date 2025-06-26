@@ -41,26 +41,15 @@ export const useConfigurationHandlers = (initialSettings: ConfigSettings) => {
       console.log('💾 ConfigurationHandlers - Iniciando guardado...');
       console.log('📋 ConfigurationHandlers - Datos a guardar:', settings);
       
-      const docRef = doc(db, "configuracion", "global");
-      
-      // Intentar primero verificar si el documento existe
-      const { getDoc } = await import('firebase/firestore');
-      const docSnap = await getDoc(docRef);
-      console.log('📄 ConfigurationHandlers - El documento existe:', docSnap.exists());
-      
-      if (docSnap.exists()) {
-        // Si existe, usar updateDoc
-        console.log('🔄 ConfigurationHandlers - Actualizando documento existente...');
-        await updateDoc(docRef, settings as any);
-      } else {
-        // Si no existe, usar setDoc para crear el documento
-        console.log('🆕 ConfigurationHandlers - Creando nuevo documento...');
-        await setDoc(docRef, {
-          ...settings,
-          lastUpdated: new Date().toISOString(),
-          createdBy: 'sistema-configuracion'
-        });
-      }
+      // Guardar en documentos separados según la sección
+      // Variables
+      const variablesRef = doc(db, "configuracion", "variables");
+      await setDoc(variablesRef, settings.variables, { merge: true });
+      // APIs
+      const apisRef = doc(db, "configuracion", "apis");
+      await setDoc(apisRef, settings.apis, { merge: true });
+      // Otros módulos pueden añadirse aquí
+      // El guardado de notificaciones debe hacerse desde el hook/sección correspondiente, no desde aquí
       
       console.log('✅ ConfigurationHandlers - Guardado exitoso');
       toast({

@@ -1,113 +1,89 @@
 import { useState, useEffect } from 'react';
-import { useToast } from '@chakra-ui/react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { ConfigSettings } from '../../types/configuration';
+import { useUnifiedConfig } from './useUnifiedConfig';
 
+/**
+ * Hook de compatibilidad para useConfigurationData
+ * Proporciona una interfaz compatible con el hook anterior
+ * usando internamente el hook unificado
+ */
 export const useConfigurationData = (userRole: 'admin' | 'vocal') => {
-  const toast = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [settings, setSettings] = useState<ConfigSettings>({
-    // Variables del sistema configurables
-    variables: {
-      // Gestión de préstamos y devoluciones
-      diasGraciaDevolucion: 3,
-      diasMaximoRetraso: 15,
-      diasBloqueoPorRetraso: 30,
-      // Notificaciones automáticas
-      recordatorioPreActividad: 7,
-      recordatorioDevolucion: 1,
-      notificacionRetrasoDevolucion: 3,
-      diasAntelacionRevision: 30,
-      
-      // Gestión de material
-      tiempoMinimoEntrePrestamos: 1,
-      porcentajeStockMinimo: 20,
-      diasRevisionPeriodica: 180,
-      
-      // Gestión de actividades
-      diasMinimoAntelacionCreacion: 3,
-      diasMaximoModificacion: 2,
-      limiteParticipantesPorDefecto: 20,
-      
-      // Sistema de puntuación y reputación
-      penalizacionRetraso: 5,
-      bonificacionDevolucionTemprana: 2,
-      umbraLinactividadUsuario: 365,
-      // Configuración de reportes
-      diasHistorialReportes: 365,
-      limiteElementosExportacion: 1000,
-    },
-    
-    // Configuración de APIs y servicios externos
-    apis: {
-      // URLs de Google Drive del club
-      googleDriveUrl: '',
-      googleDriveTopoFolder: '',
-      googleDriveDocFolder: '',
-      
-      // Servicios meteorológicos
-      weatherEnabled: true,
-      weatherApiKey: '',
-      weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
-      aemetEnabled: false,
-      aemetApiKey: '',
-      aemetUseForSpain: true,
-      temperatureUnit: 'celsius',
-      windSpeedUnit: 'kmh',
-      precipitationUnit: 'mm',
-      
-      // Configuración de backup
-      backupApiKey: '',
-      
-      // Servicios de notificaciones
-      emailServiceKey: '',
-      smsServiceKey: '',
-      notificationsEnabled: true,
-      
-      // Analytics
-      analyticsKey: '',
-      analyticsEnabled: false,
-    },
-    
-    // Configuraciones adicionales solo para admin
-    ...(userRole === 'admin' && {
-      backupAutomatico: true,
-      frecuenciaBackup: 'semanal'
-    })
+  const [globalSettings, setGlobalSettings] = useState<any>({
+    dropdowns: {},
+    variables: {},
+    apis: {},
+    material: {},
+    permissions: {},
+    security: {}
   });
 
-  // Cargar configuraciones desde Firebase
-  const reload = async () => {
-    try {
-      setIsLoading(true);
-      const docRef = doc(db, "configuracion", "global");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSettings(prev => ({ ...prev, ...docSnap.data() }));
-      }
-    } catch (error) {
-      console.error("Error al cargar la configuración:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar la configuración",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  // Usar hooks unificados para cada sección
+  const { data: dropdownsData, save: saveDropdownsData, loading: loadingDropdowns } = useUnifiedConfig('dropdowns', {});
+  const { data: variablesData, save: saveVariablesData, loading: loadingVariables } = useUnifiedConfig('variables', {});
+  const { data: apisData, save: saveApisData, loading: loadingApis } = useUnifiedConfig('apis', {});
+  const { data: materialData, save: saveMaterialData, loading: loadingMaterial } = useUnifiedConfig('material', {});
+  const { data: permissionsData, save: savePermissionsData, loading: loadingPermissions } = useUnifiedConfig('permissions', {});
+  const { data: securityData, save: saveSecurityData, loading: loadingSecurity } = useUnifiedConfig('security', {});
+
+  // Consolidar todos los datos en un solo objeto settings
+  useEffect(() => {
+    setGlobalSettings({
+      dropdowns: dropdownsData,
+      variables: variablesData,
+      apis: apisData,
+      material: materialData,
+      permissions: permissionsData,
+      security: securityData
+    });
+  }, [dropdownsData, variablesData, apisData, materialData, permissionsData, securityData]);
+
+  // Funciones de guardado para cada sección
+  const saveDropdowns = async (data: any) => {
+    await saveDropdownsData(data);
   };
 
-  useEffect(() => {
-    reload();
-    // eslint-disable-next-line
-  }, [toast]);
+  const saveVariables = async (data: any) => {
+    await saveVariablesData(data);
+  };
+
+  const saveApis = async (data: any) => {
+    await saveApisData(data);
+  };
+
+  const saveMaterial = async (data: any) => {
+    await saveMaterialData(data);
+  };
+
+  const savePermissions = async (data: any) => {
+    await savePermissionsData(data);
+  };
+
+  const saveSecurity = async (data: any) => {
+    await saveSecurityData(data);
+  };
+
+  // Funciones de recarga
+  const reload = () => {
+    // Recargar todas las secciones
+    window.location.reload();
+  };
+
+  // Determinar si está cargando alguna sección
+  const isLoading = loadingDropdowns || loadingVariables || loadingApis || 
+                   loadingMaterial || loadingPermissions || loadingSecurity;
 
   return {
-    settings,
+    settings: globalSettings,
     isLoading,
-    reload
+    userRole,
+    reload, // Añadir función reload
+    // Funciones de guardado específicas
+    saveDropdowns,
+    saveVariables,
+    saveApis,
+    saveMaterial,
+    savePermissions,
+    saveSecurity
   };
 };
+
+export default useConfigurationData;

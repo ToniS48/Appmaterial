@@ -28,7 +28,7 @@ import {
   AccordionPanel,
   AccordionIcon
 } from '@chakra-ui/react';
-import { listarMateriales, actualizarMaterial } from '../../services/materialService';
+import { listarMateriales, actualizarMaterial } from '../../services/MaterialService';
 import { Material } from '../../types/material';
 import { Timestamp } from 'firebase/firestore';
 

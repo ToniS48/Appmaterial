@@ -6,21 +6,12 @@ import {
   AlertIcon,
   Text,
   TabPanel,
-  Card,
-  CardBody,
-  Heading,
-  FormControl,
-  FormLabel,
-  Switch,
-  SimpleGrid,
-  Input,
-  Select,
-  Button
+  Spinner
 } from '@chakra-ui/react';
-import { useSectionConfig } from '../../../hooks/configuration/useSectionConfig';
-import { FiDatabase } from 'react-icons/fi';
+import { useUnifiedConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import BackupsSection from '../sections/Backups/BackupsSection';
 
-const defaultSecurityConfig = {
+const defaultBackupsConfig = {
   backupAutomatico: false,
   frecuenciaBackup: 'semanal',
 };
@@ -34,30 +25,26 @@ interface BackupsTabProps {
  * Solo disponible para administradores
  */
 const BackupsTab: React.FC<BackupsTabProps> = ({ userRole }) => {
-  const { data: config, setData: setConfig, loading, save } = useSectionConfig('security', defaultSecurityConfig);
+  const { data: backups, setData: setBackups, loading, save } = useUnifiedConfig('security', defaultBackupsConfig);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = async () => {
-    try {
-      await save(config);
-      setSuccess(true);
-      setError(null);
-      setTimeout(() => setSuccess(false), 2000);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
-      setSuccess(false);
-    }
+  // Función wrapper para compatibilidad de tipos
+  const saveWrapper = async (data: any) => {
+    await save(data);
   };
 
   if (userRole !== 'admin') {
     return null;
   }
-  if (loading) return <Text>Cargando configuración...</Text>;
+  if (loading) {
+    return (
+      <VStack spacing={4} p={6} align="center">
+        <Spinner size="lg" color="blue.500" />
+        <Text color="gray.600">Cargando configuración de seguridad...</Text>
+      </VStack>
+    );
+  }
 
   return (
     <TabPanel>
@@ -71,47 +58,7 @@ const BackupsTab: React.FC<BackupsTabProps> = ({ userRole }) => {
             </Text>
           </Box>
         </Alert>
-
-        {/* Configuración de Backup Automático */}
-        <Card>
-          <CardBody>
-            <Heading size="sm" mb={4} color="red.600" display="flex" alignItems="center">
-              <FiDatabase style={{ marginRight: 8 }} />
-              Backups y Seguridad
-            </Heading>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              <FormControl display="flex" alignItems="center">
-                <FormLabel htmlFor="backup-auto" mb="0" fontSize="sm">
-                  Backup automático
-                </FormLabel>
-                <Switch
-                  id="backup-auto"
-                  isChecked={config.backupAutomatico || false}
-                  onChange={(e) => handleChange('backupAutomatico', e.target.checked)}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel fontSize="sm">Frecuencia de backup</FormLabel>
-                <Select
-                  value={config.frecuenciaBackup || 'semanal'}
-                  onChange={(e) => handleChange('frecuenciaBackup', e.target.value)}
-                >
-                  <option value="diario">Diario</option>
-                  <option value="semanal">Semanal</option>
-                  <option value="mensual">Mensual</option>
-                </Select>
-              </FormControl>
-            </SimpleGrid>
-            {error && <Text color="red.500" mt={2}>{error}</Text>}
-            {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
-            <Box display="flex" justifyContent="flex-end" mt={4}>
-              <Button colorScheme="blue" onClick={handleSave} isLoading={loading}>
-                Guardar
-              </Button>
-            </Box>
-          </CardBody>
-        </Card>
+        <BackupsSection config={backups} setConfig={setBackups} save={saveWrapper} success={success} setSuccess={setSuccess} error={error} setError={setError} />
       </VStack>
     </TabPanel>
   );

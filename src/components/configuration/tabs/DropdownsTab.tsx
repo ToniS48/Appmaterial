@@ -8,51 +8,21 @@ import {
   TabPanel,
   Collapse,
   HStack,
-  IconButton,
-  Button
+  IconButton
 } from '@chakra-ui/react';
 import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
-import { ConfigSettings } from '../../../types/configuration';
-import MaterialDropdownManagerFunctional from '../../admin/MaterialDropdownManagerFunctional';
+import DropdownsSection from '../sections/Material/DropdownsSection';
 
 interface DropdownsTabProps {
-  settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
-  save: (data: ConfigSettings) => Promise<void>;
 }
 
 /**
- * Pestaña de Gestión de Formularios de Material
- * Solo disponible para administradores
+ * Tab para gestionar las configuraciones de listas desplegables de material.
+ * Ahora utiliza useConfigurationData para centralizar la gestión de configuración.
  */
-const DropdownsTab: React.FC<DropdownsTabProps> = ({
-  settings,
-  userRole,
-  save
-}) => {
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const DropdownsTab: React.FC<DropdownsTabProps> = ({ userRole }) => {
   const [showInfo, setShowInfo] = useState(true);
-
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    try {
-      await save(settings);
-      setSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
-    } finally {
-      setLoading(false);
-      setTimeout(() => setSuccess(false), 2000);
-    }
-  };
-
-  if (userRole !== 'admin') {
-    return null;
-  }
 
   return (
     <TabPanel>
@@ -80,16 +50,14 @@ const DropdownsTab: React.FC<DropdownsTabProps> = ({
               <Box px={4} pb={3}>
                 <Text>
                   Administra las categorías, marcas, estados y otros campos desplegables utilizados en los formularios de material del sistema.
+                  La configuración se gestiona de forma centralizada a través del hook useConfigurationData.
                 </Text>
               </Box>
             </Collapse>
           </Box>
         </Alert>
 
-        <MaterialDropdownManagerFunctional />
-        {/* Eliminado el botón Guardar duplicado */}
-        {error && <Text color="red.500" mt={2}>{error}</Text>}
-        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
+        <DropdownsSection userRole={userRole} />
       </VStack>
     </TabPanel>
   );

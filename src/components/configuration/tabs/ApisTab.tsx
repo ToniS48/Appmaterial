@@ -8,28 +8,53 @@ import {
   TabPanel,
   Spinner
 } from '@chakra-ui/react';
-import { useSectionConfig } from '../../../hooks/configuration/useSectionConfig';
-import { GoogleApisConfig } from '../../../services/configuracionService';
-import ApisGoogleSection from '../sections/ApisGoogleSection';
-import WeatherApiKeySection from '../sections/WeatherApiKeySection';
-
-const defaultGoogleApisConfig: GoogleApisConfig = {
-  driveApiKey: '',
-  mapsEmbedApiKey: '',
-  calendarApiKey: '',
-  gmailApiKey: '',
-  chatApiKey: '',
-  cloudMessagingApiKey: ''
-};
+import { useApisConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import ApisGoogleSection from '../sections/API/ApisGoogleSection';
+import WeatherServicesSection from '../sections/API/WeatherServicesSection';
 
 const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
-  const { data: apis, setData: setApis, loading: loadingApis, save: saveApis } = useSectionConfig('apis', defaultGoogleApisConfig);
-  // Configuración meteorológica (AEMET)
-  const { data: weather, setData: setWeather, loading: loadingWeather, save: saveWeather } = useSectionConfig('weather', {
-    aemet: { apiKey: '' }
-  });
+  const { data: config, setData: setConfig, loading, save } = useApisConfig();
 
-  if (loadingApis || loadingWeather) return <Spinner size="lg" />;
+  if (loading) {
+    return (
+      <VStack spacing={4} p={6} align="center">
+        <Spinner size="lg" color="blue.500" />
+        <Text color="gray.600">Cargando configuración de APIs...</Text>
+      </VStack>
+    );
+  }
+
+  // Separar configuraciones de Google y Weather
+  const googleConfig = {
+    driveApiKey: config.driveApiKey,
+    mapsEmbedApiKey: config.mapsEmbedApiKey,
+    calendarApiKey: config.calendarApiKey,
+    gmailApiKey: config.gmailApiKey,
+    chatApiKey: config.chatApiKey,
+    cloudMessagingApiKey: config.cloudMessagingApiKey
+  };
+
+  const weatherConfig = {
+    weatherApiUrl: config.weatherApiUrl,
+    aemetApiKey: config.aemetApiKey
+  };
+
+  const handleGoogleConfigChange = (newGoogleConfig: any) => {
+    setConfig(prev => ({ ...prev, ...newGoogleConfig }));
+  };
+
+  const handleWeatherConfigChange = (newWeatherConfig: any) => {
+    setConfig(prev => ({ ...prev, ...newWeatherConfig }));
+  };
+  const saveGoogleConfig = async (googleData: any): Promise<void> => {
+    const updatedConfig = { ...config, ...googleData };
+    await save(updatedConfig);
+  };
+
+  const saveWeatherConfig = async (weatherData: any): Promise<void> => {
+    const updatedConfig = { ...config, ...weatherData };
+    await save(updatedConfig);
+  };
 
   return (
     <TabPanel>
@@ -41,13 +66,20 @@ const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
             <Text>
               Configura las integraciones con servicios externos: Google Drive, servicios meteorológicos, notificaciones, backup y analytics.
             </Text>
-          </Box>
-        </Alert>
+          </Box>        </Alert>        
         {userRole === 'admin' && (
           <>
-            <ApisGoogleSection config={apis} setConfig={setApis} save={saveApis} />
-            {/* Sección para la API de AEMET */}
-            <WeatherApiKeySection config={weather} setConfig={setWeather} userRole={userRole} save={saveWeather} />
+            <ApisGoogleSection 
+              config={googleConfig} 
+              setConfig={handleGoogleConfigChange} 
+              save={saveGoogleConfig} 
+            />
+            <WeatherServicesSection 
+              userRole={userRole} 
+              config={weatherConfig} 
+              setConfig={handleWeatherConfigChange}
+              save={saveWeatherConfig}
+            />
           </>
         )}
       </VStack>

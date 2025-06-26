@@ -5,11 +5,9 @@
 import { 
   CollectionReference, 
   DocumentReference, 
-  DocumentSnapshot, 
-  QuerySnapshot,
+  DocumentSnapshot,
   Query,
   Transaction,
-  WriteBatch,
   addDoc, 
   updateDoc, 
   deleteDoc, 

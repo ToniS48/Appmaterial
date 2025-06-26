@@ -28,6 +28,11 @@ export interface ConfigSettings {
     // Configuración de reportes
     diasHistorialReportes: number;
     limiteElementosExportacion: number;
+    
+    // Analytics
+    analyticsEnabled: boolean;
+    // Servicios de notificaciones
+    notificationsEnabled: boolean;
   };
   
   // Configuración de APIs y servicios externos
@@ -54,11 +59,31 @@ export interface ConfigSettings {
     // Servicios de notificaciones
     emailServiceKey: string;
     smsServiceKey: string;
-    notificationsEnabled: boolean;
-    
-    // Analytics
-    analyticsKey: string;
-    analyticsEnabled: boolean;
+  };
+
+  // Configuración de listas desplegables para material
+  dropdowns?: {
+    // Categorías principales de material
+    categoriasVarios: Array<{ label: string; value: string; }>;
+
+    // Estados del material con colores
+    estados: Array<{ label: string; value: string; color: string; }>;
+
+    // Tipos de anclaje
+    tiposAnclaje: Array<{ label: string; value: string; }>;
+
+    // Tipos de cuerda
+    tiposCuerda: Array<{ label: string; value: string; }>;
+
+    // Subcategorías de anclaje organizadas por tipo
+    subcategoriasAnclaje: {
+      [key: string]: Array<{ label: string; value: string; }>;
+    };
+
+    // Subcategorías varios organizadas por categoría
+    subcategoriasVarios: {
+      [key: string]: Array<{ label: string; value: string; }>;
+    };
   };
   
   // Configuraciones adicionales solo para admin

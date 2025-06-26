@@ -15,12 +15,6 @@ import {
   HStack,
   Badge,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
   useToast
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';

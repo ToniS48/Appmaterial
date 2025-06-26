@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Heading, VStack, Card, CardBody, Avatar, 
-  Text, Divider, Button, FormControl, FormLabel, Input, 
+  Text, Button, FormControl, FormLabel, Input, 
   FormHelperText, Spinner, Center, Alert, AlertIcon, SimpleGrid,
   Switch, Select, useToast, Tabs, TabList, TabPanels, Tab, TabPanel,
   HStack, Badge

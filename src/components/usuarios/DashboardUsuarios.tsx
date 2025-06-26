@@ -291,7 +291,7 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
               <TabPanel px={{ base: 0, md: 4 }}>
                 <GestionUsuariosTab 
                   onUsuariosChange={(usuarios) => {
-                    console.log('🔄 Usuarios actualizados desde gestión:', usuarios.length);
+                    console.log('?? Usuarios actualizados desde gestión:', usuarios.length);
                   }}
                 />
               </TabPanel>
@@ -320,7 +320,7 @@ const DashboardUsuarios: React.FC<DashboardUsuariosProps> = ({
                   <Card>
                     <CardBody>
                       <Text fontSize="lg" fontWeight="bold" mb={4}>
-                        📊 Gráficos Dinámicos de Usuarios
+                        ?? Gráficos Dinámicos de Usuarios
                       </Text>
                       <Text fontSize="sm" color="gray.600" mb={4}>
                         Configura y visualiza diferentes métricas de usuarios con filtros personalizables

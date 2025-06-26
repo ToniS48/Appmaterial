@@ -2,17 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import messages from '../../constants/messages';
 import {
   Box,
-  Heading,
   Text,
   Flex,
   Button,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -31,7 +23,6 @@ import {
   Tab,
   TabPanel,
   useToast,
-  Link,
   Divider
 } from '@chakra-ui/react';
 import { AddIcon, CalendarIcon } from '@chakra-ui/icons';

@@ -1,3 +1,2 @@
 // Exportaciones de hooks de configuración
-export { useConfigurationData } from './useConfigurationData';
-export { useConfigurationHandlers } from './useConfigurationHandlers';
+export { useUnifiedConfig, useApisConfig, useVariablesConfig, useMaterialConfig } from './useUnifiedConfig';

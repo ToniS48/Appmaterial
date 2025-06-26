@@ -5,7 +5,7 @@ import DashboardLayout from '../../components/layouts/DashboardLayout';
 import CalendarioSimple from '../../components/actividades/CalendarioSimple'; // Usar el componente simplificado
 
 const CalendarioPage: React.FC = () => {
-    const [selectedMonth, setSelectedMonth] = useState(new Date());
+    const [selectedMonth] = useState(new Date());
 
   return (
     <DashboardLayout title="Calendario de Actividades">

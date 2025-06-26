@@ -32,13 +32,11 @@ import MensajeriaPage from '../pages/MensajeriaPage';
 import MensajeriaTesting from '../components/testing/MensajeriaTesting';
 import UsuarioSeguimientoPage from '../pages/usuarios/UsuarioSeguimientoPage';
 import AdminHistorialMateriales from '../components/admin/AdminHistorialMateriales';
-import GeneradorHistorialSimple from '../components/admin/GeneradorHistorialSimple';
 import DashboardMateriales from '../components/material/DashboardMateriales';
 import AdminEstadisticasActividadesPage from '../pages/admin/AdminEstadisticasActividadesPage';
 import VocalEstadisticasActividadesPage from '../pages/vocal/VocalEstadisticasActividadesPage';
 
 const AppRoutes: React.FC = () => {
-  const location = useLocation();
   const { userProfile } = useAuth();
 
   return (
@@ -73,7 +71,6 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/usuarios/seguimiento" element={<ProtectedRoute allowedRoles={['admin']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
       <Route path="/admin/usuarios/gestion" element={<ProtectedRoute allowedRoles={['admin']}><UsuarioSeguimientoPage /></ProtectedRoute>} />
       <Route path="/admin/material/historial" element={<ProtectedRoute allowedRoles={['admin']}><AdminHistorialMateriales /></ProtectedRoute>} />
-      <Route path="/admin/material/generar" element={<ProtectedRoute allowedRoles={['admin']}><GeneradorHistorialSimple /></ProtectedRoute>} />
       <Route path="/admin/prestamos" element={<ProtectedRoute allowedRoles={['admin']}><PrestamosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><ConfiguracionPage /></ProtectedRoute>} />      <Route path="/admin/notificaciones" element={<ProtectedRoute allowedRoles={['admin']}><NotificacionesPage /></ProtectedRoute>} />
       <Route path="/admin/reportes" element={<ProtectedRoute allowedRoles={['admin']}><ReportesAdminPage /></ProtectedRoute>} />

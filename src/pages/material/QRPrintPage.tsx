@@ -12,13 +12,12 @@ import {
   useToast,
   Alert,
   AlertIcon,
-  Stack,
   Divider
 } from '@chakra-ui/react';
 import { useReactToPrint } from 'react-to-print';
 import { FiPrinter } from 'react-icons/fi';
 import MaterialQRCode from '../../components/material/MaterialQRCode';
-import { listarMateriales } from '../../services/materialService';
+import { listarMateriales } from '../../services/MaterialService';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const QRPrintPage: React.FC = () => {

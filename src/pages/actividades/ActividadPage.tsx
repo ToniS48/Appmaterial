@@ -8,7 +8,7 @@ import {
   AlertDialogHeader, AlertDialogContent, AlertDialogOverlay, useToast,
   Tabs, TabList, Tab, TabPanels, TabPanel
 } from '@chakra-ui/react';
-import { FiEdit, FiPackage, FiGlobe, FiArrowLeft, FiSave, FiFileText, FiUsers, FiLink, FiInfo } from 'react-icons/fi';
+import { FiPackage, FiGlobe, FiArrowLeft, FiSave, FiFileText, FiUsers, FiLink, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import InfoEditor from '../../components/actividades/InfoEditor';
@@ -22,7 +22,6 @@ import { useActividadPagePermissions } from '../../hooks/useActividadPagePermiss
 import { useActividadPageActions } from '../../hooks/useActividadPageActions';
 import { ActividadPageHeader } from '../../components/actividades/ActividadPageHeader';
 import { Actividad } from '../../types/actividad';
-import { Material } from '../../types/material';
 
 // Tipos para los materiales en el formulario
 interface MaterialFormData {
@@ -67,12 +66,8 @@ const ActividadPage: React.FC = () => {
   // Hook para datos adicionales (participantes, préstamos, calendario)
   const {
     participantes,
-    prestamos,
     addedToCalendar,
-    setAddedToCalendar,
-    loadingData,
-    errorData,
-    reloadData
+    setAddedToCalendar
   } = useActividadPageData({
     actividad,
     actividadId: id,

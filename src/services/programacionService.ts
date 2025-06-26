@@ -1,7 +1,5 @@
 // Crear un nuevo servicio para manejar tareas programadas
 
-import { enviarRecordatorioDevolucion } from './notificacionService';
-
 // Iniciar las tareas programadas
 export const iniciarTareasProgramadas = (): void => {
   try {

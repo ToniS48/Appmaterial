@@ -8,7 +8,7 @@ import MaterialSelector from './MaterialSelector';
 import QRScanner from '../common/QRScanner';
 import { FiZap } from 'react-icons/fi';
 import { MaterialAsignado } from '../../types/actividad';
-import { materialService } from '../../services/MaterialServiceRefactored';
+import { materialService } from '../../services/MaterialService';
 
 interface MaterialItem {
   materialId: string;

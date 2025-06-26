@@ -6,93 +6,176 @@ import {
   AlertIcon,
   Text,
   TabPanel,
-  Spinner
+  Spinner,
+  Divider,
+  SimpleGrid
 } from '@chakra-ui/react';
-import { useSectionConfig } from '../../../hooks/configuration/useSectionConfig';
-import NotificationSection from '../sections/NotificationSection';
-import MaterialManagementSection from '../sections/MaterialManagementSection';
-import LoanManagementSection from '../sections/LoanManagementSection';
-import ActivityManagementSection from '../sections/ActivityManagementSection';
-import ReputationSystemSection from '../sections/ReputationSystemSection';
-import ReportsSection from '../sections/ReportsSection';
-import WeatherSettingsSection from '../sections/WeatherSettingsSection';
-
-const defaultConfig = {
-  variables: {
-    diasGraciaDevolucion: 0,
-    diasMaximoRetraso: 0,
-    diasBloqueoPorRetraso: 0,
-    recordatorioPreActividad: 1,
-    recordatorioDevolucion: 1,
-    notificacionRetrasoDevolucion: 0,
-    diasAntelacionRevision: 15,
-    tiempoMinimoEntrePrestamos: 0,
-    porcentajeStockMinimo: 10,
-    diasRevisionPeriodica: 90,
-    diasMinimoAntelacionCreacion: 0,
-    diasMaximoModificacion: 0,
-    limiteParticipantesPorDefecto: 0,
-    penalizacionRetraso: 0,
-    bonificacionDevolucionTemprana: 0,
-    umbraLinactividadUsuario: 0,
-    diasHistorialReportes: 0,
-    limiteElementosExportacion: 0
-  },
-  apis: {
-    googleDriveUrl: '',
-    googleDriveTopoFolder: '',
-    googleDriveDocFolder: '',
-    weatherEnabled: false,
-    weatherApiKey: '',
-    weatherApiUrl: '',
-    aemetEnabled: false,
-    aemetApiKey: '',
-    aemetUseForSpain: false,
-    temperatureUnit: '',
-    windSpeedUnit: '',
-    precipitationUnit: '',
-    backupApiKey: '',
-    emailServiceKey: '',
-    smsServiceKey: '',
-    notificationsEnabled: false,
-    analyticsKey: '',
-    analyticsEnabled: false
-  }
-};
+import { useVariablesConfig, useApisConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import NotificationSection from '../sections/Variables/NotificationSection';
+import LoanManagementSection from '../sections/Variables/LoanManagementSection';
+import ActivityManagementSection from '../sections/Variables/ActivityManagementSection';
+import ReputationSystemSection from '../sections/Variables/ReputationSystemSection';
+import ReportsSection from '../sections/Variables/ReportsSection';
+import WeatherSettingsSection from '../sections/Variables/WeatherSettingsSection';
 
 const VariablesTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
-  const { data: general, setData: setGeneral, loading, save } = useSectionConfig('general', defaultConfig);
+  const { 
+    data: variables, 
+    setData: setVariables, 
+    loading: loadingVariables, 
+    save: saveVariables 
+  } = useVariablesConfig();
+  
+  const { 
+    data: apis, 
+    setData: setApis, 
+    loading: loadingApis, 
+    save: saveApis 
+  } = useApisConfig();
+  if (loadingVariables || loadingApis) {
+    return (
+      <VStack spacing={4} p={6} align="center">
+        <Spinner size="lg" color="blue.500" />
+        <Text color="gray.600">Cargando variables del sistema...</Text>
+      </VStack>
+    );
+  }
 
-  if (loading) return <Spinner size="lg" />;
-
-  // Adaptador para switches
-  const handleApiSwitchChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGeneral({ ...general, [key]: e.target.checked });
+  // Configuración meteorológica combinada (variables + APIs)
+  const weatherConfig = {
+    weatherEnabled: variables.weatherEnabled,
+    aemetEnabled: variables.aemetEnabled,
+    aemetUseForSpain: variables.aemetUseForSpain,
+    temperatureUnit: variables.temperatureUnit,
+    windSpeedUnit: variables.windSpeedUnit,
+    precipitationUnit: variables.precipitationUnit,
+    weatherApiUrl: apis.weatherApiUrl,
+    aemetApiKey: apis.aemetApiKey
   };
 
-  const handleChange = (key: string, value: any) => {
-    setGeneral({ ...general, [key]: value });
+  const setWeatherConfig = (newConfig: any) => {
+    const {
+      aemetApiKey,
+      weatherApiUrl,
+      weatherEnabled,
+      aemetEnabled,
+      aemetUseForSpain,
+      temperatureUnit,
+      windSpeedUnit,
+      precipitationUnit
+    } = newConfig;
+    
+    // Actualizar variables (flags y unidades)
+    setVariables(prev => ({
+      ...prev,
+      weatherEnabled,
+      aemetEnabled,
+      aemetUseForSpain,
+      temperatureUnit,
+      windSpeedUnit,
+      precipitationUnit
+    }));
+    
+    // Actualizar APIs (claves y URLs)
+    setApis(prev => ({
+      ...prev,
+      aemetApiKey: aemetApiKey || '',
+      weatherApiUrl: weatherApiUrl || ''
+    }));
+  };
+  // Funciones wrapper para compatibilidad de tipos con las secciones
+  const saveVariablesWrapper = async (data: any) => {
+    await saveVariables(data);
   };
 
+  const saveWeatherConfigWrapper = async (newConfig: any) => {
+    const {
+      aemetApiKey,
+      weatherApiUrl,
+      weatherEnabled,
+      aemetEnabled,
+      aemetUseForSpain,
+      temperatureUnit,
+      windSpeedUnit,
+      precipitationUnit
+    } = newConfig;
+    
+    // Guardar en paralelo en ambos documentos
+    await Promise.all([
+      saveVariables({
+        ...variables,
+        weatherEnabled,
+        aemetEnabled,
+        aemetUseForSpain,
+        temperatureUnit,
+        windSpeedUnit,
+        precipitationUnit
+      }),
+      saveApis({
+        ...apis,
+        aemetApiKey: aemetApiKey || '',
+        weatherApiUrl: weatherApiUrl || ''
+      })
+    ]);
+  };
   return (
     <TabPanel>
-      <VStack spacing={8} align="stretch">
-        <Alert status="info">
+      <VStack spacing={6} align="stretch">
+        <Alert status="info" borderRadius="md">
           <AlertIcon />
           <Box>
-            <Text fontWeight="bold">Gestor de Variables del Sistema</Text>
-            <Text>
-              Configura los parámetros que controlan el comportamiento automático del sistema. Estas variables afectan las reglas de negocio y notificaciones.
+            <Text fontWeight="bold">Variables del Sistema</Text>
+            <Text fontSize="sm">
+              Configura los parámetros operacionales que controlan el comportamiento de la aplicación.
+              Los valores se guardan automáticamente en Firestore.
             </Text>
           </Box>
         </Alert>
-        <LoanManagementSection config={general} setConfig={setGeneral} userRole={userRole} save={save} />
-        <NotificationSection config={general} setConfig={setGeneral} save={save} />
-        <MaterialManagementSection config={general} setConfig={setGeneral} save={save} />
-        <ActivityManagementSection config={general} setConfig={setGeneral} save={save} />
-        <ReputationSystemSection config={general} setConfig={setGeneral} save={save} />
-        <ReportsSection config={general} setConfig={setGeneral} save={save} />
-        <WeatherSettingsSection userRole={userRole} config={general} setConfig={setGeneral} save={save} />
+
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>          {/* Loan Management */}
+          <LoanManagementSection 
+            config={variables} 
+            setConfig={setVariables} 
+            save={saveVariablesWrapper} 
+            userRole={userRole} 
+          />
+          
+          {/* Activity Management */}
+          <ActivityManagementSection 
+            config={variables} 
+            setConfig={setVariables} 
+            save={saveVariablesWrapper}
+          />
+          
+          {/* Reputation System */}
+          <ReputationSystemSection 
+            config={variables} 
+            setConfig={setVariables} 
+            save={saveVariablesWrapper}
+          />
+          
+          {/* Reports */}
+          <ReportsSection 
+            config={variables} 
+            setConfig={setVariables} 
+            save={saveVariablesWrapper}
+          />
+          
+          {/* Notifications - Usamos las variables unificadas */}
+          <NotificationSection 
+            config={variables} 
+            setConfig={setVariables} 
+            save={saveVariablesWrapper}
+          />
+        </SimpleGrid>
+
+        <Divider />        {/* Weather Settings - Span full width */}
+        <WeatherSettingsSection 
+          config={weatherConfig} 
+          setConfig={setWeatherConfig} 
+          save={saveWeatherConfigWrapper} 
+          userRole={userRole} 
+        />
       </VStack>
     </TabPanel>
   );

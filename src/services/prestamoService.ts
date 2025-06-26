@@ -1,7 +1,7 @@
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, Timestamp, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Prestamo, EstadoPrestamo } from '../types/prestamo';
-import { actualizarCantidadDisponible } from './materialService';
+import { actualizarCantidadDisponible } from './MaterialService';
 import { actualizarActividad } from './actividadService';
 
 // Crear un nuevo préstamo

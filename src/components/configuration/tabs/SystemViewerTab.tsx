@@ -5,10 +5,12 @@ import {
   Alert,
   AlertIcon,
   Text,
-  TabPanel
+  TabPanel,
+  Spinner
 } from '@chakra-ui/react';
 import { ConfigSettings } from '../../../types/configuration';
-import SystemVariablesViewer from '../../admin/SystemVariablesViewer';
+import SystemVariablesViewer from '../sections/General/SystemVariablesViewer';
+import { useSystemConfig } from '../../../services/SystemConfigService';
 
 interface SystemViewerTabProps {
   settings: ConfigSettings;
@@ -25,8 +27,21 @@ const SystemViewerTab: React.FC<SystemViewerTabProps> = ({
   userRole,
   onConfigReload
 }) => {
+  const { loading } = useSystemConfig();
+
   if (userRole !== 'admin') {
     return null;
+  }
+
+  if (loading) {
+    return (
+      <TabPanel>
+        <VStack spacing={4} align="center" py={8}>
+          <Spinner size="lg" color="blue.500" />
+          <Text color="gray.600">Cargando información del sistema...</Text>
+        </VStack>
+      </TabPanel>
+    );
   }
 
   return (

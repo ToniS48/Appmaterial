@@ -24,7 +24,7 @@ import messages from '../../constants/messages';
 import { useAuth } from '../../contexts/AuthContext';
 import DatePicker from '../common/DatePicker';
 import { crearPrestamo, actualizarEstadoPrestamo, actualizarPrestamo } from '../../services/prestamoService';
-import { listarMateriales, obtenerMaterial } from '../../services/materialService';
+import { listarMateriales, obtenerMaterial } from '../../services/MaterialService';
 import { listarUsuarios } from '../../services/usuarioService';
 import { listarActividades, obtenerActividad } from '../../services/actividadService';
 import { Prestamo, EstadoPrestamo } from '../../types/prestamo';

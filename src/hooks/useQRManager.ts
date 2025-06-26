@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { obtenerMaterial } from '../services/materialService';
+import { obtenerMaterial } from '../services/MaterialService';
 import { Material } from '../types/material';
 
 interface UseQRManagerReturn {

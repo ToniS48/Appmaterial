@@ -24,7 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { useForm, Controller } from 'react-hook-form';
 import DatePicker from '../common/DatePicker';
-import { crearMaterial, actualizarMaterial } from '../../services/materialService';
+import { crearMaterial, actualizarMaterial } from '../../services/MaterialService';
 import { useAuth } from '../../contexts/AuthContext';
 import { getMaterialDropdownConfig, MaterialDropdownConfig } from '../../services/materialDropdownService';
 import messages from '../../constants/messages';
