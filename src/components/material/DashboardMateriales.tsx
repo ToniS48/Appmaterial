@@ -56,6 +56,9 @@ import {
   FiTool,
   FiEdit
 } from 'react-icons/fi';
+import { FaBox } from 'react-icons/fa';
+
+
 
 // Importar componentes modulares del dashboard
 import {
@@ -73,6 +76,9 @@ import GestionMaterialesContent from './dashboard/GestionMaterialesContent';
 interface DashboardMaterialesProps {
   añoInicial?: number;
 }
+
+// Tipado correcto para el icono de caja
+const BoxIcon = FaBox as unknown as React.FC<React.SVGProps<SVGSVGElement>>;
 
 const DashboardMateriales: React.FC<DashboardMaterialesProps> = ({
   añoInicial
@@ -153,7 +159,8 @@ const DashboardMateriales: React.FC<DashboardMaterialesProps> = ({
       <VStack spacing={6} align="stretch">
         {/* Encabezado */}
         <Flex justify="space-between" align="center" wrap="wrap" gap={4}>          
-          <Heading size="lg" color="purple.600">
+          <Heading size="lg" color="purple.600" display="flex" alignItems="center" gap={2}>
+            <BoxIcon style={{ marginRight: 8 }} />
             Gestión de Materiales
           </Heading>
           
