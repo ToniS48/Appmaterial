@@ -8,7 +8,7 @@ import MaterialSelector from './MaterialSelector';
 import QRScanner from '../common/QRScanner';
 import { FiZap } from 'react-icons/fi';
 import { MaterialAsignado } from '../../types/actividad';
-import { materialService } from '../../services/MaterialService';
+import { obtenerMaterial } from '../../services/MaterialService';
 
 interface MaterialItem {
   materialId: string;
@@ -108,7 +108,7 @@ const MaterialEditor = forwardRef<
       }
       
       // Buscar material por ID usando el método existente
-      const material = await materialService.obtenerMaterial(materialId);
+      const material = await obtenerMaterial(materialId);
       
       if (material) {
         console.log('✅ Material encontrado por QR:', material);
