@@ -641,7 +641,7 @@ const marcarPrestamoVencido = async (prestamoId: string) => {
   await notificarPrestamoVencido(prestamo);
 };
 
-// En materialService.ts
+// En MaterialService.ts
 const reportarIncidencia = async (incidenciaData: IncidenciaCreate) => {
   const incidenciaRef = await addDoc(collection(db, 'incidencias'), incidenciaData);
   
