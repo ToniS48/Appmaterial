@@ -2,7 +2,7 @@ import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orde
 import { db } from '../config/firebase';
 import { Prestamo, EstadoPrestamo } from '../types/prestamo';
 import { actualizarCantidadDisponible } from './MaterialService';
-import { actualizarActividad } from './actividadService';
+// Nota: Eliminada importación de actualizarActividad para evitar dependencia circular
 
 // Crear un nuevo préstamo
 export const crearPrestamo = async (prestamoData: Omit<Prestamo, 'id'>): Promise<Prestamo> => {
@@ -1353,6 +1353,8 @@ export const verificarYActualizarEstadoActividad = async (actividadId: string): 
     if (debeFinalizarse && nuevoEstado && !['finalizada', 'cancelada'].includes(actividad.estado)) {
       console.log(`✅ Finalizando actividad automáticamente: ${actividad.nombre}`);
       
+      // Usar importación dinámica para evitar dependencia circular
+      const { actualizarActividad } = await import('./actividadService');
       await actualizarActividad(actividadId, {
         estado: nuevoEstado as 'finalizada'
       });
@@ -1434,6 +1436,8 @@ export const actualizarEstadosActividades = async (): Promise<{ actualizadas: nu
           if (actividad.estado !== nuevoEstado) {
             console.log(`🔄 Actualizando "${actividad.nombre}": ${actividad.estado} → ${nuevoEstado}`);
             
+            // Usar importación dinámica para evitar dependencia circular
+            const { actualizarActividad } = await import('./actividadService');
             await actualizarActividad(actividad.id!, {
               estado: nuevoEstado
             });
