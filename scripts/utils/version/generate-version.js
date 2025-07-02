@@ -37,7 +37,7 @@ function getGitInfo() {
 }
 
 function generateVersionInfo() {
-  const packageJson = require('../package.json');
+  const packageJson = require('../../../package.json');
   const gitInfo = getGitInfo();
   
   // Generar versión automática basada en commits
@@ -54,7 +54,7 @@ function generateVersionInfo() {
   };
   
   // Crear el archivo de información de versión
-  const versionFilePath = path.join(__dirname, '../src/version-info.json');
+  const versionFilePath = path.join(__dirname, '../../../src/version-info.json');
   fs.writeFileSync(versionFilePath, JSON.stringify(versionInfo, null, 2));
     // Crear archivo .env.local para variables de entorno
   const envContent = `REACT_APP_VERSION=${versionInfo.version}
@@ -67,7 +67,7 @@ REACT_APP_BRANCH_NAME=${versionInfo.branchName}
 REACT_APP_BUILD_DATE=${versionInfo.buildDate}
 `;
   
-  const envFilePath = path.join(__dirname, '../.env.local');
+  const envFilePath = path.join(__dirname, '../../../.env.local');
   fs.writeFileSync(envFilePath, envContent);
     console.log('✅ Información de versión generada:');
   console.log(`   Versión base: ${versionInfo.version}`);

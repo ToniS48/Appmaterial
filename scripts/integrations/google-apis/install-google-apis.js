@@ -200,7 +200,7 @@ const path = require('path');
 console.log('🔍 Verificando configuración de Google APIs...\\n');
 
 // Verificar dependencias
-const packageJson = require('../package.json');
+const packageJson = require('../../../package.json');
 const requiredDeps = [
   '@google-cloud/firestore',
   '@types/google.maps',

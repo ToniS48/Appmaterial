@@ -8,13 +8,13 @@ const { execSync } = require('child_process');
  */
 
 function getCurrentVersion() {
-  const packagePath = path.join(__dirname, '../package.json');
+  const packagePath = path.join(__dirname, '../../../package.json');
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   return packageJson.version;
 }
 
 function updatePackageVersion(newVersion) {
-  const packagePath = path.join(__dirname, '../package.json');
+  const packagePath = path.join(__dirname, '../../../package.json');
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   
   packageJson.version = newVersion;
