@@ -86,7 +86,7 @@ window.testMaterialService = async function() {
     console.log('✅ Firebase DB disponible');
     
     // Importar y probar el servicio
-    const { listarMateriales } = await import('/src/services/MaterialService.js');
+    const { listarMateriales } = await import('/src/services/materialService.js');
     console.log('✅ Servicio materialService importado');
     
     // Probar listar materiales

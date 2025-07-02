@@ -50,7 +50,8 @@ import {
 } from '@chakra-ui/icons';
 import { FiBox, FiDownload, FiUpload } from 'react-icons/fi';
 import { useAuth } from '../../../contexts/AuthContext';
-import { listarMateriales, eliminarMaterial, crearMaterial } from '../../../services/MaterialService';
+import { listarMateriales, eliminarMaterial } from '../../../services/MaterialService';
+import { materialService } from '../../../services/MaterialService';
 import { PrestamoRepository } from '../../../repositories/PrestamoRepository';
 import MaterialForm from '../../material/MaterialForm';
 import MaterialExportManager from '../../admin/MaterialExportManager';
@@ -251,7 +252,7 @@ const GestionMaterialesContent: React.FC<GestionMaterialesContentProps> = ({
       // Importar materiales usando el servicio de materiales
       const importPromises = materialsToImport.map(material => {
         // Usar el método público del servicio refactorizado
-        return crearMaterial(material);
+        return materialService.crearMaterial(material);
       });
       
       await Promise.all(importPromises);

@@ -345,18 +345,18 @@ class MaterialService extends BaseService<Material> {
 }
 
 // Crear instancia singleton
-const MaterialServiceInstance = new MaterialService();
+const materialService = new MaterialService();
 
 // Exportar métodos públicos para mantener compatibilidad
-export const crearMaterial = (data: Omit<Material, 'id'>) => MaterialServiceInstance.crearMaterial(data);
-export const listarMateriales = (filters?: { estado?: string; tipo?: string }) => MaterialServiceInstance.listarMateriales(filters);
-export const obtenerMaterial = (id: string) => MaterialServiceInstance.obtenerMaterial(id);
-export const actualizarMaterial = (id: string, data: Partial<Material>) => MaterialServiceInstance.actualizarMaterial(id, data);
-export const eliminarMaterial = (id: string) => MaterialServiceInstance.eliminarMaterial(id);
-export const registrarIncidenciaMaterial = MaterialServiceInstance.registrarIncidenciaMaterial.bind(MaterialServiceInstance);
-export const actualizarCantidadDisponible = MaterialServiceInstance.actualizarCantidadDisponible.bind(MaterialServiceInstance);
-export const obtenerEstadisticasMaterial = () => MaterialServiceInstance.obtenerEstadisticasMaterial();
-export const buscarMaterialesDisponibles = (filtros?: { tipo?: string; cantidad?: number }) => MaterialServiceInstance.buscarMaterialesDisponibles(filtros);
+export const crearMaterial = (data: Omit<Material, 'id'>) => materialService.crearMaterial(data);
+export const listarMateriales = (filters?: { estado?: string; tipo?: string }) => materialService.listarMateriales(filters);
+export const obtenerMaterial = (id: string) => materialService.obtenerMaterial(id);
+export const actualizarMaterial = (id: string, data: Partial<Material>) => materialService.actualizarMaterial(id, data);
+export const eliminarMaterial = (id: string) => materialService.eliminarMaterial(id);
+export const registrarIncidenciaMaterial = materialService.registrarIncidenciaMaterial.bind(materialService);
+export const actualizarCantidadDisponible = materialService.actualizarCantidadDisponible.bind(materialService);
+export const obtenerEstadisticasMaterial = () => materialService.obtenerEstadisticasMaterial();
+export const buscarMaterialesDisponibles = (filtros?: { tipo?: string; cantidad?: number }) => materialService.buscarMaterialesDisponibles(filtros);
 
 // Exportar servicio para uso avanzado
-export { MaterialServiceInstance as MaterialService };
+export { materialService };
