@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardBody, 
@@ -22,11 +22,15 @@ import {
   NumberDecrementStepper,
   Divider,
   Badge,
-  SimpleGrid
+  SimpleGrid,
+  Tooltip,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
-import { FiKey, FiEye, FiEyeOff, FiMap, FiMessageSquare, FiSettings } from 'react-icons/fi';
+import { FiKey, FiEye, FiEyeOff, FiMap, FiMessageSquare, FiSettings, FiServer, FiCloud } from 'react-icons/fi';
 import type { GoogleApisConfig } from '../../../../services/configuracionService';
 import CryptoJS from "crypto-js";
+import { useSecureApisConfig } from '../../../../hooks/configuration/useSecureApisConfig';
 
 const apiFields: { key: keyof GoogleApisConfig; label: string; section: string }[] = [
   // APIs Geográficas
@@ -71,13 +75,34 @@ interface ApisGoogleSectionProps {
   config: GoogleApisConfig;
   setConfig: (cfg: GoogleApisConfig) => void;
   save: (data: GoogleApisConfig) => Promise<void>;
+  userRole?: 'admin' | 'vocal';
 }
 
-const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig, save }) => {
+const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig, save, userRole }) => {
   const [show, setShow] = React.useState<{ [k in keyof GoogleApisConfig]?: boolean }>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Usar el hook de configuración segura para las API keys sensibles
+  const {
+    data: secureApiConfig,
+    setData: setSecureApiConfig,
+    loading: secureConfigLoading,
+    saving: secureConfigSaving,
+    error: secureConfigError,
+    save: saveSecureConfig
+  } = useSecureApisConfig(); 
+
+  // Estado para mostrar/ocultar API keys del proxy
+  const [showProxyKey, setShowProxyKey] = useState(false);
+  
+  // Sincronizar datos del hook seguro al montar el componente
+  useEffect(() => {
+    if (!secureConfigLoading && secureApiConfig) {
+      // La configuración ya está cargada
+    }
+  }, [secureConfigLoading, secureApiConfig]);
 
   const encrypt = (value: string) => {
     if (!value) return "";
@@ -112,11 +137,30 @@ const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig
     try {
       await save(config);
       setSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setLoading(false);
       setTimeout(() => setSuccess(false), 2000);
+    }
+  };
+
+  // Manejador para cambios en la configuración segura
+  const handleSecureConfigChange = (key: string, value: string) => {
+    setSecureApiConfig((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+  
+  // Guardar la configuración segura
+  const handleSaveSecureConfig = async () => {
+    try {
+      await saveSecureConfig();
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar configuración segura');
     }
   };
 
@@ -168,7 +212,7 @@ const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig
                           <Input
                             type={show[key] ? "text" : "password"}
                             value={decrypt(config[key] as string || "")}
-                            onChange={e => handleApiKeyChange(key, e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleApiKeyChange(key, e.target.value)}
                             autoComplete="off"
                             placeholder="Ingresa tu API key..."
                           />
@@ -208,7 +252,7 @@ const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig
                       <HStack>
                         <Switch
                           isChecked={config[key] as boolean || false}
-                          onChange={e => handleConfigChange(key, e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleConfigChange(key, e.target.checked)}
                           colorScheme="blue"
                           size="sm"
                         />
@@ -219,7 +263,7 @@ const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig
                     ) : (
                       <NumberInput
                         value={config[key] as number || 0}
-                        onChange={(_, value) => handleConfigChange(key, value || 0)}
+                        onChange={(_: string, value: number) => handleConfigChange(key, value || 0)}
                         size="sm"
                         min={keyString.includes('Latitude') ? -90 : keyString.includes('Longitude') ? -180 : keyString.includes('Zoom') ? 1 : 0}
                         max={keyString.includes('Latitude') ? 90 : keyString.includes('Longitude') ? 180 : keyString.includes('Zoom') ? 21 : undefined}
@@ -252,6 +296,108 @@ const ApisGoogleSection: React.FC<ApisGoogleSectionProps> = ({ config, setConfig
             Guardar Configuración
           </Button>
         </Box>
+        
+        {/* Sección del Proxy AEMET */}
+        <Divider my={8} />
+        
+        <Heading size="sm" mb={4} color="orange.600" display="flex" alignItems="center">
+          <FiServer style={{ marginRight: 8 }} />
+          Proxy de Firebase Functions para AEMET
+        </Heading>
+        
+        <VStack spacing={4} align="stretch">
+          <Alert status="info" mb={4}>
+            <AlertIcon />
+            <Text fontSize="sm">
+              Configura el proxy de Cloud Functions para solucionar los problemas CORS con la API de AEMET.
+              El proxy actúa como intermediario entre tu aplicación y la API de AEMET.
+            </Text>
+          </Alert>
+          
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+            <FormControl>
+              <FormLabel fontSize="sm">URL de la función proxy</FormLabel>
+              <Tooltip label="URL completa de la función desplegada">
+                <Input
+                  value={secureApiConfig.aemetFunctionUrl || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSecureConfigChange('aemetFunctionUrl', e.target.value)}
+                  placeholder="https://us-central1-fichamaterial.cloudfunctions.net/aemetProxy"
+                  size="sm"
+                  isReadOnly={userRole !== 'admin'}
+                />
+              </Tooltip>
+              <Text fontSize="xs" color="gray.500" mt={1}>
+                URL de la Cloud Function que actúa como proxy para la API de AEMET
+              </Text>
+            </FormControl>
+            
+            <FormControl>
+              <FormLabel fontSize="sm">
+                <HStack>
+                  <Text>API Key de acceso</Text>
+                  <Tooltip label="Esta clave protege el acceso a la función de Cloud Functions">
+                    <Badge colorScheme="purple">Seguridad</Badge>
+                  </Tooltip>
+                </HStack>
+              </FormLabel>
+              <InputGroup size="sm">
+                <Input
+                  type={showProxyKey ? 'text' : 'password'}
+                  value={secureApiConfig.aemetFunctionKey || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSecureConfigChange('aemetFunctionKey', e.target.value)}
+                  placeholder="Clave de acceso a la función"
+                  isReadOnly={userRole !== 'admin'}
+                />
+                <InputRightElement>
+                  <IconButton
+                    aria-label={showProxyKey ? 'Ocultar clave' : 'Mostrar clave'}
+                    icon={showProxyKey ? <FiEyeOff /> : <FiEye />}
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => setShowProxyKey(!showProxyKey)}
+                    isDisabled={userRole !== 'admin'}
+                  />
+                </InputRightElement>
+              </InputGroup>
+              <Text fontSize="xs" color="gray.500" mt={1}>
+                {userRole === 'vocal'
+                  ? 'Solo administradores pueden modificar las claves'
+                  : 'Clave para autenticar el acceso a la Cloud Function'
+                }
+              </Text>
+            </FormControl>
+          </SimpleGrid>
+          
+          {userRole === 'admin' && (
+            <Box mt={2}>
+              <Button
+                leftIcon={<FiCloud />}
+                colorScheme="blue"
+                variant="outline"
+                size="sm"
+                onClick={handleSaveSecureConfig}
+                isLoading={secureConfigSaving}
+              >
+                Guardar configuración del proxy
+              </Button>
+            </Box>
+          )}
+          
+          <Box bg="blue.50" p={3} borderRadius="md" border="1px solid" borderColor="blue.200">
+            <Text fontSize="xs" color="blue.800" fontWeight="semibold" mb={1}>
+              🛡️ Información de seguridad
+            </Text>
+            <Text fontSize="xs" color="blue.700">
+              • La función proxy valida la API key de la aplicación para evitar uso no autorizado
+            </Text>
+            <Text fontSize="xs" color="blue.700">
+              • La URL y clave del proxy se almacenan de forma segura en Firestore
+            </Text>
+            <Text fontSize="xs" color="blue.700">
+              • Este proxy soluciona los problemas CORS y permite el uso en producción
+            </Text>
+          </Box>
+        </VStack>
       </CardBody>
     </Card>
   );

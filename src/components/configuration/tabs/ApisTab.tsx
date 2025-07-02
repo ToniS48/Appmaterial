@@ -69,16 +69,15 @@ const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
             </Button>
           </Box>
         </Alert>        
-        {userRole === 'admin' && (
+        {googleConfig && (
           <>
             {/* Configuración Google APIs (Maps, etc.) */}
-            {googleConfig && (
-              <ApisGoogleSection 
-                config={googleConfig} 
-                setConfig={handleGoogleConfigChange} 
-                save={saveGoogleConfig} 
-              />
-            )}
+            <ApisGoogleSection 
+              config={googleConfig} 
+              setConfig={handleGoogleConfigChange} 
+              save={saveGoogleConfig}
+              userRole={userRole}
+            />
             {/* Configuración Weather APIs - Ahora maneja su propia seguridad */}
             <WeatherServicesSection 
               userRole={userRole}

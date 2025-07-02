@@ -22,6 +22,10 @@ export interface ApisConfig {
   // Weather APIs
   weatherApiUrl: string;
   aemetApiKey: string; // Esta se encripta
+  
+  // Cloud Functions Proxy para AEMET
+  aemetFunctionUrl: string;
+  aemetFunctionKey: string; // Clave para acceder a la función
 }
 
 interface SecureApisHookResult {
@@ -46,7 +50,9 @@ const defaultConfig: ApisConfig = {
   chatApiKey: '',
   cloudMessagingApiKey: '',
   weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
-  aemetApiKey: ''
+  aemetApiKey: '',
+  aemetFunctionUrl: '',
+  aemetFunctionKey: ''
 };
 
 /**
@@ -131,7 +137,10 @@ export const useSecureApisConfig = (): SecureApisHookResult => {
         
         const completeData = {
           ...unencryptedData,
-          aemetApiKey: decryptedAemetKey
+          aemetApiKey: decryptedAemetKey,
+          // Añadir datos de proxy AEMET
+          aemetFunctionUrl: firestoreData.aemetFunctionUrl || '',
+          aemetFunctionKey: firestoreData.aemetFunctionKey || ''
         };
         
         setData(completeData);

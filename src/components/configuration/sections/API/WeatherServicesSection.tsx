@@ -21,9 +21,10 @@ import {
   AlertIcon,
   AlertDescription,
   Badge,
-  HStack
+  HStack,
+  Tooltip
 } from '@chakra-ui/react';
-import { FiEye, FiEyeOff, FiShield, FiRefreshCw } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiShield, FiRefreshCw, FiServer, FiCloud } from 'react-icons/fi';
 import { useSecureApisConfig } from '../../../../hooks/configuration/useSecureApisConfig';
 
 interface WeatherServicesSectionProps {
@@ -148,24 +149,39 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
           {/* Open-Meteo Configuration */}
           <Box>
-            <Text fontWeight="semibold" mb={2} color="blue.700">📡 Open-Meteo (API gratuita)</Text>
-            <Text fontSize="xs" color="gray.600" mb={3}>
-              Servicio meteorológico de código abierto y completamente gratuito. No requiere API key.
-            </Text>
-            <FormControl>
-              <FormLabel fontSize="sm">URL base de Open-Meteo</FormLabel>
-              <Input
-                name="weatherApiUrl"
-                value={config.weatherApiUrl || ""}
-                onChange={e => handleInputChange('weatherApiUrl', e.target.value)}
-                placeholder="https://api.open-meteo.com/v1/forecast"
-                isReadOnly={userRole === 'vocal'}
-                bg={userRole === 'vocal' ? "gray.50" : undefined}
-              />
-              <Text fontSize="xs" color="gray.500" mt={1}>
-                URL base para las consultas meteorológicas globales
-              </Text>
-            </FormControl>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl>
+                <FormLabel>Open-Meteo API URL</FormLabel>
+                <Input
+                  value={config.weatherApiUrl || ''}
+                  onChange={(e) => handleInputChange('weatherApiUrl', e.target.value)}
+                  placeholder="https://api.open-meteo.com/v1/forecast"
+                />
+              </FormControl>
+            </SimpleGrid>
+          </Box>
+
+          <Divider />
+
+          {/* Cloud Functions Configuration for AEMET Proxy - MOVED TO ApisGoogleSection */}
+          <Box>
+            <Heading size="sm" mb={3}>
+              <HStack>
+                <FiServer />
+                <Text>Firebase Functions Proxy para AEMET</Text>
+              </HStack>
+            </Heading>
+            
+            <Alert status="warning" mb={4}>
+              <AlertIcon />
+              <Box>
+                <Text fontWeight="bold">Configuración movida</Text>
+                <Text fontSize="sm">
+                  La configuración del proxy para AEMET ahora se encuentra en la sección "Google Maps & Services APIs"
+                  para centralizar todas las configuraciones de APIs externas.
+                </Text>
+              </Box>
+            </Alert>
           </Box>
 
           <Divider />

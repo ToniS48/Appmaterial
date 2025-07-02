@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { weatherConfigConverter, safeFirestoreUpdate } from './firestore/FirestoreConverters';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import aemetProxyService from './integrations/AemetProxyService';
 
 export interface WeatherData {
   date: string;
@@ -77,6 +78,11 @@ class WeatherService {
    */
   async configure(config: Partial<OpenMeteoConfig>): Promise<void> {
     this.config = { ...this.config, ...config };
+    
+    // Inicializar el servicio de proxy para AEMET si está habilitado
+    if (this.config.aemet.enabled) {
+      await aemetProxyService.initAemetProxy();
+    }
   }
   /**
    * Verifica si el servicio está habilitado (Open-Meteo siempre disponible, AEMET opcional)
@@ -568,7 +574,18 @@ class WeatherService {
         return null;
       }
 
-      // Obtener predicción específica para el municipio
+      // Intentar obtener datos a través del proxy primero
+      try {
+        const weatherData = await aemetProxyService.getPronosticoMunicipio(municipality);
+        if (weatherData && weatherData.length > 0) {
+          return this.mapAemetData(weatherData[0], lat, lon, days);
+        }
+      } catch (proxyError) {
+        console.warn('Error al obtener datos a través del proxy AEMET:', proxyError);
+        // Continuar con el método directo si el proxy falla
+      }
+
+      // Método directo (como respaldo)
       const forecastUrl = `https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/diaria/${municipality}`;
       
       const response = await fetch(forecastUrl, {
@@ -608,57 +625,75 @@ class WeatherService {
    */
   private async getAemetMunicipality(lat: number, lon: number): Promise<string | null> {
     try {
-      // Verificar si estamos en desarrollo con localhost para evitar problemas CORS
-      const isLocalhost = window.location.hostname === 'localhost' || 
-                          window.location.hostname === '127.0.0.1';
+      // Intentar usar el proxy de Cloud Functions para evitar problemas CORS
+      const municipalities = await aemetProxyService.getMunicipios();
       
-      if (isLocalhost) {
-        console.warn('AEMET: No se puede obtener municipio en localhost debido a restricciones CORS');
-        return null;
-      }
-      
-      // Usar API de municipios de AEMET
-      const response = await fetch('https://opendata.aemet.es/opendata/api/maestro/municipios', {
-        headers: {
-          'api_key': this.config.aemet.apiKey
+      if (!municipalities) {
+        console.warn('No se pudieron obtener municipios a través del proxy AEMET');
+        
+        // Verificar si estamos en desarrollo con localhost para el método directo
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+          console.warn('AEMET: No se puede obtener municipio en localhost debido a restricciones CORS');
+          return null;
         }
-      });
-
-      if (!response.ok) {
-        console.warn(`AEMET: Error obteniendo municipios (${response.status})`);
-        return null;
-      }
-
-      const result = await response.json();
-      if (result.estado !== 200 || !result.datos) return null;
-
-      const dataResponse = await fetch(result.datos);
-      const municipalities = await dataResponse.json();
-
-      // Encontrar el municipio más cercano
-      let closestMunicipality = null;
-      let minDistance = Infinity;
-
-      for (const municipality of municipalities) {
-        if (municipality.latitud_dec && municipality.longitud_dec) {
-          const distance = this.calculateDistance(
-            lat, lon,
-            parseFloat(municipality.latitud_dec),
-            parseFloat(municipality.longitud_dec)
-          );
-
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestMunicipality = municipality.id;
+        
+        // Método directo (fallará en producción por CORS)
+        const response = await fetch('https://opendata.aemet.es/opendata/api/maestro/municipios', {
+          headers: {
+            'api_key': this.config.aemet.apiKey
           }
-        }
-      }
+        });
 
-      return closestMunicipality;
+        if (!response.ok) {
+          console.warn(`AEMET: Error obteniendo municipios (${response.status})`);
+          return null;
+        }
+
+        const result = await response.json();
+        if (result.estado !== 200 || !result.datos) return null;
+
+        const dataResponse = await fetch(result.datos);
+        const municipalitiesData = await dataResponse.json();
+        
+        return this.findClosestMunicipality(municipalitiesData, lat, lon);
+      }
+      
+      // Usar los datos obtenidos a través del proxy
+      return this.findClosestMunicipality(municipalities, lat, lon);
+      
     } catch (error) {
       console.error('Error obteniendo municipio AEMET:', error);
       return null;
     }
+  }
+  
+  /**
+   * Encuentra el municipio más cercano a las coordenadas dadas
+   */
+  private findClosestMunicipality(municipalities: any[], lat: number, lon: number): string | null {
+    // Encontrar el municipio más cercano
+    let closestMunicipality = null;
+    let minDistance = Infinity;
+
+    for (const municipality of municipalities) {
+      if (municipality.latitud_dec && municipality.longitud_dec) {
+        const distance = this.calculateDistance(
+          lat, lon,
+          parseFloat(municipality.latitud_dec),
+          parseFloat(municipality.longitud_dec)
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestMunicipality = municipality.id;
+        }
+      }
+    }
+
+    return closestMunicipality;
   }
 
   /**
