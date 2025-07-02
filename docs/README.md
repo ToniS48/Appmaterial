@@ -1,3 +1,33 @@
+# Documentación del Proyecto AppMaterial
+
+Esta carpeta contiene toda la documentación organizada por categorías.
+
+## Estructura
+
+### 🔄 Core Flows (Flujos principales)
+Documentación de los flujos principales del sistema (01-08)
+
+### 🔗 Integrations (Integraciones)
+Documentación de integraciones con APIs externas (Google APIs, meteorología)
+
+### ⚙️ Setup (Configuración)
+Guías de configuración, migración y variables del sistema
+
+### 🚨 Troubleshooting (Solución de problemas)
+Documentación de debugging, correcciones y soluciones
+
+### 📚 Archive (Archivo)
+Documentos completados o de referencia histórica
+
+## Navegación
+
+Cada subcarpeta contiene documentación específica y un README con índice detallado.
+
+
+---
+
+## README Original
+
 # 📚 Documentación AppMaterial
 
 Sistema de gestión de materiales con integración meteorológica avanzada.
