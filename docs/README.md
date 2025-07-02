@@ -1,58 +1,124 @@
 # 📚 Documentación AppMaterial
 
-Bienvenido a la documentación consolidada del proyecto **AppMaterial** - Sistema de gestión de materiales con integración meteorológica avanzada.
+Sistema de gestión de materiales con integración meteorológica avanzada.
 
-## 🚀 Acceso Rápido
+## 🚀 Navegación por Flujos del Sistema
 
-### 📖 Documentación Principal
-**Ubicación:** [`consolidated/`](./consolidated/)
+### � [01-FLUJO-AUTENTICACION.md](./01-FLUJO-AUTENTICACION.md)
+**Autenticación y Autorización**
+- Sistema de login y registro
+- Gestión de roles y permisos
+- Protección de rutas
+- Contexto de autenticación
 
-La documentación completa y organizada del proyecto se encuentra en el directorio `consolidated/`. Esta estructura temática reemplaza la documentación fragmentada anterior.
+### 📦 [02-FLUJO-MATERIALES.md](./02-FLUJO-MATERIALES.md)
+**Gestión de Materiales**
+- Inventario y disponibilidad
+- Estados de material
+- Sistema de incidencias
+- Historial y mantenimiento
 
-**🎯 [COMENZAR AQUÍ - README](./consolidated/README.md)**
+### �‍♂️ [03-FLUJO-ACTIVIDADES.md](./03-FLUJO-ACTIVIDADES.md)
+**Gestión de Actividades**
+- Creación y planificación
+- Asignación de materiales
+- Estados de actividad
+- Integración meteorológica
+
+### � [04-FLUJO-PRESTAMOS.md](./04-FLUJO-PRESTAMOS.md)
+**Sistema de Préstamos**
+- Préstamos automáticos y manuales
+- Estados y transiciones
+- Devoluciones
+- Alertas y automatización
+
+### 🌤️ [05-FLUJO-METEOROLOGICO.md](./05-FLUJO-METEOROLOGICO.md)
+**Integración Meteorológica**
+- APIs meteorológicas
+- Pronósticos y alertas
+- Configuración de ubicaciones
+- Historial climatológico
+
+### � [06-FLUJO-NOTIFICACIONES.md](./06-FLUJO-NOTIFICACIONES.md)
+**Sistema de Notificaciones**
+- Tipos de notificaciones
+- Envío automático
+- Estados y seguimiento
+- Integración con otros sistemas
+
+### � [07-FLUJO-MENSAJERIA.md](./07-FLUJO-MENSAJERIA.md)
+**Sistema de Mensajería**
+- Chat en tiempo real
+- Conversaciones individuales y grupales
+- Notificaciones de mensajes
+- Permisos por rol
+
+### ⚙️ [08-FLUJO-CONFIGURACION.md](./08-FLUJO-CONFIGURACION.md)
+**Sistema de Configuración**
+- Variables del sistema
+- Configuración por módulos
+- Valores por defecto
+- Validación y propagación
+
+### 🔗 [09-INTEGRACIONES-FIREBASE.md](./09-INTEGRACIONES-FIREBASE.md)
+**Integraciones con Firebase**
+- Firestore y colecciones
+- Authentication
+- Storage y funciones
+- Reglas de seguridad
+
+### 📊 [10-ARQUITECTURA-SISTEMA.md](./10-ARQUITECTURA-SISTEMA.md)
+**Arquitectura y Desarrollo**
+- Patrones de diseño
+- Estructura del proyecto
+- Servicios y repositorios
+- Hooks personalizados
 
 ---
 
-## 📋 Estructura Organizacional
+## 🔧 Configuración y Desarrollo
 
-### 🏗️ Documentación Consolidada
-```
-consolidated/
-├── 📄 README.md                         # Introducción general
-├── 🗂️ INDEX-MAESTRO.md                  # Navegación completa
-├── 📊 01-RESUMEN-EJECUTIVO.md           # Visión del proyecto
-├── 🏗️ 02-ARQUITECTURA-Y-DESARROLLO.md   # Desarrollo técnico
-├── ⚙️ 03-COMPONENTES-Y-FUNCIONALIDADES.md # Sistema y características
-├── 🔧 04-SOLUCIONES-Y-DEBUGGING.md      # Resolución de problemas
-├── 🌤️ 05-SISTEMA-METEOROLOGICO.md       # Integración meteorológica
-├── ⚡ 06-OPTIMIZACION-Y-PERFORMANCE.md  # Rendimiento y mejoras
-├── 🧪 07-TESTING-Y-CALIDAD.md          # Pruebas y calidad
-└── 🚀 08-DEPLOYMENT-Y-CONFIGURACION.md  # Despliegue y setup
+### 📝 Variables de Entorno
+```env
+REACT_APP_FIREBASE_API_KEY=
+REACT_APP_FIREBASE_AUTH_DOMAIN=
+REACT_APP_FIREBASE_PROJECT_ID=
+REACT_APP_FIREBASE_STORAGE_BUCKET=
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=
+REACT_APP_FIREBASE_APP_ID=
 ```
 
-### 🗃️ Archivos Especializados
+### 🚀 Comandos Principales
+```bash
+# Instalación
+npm install
+
+# Desarrollo
+npm start
+
+# Construcción
+npm run build
+
+# Testing
+npm test
 ```
-📁 archive/     # Documentación histórica y legacy
-📁 guides/      # Guías específicas y tutoriales
-📁 reports/     # Reportes técnicos y análisis
-📁 solutions/   # Soluciones técnicas especializadas
-📁 README/      # Información adicional del proyecto
+
+### 📱 Ejecución Rápida
+```bash
+# Ejecutar con integración meteorológica
+npm start
 ```
 
 ---
 
-## 🎯 Navegación Rápida
+## 📈 Estado del Proyecto
 
-| **Necesitas...** | **Ve a...** |
-|-------------------|-------------|
-| **Empezar desde cero** | [`consolidated/README.md`](./consolidated/README.md) |
-| **Visión general** | [`01-RESUMEN-EJECUTIVO.md`](./consolidated/01-RESUMEN-EJECUTIVO.md) |
-| **Desarrollo técnico** | [`02-ARQUITECTURA-Y-DESARROLLO.md`](./consolidated/02-ARQUITECTURA-Y-DESARROLLO.md) |
-| **Resolver problemas** | [`04-SOLUCIONES-Y-DEBUGGING.md`](./consolidated/04-SOLUCIONES-Y-DEBUGGING.md) |
-| **Setup meteorología** | [`05-SISTEMA-METEOROLOGICO.md`](./consolidated/05-SISTEMA-METEOROLOGICO.md) |
-| **Mejorar rendimiento** | [`06-OPTIMIZACION-Y-PERFORMANCE.md`](./consolidated/06-OPTIMIZACION-Y-PERFORMANCE.md) |
-| **Hacer testing** | [`07-TESTING-Y-CALIDAD.md`](./consolidated/07-TESTING-Y-CALIDAD.md) |
-| **Deployar** | [`08-DEPLOYMENT-Y-CONFIGURACION.md`](./consolidated/08-DEPLOYMENT-Y-CONFIGURACION.md) |
+- **Funcionalidades**: ✅ Completas
+- **Testing**: ✅ Implementado
+- **Documentación**: ✅ Actualizada
+- **Integración Meteorológica**: ✅ Activa
+- **Sistema de Préstamos**: ✅ Automatizado
+- **Notificaciones**: ✅ Tiempo Real
 
 ---
 

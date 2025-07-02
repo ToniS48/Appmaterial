@@ -1,10 +1,13 @@
 
 import { Timestamp } from 'firebase/firestore';
 
+export type SeccionMaterial = 'espeleologia' | 'montaña' | 'escalada';
+
 export interface Material {
   id: string;
   nombre: string;
   tipo: 'cuerda' | 'anclaje' | 'varios';
+  secciones?: SeccionMaterial[]; // Secciones que pueden usar este material (opcional para compatibilidad)
   codigo?: string;
   estado: 'disponible' | 'prestado' | 'mantenimiento' | 'baja' | 'perdido' | 'revision' | 'retirado';
   fechaAdquisicion: Timestamp | Date;

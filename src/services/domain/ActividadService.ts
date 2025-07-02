@@ -8,6 +8,7 @@ import { Prestamo } from '../../types/prestamo';
 import { actividadRepository, prestamoRepository } from '../../repositories';
 import { validateActividad, getUniqueParticipanteIds } from '../../utils/actividadUtils';
 import { determinarEstadoActividad, toTimestamp } from '../../utils/dateUtils';
+import { completeActividad } from '../firestore/EntityDefaults';
 import * as prestamoService from '../prestamoService';
 import { crearPrestamosParaActividad } from '../actividadService';
 import { logger } from '../../utils/loggerUtils';
@@ -73,7 +74,8 @@ export class ActividadService {
       const fechaInicioTimestamp = Timestamp.fromDate(request.fechaInicio);
       const fechaFinTimestamp = Timestamp.fromDate(request.fechaFin);
       
-      const actividadData: Omit<Actividad, 'id'> = {
+      // Datos base de la actividad
+      const actividadBase = {
         ...request,
         participanteIds,
         fechaInicio: fechaInicioTimestamp,
@@ -89,7 +91,12 @@ export class ActividadService {
         enlacesTopografias: [],
         enlacesDrive: [],
         enlacesWeb: []
-      };      // Crear la actividad
+      };
+      
+      // Completar con campos por defecto
+      const actividadData = completeActividad(actividadBase);
+      
+      // Crear la actividad
       const nuevaActividad = await actividadRepository.create(actividadData);      // Gestionar préstamos si es necesario
       if (nuevaActividad.necesidadMaterial && 
           Array.isArray(nuevaActividad.materiales) && 

@@ -7,6 +7,7 @@ import {
   updateDoc,
   Timestamp 
 } from 'firebase/firestore';
+import { completeUsuario } from './firestore/EntityDefaults';
 import { 
   createUserWithEmailAndPassword, 
   updateProfile, 
@@ -48,7 +49,10 @@ export const registrarUsuario = async (userData: {
     
     try {
       // Crear documento de usuario en Firestore
-      const usuarioRef = doc(db, 'usuarios', user.uid);      const userDataFirestore: Usuario = {
+      const usuarioRef = doc(db, 'usuarios', user.uid);
+      
+      // Datos base del usuario
+      const userDataBase = {
         uid: user.uid,
         email: userData.email,
         nombre: userData.nombre,
@@ -62,6 +66,9 @@ export const registrarUsuario = async (userData: {
         fechaRegistro: Timestamp.now(),
         ultimaConexion: Timestamp.now()
       };
+      
+      // Completar con campos por defecto
+      const userDataFirestore = completeUsuario(userDataBase);
       
       await setDoc(usuarioRef, userDataFirestore);
       
@@ -137,7 +144,9 @@ export const obtenerOCrearUsuario = async (uid: string, email: string): Promise<
       // Si no existe el perfil, crear uno básico
       console.log('Creando perfil básico para usuario:', uid);
       const ahora = Timestamp.now();
-        const nuevoUsuario: Usuario = {
+      
+      // Datos base del usuario
+      const usuarioBase = {
         uid,
         email,
         nombre: email.split('@')[0],
@@ -151,6 +160,9 @@ export const obtenerOCrearUsuario = async (uid: string, email: string): Promise<
         fechaRegistro: ahora,
         ultimaConexion: ahora
       };
+      
+      // Completar con campos por defecto
+      const nuevoUsuario = completeUsuario(usuarioBase);
       
       await setDoc(doc(db, 'usuarios', uid), nuevoUsuario);
       
@@ -259,7 +271,9 @@ export const crearUsuario = async (userData: {
     
     // Crear documento de usuario en Firestore
     const usuarioRef = doc(db, 'usuarios', user.uid);
-      const nuevoUsuario: Usuario = {
+    
+    // Datos base del usuario
+    const usuarioBase: any = {
       uid: user.uid,
       email: userData.email,
       nombre: userData.nombre,
@@ -275,9 +289,12 @@ export const crearUsuario = async (userData: {
     };
     
     // Añadir campos opcionales
-    if (userData.telefono) nuevoUsuario.telefono = userData.telefono;
-    if (userData.telefonosEmergencia) nuevoUsuario.telefonosEmergencia = userData.telefonosEmergencia;
-    if (userData.observaciones) nuevoUsuario.observaciones = userData.observaciones;
+    if (userData.telefono) usuarioBase.telefono = userData.telefono;
+    if (userData.telefonosEmergencia) usuarioBase.telefonosEmergencia = userData.telefonosEmergencia;
+    if (userData.observaciones) usuarioBase.observaciones = userData.observaciones;
+    
+    // Completar con campos por defecto
+    const nuevoUsuario = completeUsuario(usuarioBase);
     
     await setDoc(usuarioRef, nuevoUsuario);
     

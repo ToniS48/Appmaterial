@@ -236,47 +236,35 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
           <FormErrorMessage>{getErrorMessage(errors.nombre)}</FormErrorMessage>
         )}
       </FormControl>      <FormControl isRequired isInvalid={!!errors.lugar} mb={4}>
-        <FormLabel>
-          <HStack>
-            <Text>Lugar</Text>
-            <Tooltip label="Seleccionar ubicación en el mapa" hasArrow>
-              <IconButton
-                aria-label="Seleccionar ubicación en el mapa"
-                icon={<FiMapPin />}
-                size="sm"
-                variant="ghost"
-                colorScheme="blue"
-                onClick={handleOpenLocationSelector}
-              />
-            </Tooltip>
-          </HStack>
-        </FormLabel>
-        <InputGroup>
-          <Input            {...register('lugar', {
-                          required: true,
-              onBlur: (e) => {
-                handleFieldTouched('lugar');
-                validateLugar(e.target.value, true);
-              }
-            })}
-            placeholder="Ejemplo: Montanejos, Castellón"
-          />
-          <InputRightElement>
-            <Tooltip label="Seleccionar ubicación en el mapa" hasArrow>
-              <IconButton
-                aria-label="Seleccionar ubicación en el mapa"
-                icon={<FiMapPin />}
-                size="sm"                variant="ghost"
-                colorScheme="blue"
-                onClick={handleOpenLocationSelector}
-                h="1.75rem"
-              />
-            </Tooltip>
-          </InputRightElement>
-        </InputGroup>
+        <FormLabel>Lugar</FormLabel>
+        <Input
+          {...register('lugar', {
+            required: true,
+            onBlur: (e) => {
+              handleFieldTouched('lugar');
+              validateLugar(e.target.value, true);
+            }
+          })}
+          placeholder="Ejemplo: Montanejos, Castellón"
+        />
         {errors.lugar && (
           <FormErrorMessage>{getErrorMessage(errors.lugar)}</FormErrorMessage>
         )}
+        
+        {/* Botón para seleccionar ubicación en el mapa */}
+        <Box mt={2}>
+          <Tooltip label="Abrir selector de ubicación en mapa interactivo" hasArrow>
+            <Button
+              leftIcon={<FiMapPin />}
+              onClick={handleOpenLocationSelector}
+              variant="outline"
+              colorScheme="teal"
+              size="sm"
+            >
+              Seleccionar en Mapa
+            </Button>
+          </Tooltip>
+        </Box>
       </FormControl>
 
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mb={4}>
@@ -412,40 +400,7 @@ export const ActividadInfoForm: React.FC<ActividadInfoFormProps> = ({ onCancel }
         />
       </FormControl>
 
-      {/* Botón para abrir el selector de ubicación */}
-      <HStack spacing={4} mb={4}>
-        <FormControl isInvalid={!!errors.lugar}>
-          <FormLabel>Lugar</FormLabel>
-          <InputGroup>
-            <Controller
-              name="lugar"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  {...field}
-                  placeholder="Buscar ubicación..."
-                  onFocus={handleOpenLocationSelector} // Abrir selector al enfocar
-                />
-              )}
-            />
-            <InputRightElement>
-              <Tooltip label="Seleccionar ubicación en el mapa">
-                <IconButton
-                  aria-label="Seleccionar ubicación"
-                  icon={<FiMapPin />}
-                  onClick={handleOpenLocationSelector}
-                  variant="outline"
-                  colorScheme="teal"
-                  size="sm"
-                />
-              </Tooltip>
-            </InputRightElement>
-          </InputGroup>
-          {errors.lugar && (
-            <FormErrorMessage>{getErrorMessage(errors.lugar)}</FormErrorMessage>
-          )}
-        </FormControl>
-      </HStack>      {/* Selector de ubicación (modal) */}
+      {/* Selector de ubicación (modal) */}
       <LocationSelector
         isOpen={isLocationSelectorOpen}
         onClose={handleCloseLocationSelector}

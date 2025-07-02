@@ -3,6 +3,7 @@ import { Timestamp, FieldValue } from 'firebase/firestore';
 import { EstadoAprobacion, EstadoActividad } from './usuarioHistorial';
 
 export type RolUsuario = 'admin' | 'vocal' | 'socio' | 'invitado';
+export type SeccionUsuario = 'espeleologia' | 'montaña' | 'escalada';
 
 export interface Usuario {
   id?: string; // Para compatibilidad con BaseEntity
@@ -11,6 +12,9 @@ export interface Usuario {
   nombre: string;
   apellidos: string;
   rol: RolUsuario;
+  
+  // Secciones del club a las que pertenece el usuario (opcional para compatibilidad)
+  secciones?: SeccionUsuario[]; // Array para permitir múltiples secciones
   
   // Estados actualizados según requerimientos
   estadoAprobacion: EstadoAprobacion; // Reemplaza el anterior 'activo' boolean

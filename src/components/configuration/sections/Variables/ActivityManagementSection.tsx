@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Card,
   CardBody,
@@ -8,9 +8,18 @@ import {
   Select,
   Text,
   SimpleGrid,
-  Box
+  Box,
+  Button,
+  useToast,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  VStack,
+  Badge
 } from '@chakra-ui/react';
 import { FiCalendar } from 'react-icons/fi';
+import { ActivityConfig } from '../../../../business/activities/ActivitiesBusinessLogic';
+import { useActivityConfigurationState } from '../../../../hooks/business/useActivityBusinessLogic';
 
 interface ActivityManagementSectionProps {
   config: any;
@@ -19,7 +28,7 @@ interface ActivityManagementSectionProps {
 }
 
 /**
- * Sección de Gestión de Actividades
+ * Sección de Gestión de Actividades - UI separada de lógica de negocio
  */
 const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
   config,
@@ -27,30 +36,72 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
   save
 }) => {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
-  const handleChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  // Convertir config a ActivityConfig tipado
+  const activityConfig: ActivityConfig = useMemo(() => ({
+    diasMinimoAntelacionCreacion: config?.diasMinimoAntelacionCreacion ?? 7,
+    diasMaximoModificacion: config?.diasMaximoModificacion ?? 3,
+    limiteParticipantesPorDefecto: config?.limiteParticipantesPorDefecto ?? 20,
+    tiempoMinimoActividad: config?.tiempoMinimoActividad ?? 60,
+    tiempoMaximoActividad: config?.tiempoMaximoActividad ?? 240,
+    alertasActivasActividades: config?.alertasActivasActividades ?? true,
+    requiereAprobacionAdmin: config?.requiereAprobacionAdmin ?? false
+  }), [config]);
 
-  const handleSave = async () => {
+  // Usar lógica de negocio separada
+  const {
+    config: businessConfig,
+    updateField,
+    isValid,
+    errors,
+    warnings,
+    advanceCreationOptions,
+    modificationLimitOptions,
+    participantsLimitOptions,
+    minTimeOptions,
+    maxTimeOptions,
+    configurationSummary,
+    formatDuration
+  } = useActivityConfigurationState(activityConfig);
+
+  // Manejadores de UI puros
+  const handleFieldChange = useCallback((field: keyof ActivityConfig, value: any) => {
+    updateField(field, value);
+    setConfig((prev: any) => ({ ...prev, [field]: value }));
+  }, [updateField, setConfig]);
+
+  const handleSave = useCallback(async () => {
+    if (!isValid) {
+      toast({
+        title: 'Errores de validación',
+        description: 'Por favor, corrige los errores antes de guardar',
+        status: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
     setLoading(true);
-    setError(null);
-    setSuccess(false);
     try {
       await save(config);
-      setSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
+      toast({ 
+        title: 'Guardado', 
+        description: 'Configuración de actividades guardada correctamente.', 
+        status: 'success',
+        duration: 2000
+      });
+    } catch (e) {
+      toast({ 
+        title: 'Error', 
+        description: 'No se pudo guardar la configuración.', 
+        status: 'error',
+        duration: 3000
+      });
     } finally {
       setLoading(false);
-      setTimeout(() => setSuccess(false), 2000);
     }
-  };
+  }, [isValid, save, config, toast]);
 
   return (
     <Card>
@@ -59,17 +110,58 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
           <FiCalendar style={{ marginRight: 8 }} />
           Gestión de Actividades
         </Text>
+
+        {/* Mostrar estado de validación */}
+        {errors.length > 0 && (
+          <Alert status="error" mt={3} mb={4}>
+            <AlertIcon />
+            <VStack align="stretch" spacing={1}>
+              {errors.map((error: string, index: number) => (
+                <Text key={index} fontSize="sm">{error}</Text>
+              ))}
+            </VStack>
+          </Alert>
+        )}
+
+        {warnings.length > 0 && (
+          <Alert status="warning" mt={3} mb={4}>
+            <AlertIcon />
+            <VStack align="stretch" spacing={1}>
+              {warnings.map((warning: string, index: number) => (
+                <Text key={index} fontSize="sm">{warning}</Text>
+              ))}
+            </VStack>
+          </Alert>
+        )}
+
+        {/* Resumen de configuración */}
+        <Box bg="blue.50" p={3} borderRadius="md" mb={4} mt={3}>
+          <Text fontSize="sm" fontWeight="medium" color="blue.700">
+            Configuración actual
+          </Text>
+          <Text fontSize="xs" color="blue.600" mt={1}>
+            {configurationSummary}
+          </Text>
+        </Box>
+
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
-            <FormLabel fontSize="sm">Antelación mínima para crear actividad</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Antelación mínima para crear actividad
+              <Badge colorScheme={businessConfig.diasMinimoAntelacionCreacion > 14 ? 'yellow' : 'green'} size="sm">
+                {businessConfig.diasMinimoAntelacionCreacion}d
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.diasMinimoAntelacionCreacion}
-              onChange={e => handleChange('diasMinimoAntelacionCreacion', parseInt(e.target.value))}
+              value={businessConfig.diasMinimoAntelacionCreacion}
+              onChange={(e) => handleFieldChange('diasMinimoAntelacionCreacion', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="1">1 día</option>
-              <option value="3">3 días</option>
-              <option value="7">7 días</option>
-              <option value="14">14 días</option>
+              {advanceCreationOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
               Días mínimos de antelación para crear una actividad
@@ -77,15 +169,22 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
           </FormControl>
 
           <FormControl>
-            <FormLabel fontSize="sm">Límite para modificar actividad</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Límite para modificar actividad
+              <Badge colorScheme={businessConfig.diasMaximoModificacion > 7 ? 'orange' : 'blue'} size="sm">
+                {businessConfig.diasMaximoModificacion}d antes
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.diasMaximoModificacion}
-              onChange={e => handleChange('diasMaximoModificacion', parseInt(e.target.value))}
+              value={businessConfig.diasMaximoModificacion}
+              onChange={(e) => handleFieldChange('diasMaximoModificacion', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="1">1 día antes</option>
-              <option value="2">2 días antes</option>
-              <option value="3">3 días antes</option>
-              <option value="7">7 días antes</option>
+              {modificationLimitOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
               Días antes de actividad donde ya no se puede modificar
@@ -93,34 +192,86 @@ const ActivityManagementSection: React.FC<ActivityManagementSectionProps> = ({
           </FormControl>
 
           <FormControl>
-            <FormLabel fontSize="sm">Límite de participantes por defecto</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Límite de participantes por defecto
+              <Badge colorScheme={businessConfig.limiteParticipantesPorDefecto > 50 ? 'orange' : 'purple'} size="sm">
+                {businessConfig.limiteParticipantesPorDefecto}
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.limiteParticipantesPorDefecto}
-              onChange={e => handleChange('limiteParticipantesPorDefecto', parseInt(e.target.value))}
+              value={businessConfig.limiteParticipantesPorDefecto}
+              onChange={(e) => handleFieldChange('limiteParticipantesPorDefecto', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="10">10 participantes</option>
-              <option value="15">15 participantes</option>
-              <option value="20">20 participantes</option>
-              <option value="25">25 participantes</option>
-              <option value="30">30 participantes</option>
+              {participantsLimitOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Límite por defecto de participantes en nuevas actividades
+              Número máximo de participantes por defecto para nuevas actividades
+            </Text>
+          </FormControl>
+
+          <FormControl>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Tiempo mínimo de actividad
+              <Badge colorScheme="teal" size="sm">
+                {formatDuration(businessConfig.tiempoMinimoActividad)}
+              </Badge>
+            </FormLabel>
+            <Select
+              value={businessConfig.tiempoMinimoActividad}
+              onChange={(e) => handleFieldChange('tiempoMinimoActividad', parseInt(e.target.value))}
+              size="sm"
+            >
+              {minTimeOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <Text fontSize="xs" color="gray.600" mt={1}>
+              Duración mínima que debe tener una actividad
+            </Text>
+          </FormControl>
+
+          <FormControl>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Tiempo máximo de actividad
+              <Badge colorScheme="teal" size="sm">
+                {formatDuration(businessConfig.tiempoMaximoActividad)}
+              </Badge>
+            </FormLabel>
+            <Select
+              value={businessConfig.tiempoMaximoActividad}
+              onChange={(e) => handleFieldChange('tiempoMaximoActividad', parseInt(e.target.value))}
+              size="sm"
+            >
+              {maxTimeOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <Text fontSize="xs" color="gray.600" mt={1}>
+              Duración máxima que puede tener una actividad
             </Text>
           </FormControl>
         </SimpleGrid>
-        {error && <Text color="red.500" mt={2}>{error}</Text>}
-        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
-        <Box display="flex" justifyContent="flex-end" mt={4}>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            style={{
-              background: '#805ad5', color: 'white', padding: '8px 16px', borderRadius: 4, border: 'none', cursor: loading ? 'not-allowed' : 'pointer'
-            }}
+
+        <Box display="flex" justifyContent="flex-end" mt={6}>
+          <Button 
+            colorScheme="blue" 
+            onClick={handleSave} 
+            isLoading={loading}
+            loadingText="Guardando..."
+            isDisabled={!isValid}
+            leftIcon={<FiCalendar />}
           >
-            {loading ? 'Guardando...' : 'Guardar'}
-          </button>
+            Guardar
+          </Button>
         </Box>
       </CardBody>
     </Card>

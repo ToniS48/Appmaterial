@@ -2,6 +2,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { Material } from '../types/material';
 import { Timestamp } from 'firebase/firestore';
+import { completeMaterial } from './firestore/EntityDefaults';
 
 export interface ImportResult {
   success: boolean;
@@ -315,7 +316,8 @@ class MaterialImportService {
   private rowToMaterial(row: any): Omit<Material, 'id'> {
     const now = new Date();
     
-    const material: Omit<Material, 'id'> = {
+    // Crear objeto base con campos básicos
+    const materialBase: any = {
       nombre: row.Nombre.toString().trim(),
       tipo: row.Tipo as 'cuerda' | 'anclaje' | 'varios',
       codigo: row.Codigo?.toString().trim() || undefined,
@@ -331,27 +333,28 @@ class MaterialImportService {
     };
 
     // Campos específicos por tipo
-    if (material.tipo === 'cuerda') {
-      material.longitud = row['Longitud (m)'] ? Number(row['Longitud (m)']) : undefined;
-      material.diametro = row['Diámetro (mm)'] ? Number(row['Diámetro (mm)']) : undefined;
-      material.usos = row.Usos ? Number(row.Usos) : 0;
-      material.tipoCuerda = row['Tipo Cuerda']?.toString().trim() || undefined;
-      material.fechaFabricacion = this.parseDate(row['Fecha Fabricación']) || undefined;
-      material.fechaPrimerUso = this.parseDate(row['Fecha Primer Uso']) || undefined;
-      material.vidaUtilRestante = row['Vida Útil Restante (%)'] ? Number(row['Vida Útil Restante (%)']) : undefined;
+    if (materialBase.tipo === 'cuerda') {
+      materialBase.longitud = row['Longitud (m)'] ? Number(row['Longitud (m)']) : undefined;
+      materialBase.diametro = row['Diámetro (mm)'] ? Number(row['Diámetro (mm)']) : undefined;
+      materialBase.usos = row.Usos ? Number(row.Usos) : 0;
+      materialBase.tipoCuerda = row['Tipo Cuerda']?.toString().trim() || undefined;
+      materialBase.fechaFabricacion = this.parseDate(row['Fecha Fabricación']) || undefined;
+      materialBase.fechaPrimerUso = this.parseDate(row['Fecha Primer Uso']) || undefined;
+      materialBase.vidaUtilRestante = row['Vida Útil Restante (%)'] ? Number(row['Vida Útil Restante (%)']) : undefined;
     }
 
-    if (material.tipo === 'anclaje') {
-      material.tipoAnclaje = row['Tipo Anclaje']?.toString().trim() || undefined;
+    if (materialBase.tipo === 'anclaje') {
+      materialBase.tipoAnclaje = row['Tipo Anclaje']?.toString().trim() || undefined;
     }
 
-    if (material.tipo === 'varios') {
-      material.categoria = row.Categoría?.toString().trim() || undefined;
-      material.subcategoria = row.Subcategoría?.toString().trim() || undefined;
-      material.descripcion = row.Descripción?.toString().trim() || undefined;
+    if (materialBase.tipo === 'varios') {
+      materialBase.categoria = row.Categoría?.toString().trim() || undefined;
+      materialBase.subcategoria = row.Subcategoría?.toString().trim() || undefined;
+      materialBase.descripcion = row.Descripción?.toString().trim() || undefined;
     }
 
-    return material;
+    // Completar con valores por defecto para campos dinámicos
+    return completeMaterial(materialBase);
   }
 
   /**

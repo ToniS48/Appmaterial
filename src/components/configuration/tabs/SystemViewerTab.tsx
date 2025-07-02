@@ -8,14 +8,11 @@ import {
   TabPanel,
   Spinner
 } from '@chakra-ui/react';
-import { ConfigSettings } from '../../../types/configuration';
 import SystemVariablesViewer from '../sections/General/SystemVariablesViewer';
 import { useSystemConfig } from '../../../services/SystemConfigService';
 
 interface SystemViewerTabProps {
-  settings: ConfigSettings;
   userRole: 'admin' | 'vocal';
-  onConfigReload?: () => void;
 }
 
 /**
@@ -23,9 +20,7 @@ interface SystemViewerTabProps {
  * Solo disponible para administradores
  */
 const SystemViewerTab: React.FC<SystemViewerTabProps> = ({
-  settings,
-  userRole,
-  onConfigReload
+  userRole
 }) => {
   const { loading } = useSystemConfig();
 

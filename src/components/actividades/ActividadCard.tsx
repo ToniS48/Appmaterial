@@ -55,25 +55,15 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
   variant = 'complete'
 }) => {
   const { userProfile } = useAuth();
-  // Hook para datos meteorológicos - mostrar hasta 1 día después del fin de la actividad
+  
+  // Hook para datos meteorológicos
   const shouldShowWeather = useMemo(() => {
-    if (actividad.estado === 'cancelada') return false;
-    
-    const fechaInicio = actividad.fechaInicio instanceof Date 
-      ? actividad.fechaInicio 
-      : actividad.fechaInicio.toDate();
-    
-    const fechaFin = actividad.fechaFin 
-      ? (actividad.fechaFin instanceof Date ? actividad.fechaFin : actividad.fechaFin.toDate())
-      : fechaInicio;
-    
-    const hoy = new Date();
-    const diasDesdeFin = Math.ceil((hoy.getTime() - fechaFin.getTime()) / (1000 * 60 * 60 * 24));
-    const diasHastaInicio = Math.ceil((fechaInicio.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Mostrar meteo hasta 1 día después del fin de la actividad y hasta 15 días antes del inicio
-    return diasDesdeFin <= 1 && diasHastaInicio <= 15;
-  }, [actividad.estado, actividad.fechaInicio, actividad.fechaFin]);
+    // Solo mostrar weather para actividades no canceladas, con lugar, y que no estén finalizadas
+    return actividad.estado !== 'cancelada' && 
+           actividad.estado !== 'finalizada' && 
+           actividad.lugar;
+  }, [actividad.estado, actividad.lugar]);
+  
   const { weatherData, loading: weatherLoading } = use7DayWeather(
     shouldShowWeather ? actividad : null
   );
@@ -306,16 +296,14 @@ const ActividadCard: React.FC<ActividadCardProps> = ({
               )}
             </Flex>
           </Box>          {/* Pronóstico meteorológico en columna derecha */}
-          {shouldShowWeather && weatherData.length > 0 && !weatherLoading && (
+          {shouldShowWeather && weatherData.length > 0 && (
             <Box 
               flexShrink={0} 
               w="auto"
               display="flex"
-              flexDirection="column"
               alignItems="center"
-              justifyContent="flex-start"
-              minH="70px"
-              maxH="70px"
+              justifyContent="center"
+              minH="60px"
             >
               <WeatherCompactPreview 
                 weatherData={weatherData}

@@ -8,7 +8,7 @@ import {
   TabPanel,
   Spinner
 } from '@chakra-ui/react';
-import { useUnifiedConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import { useConfig } from '../../../hooks/configuration/useUnifiedConfig';
 import BackupsSection from '../sections/Backups/BackupsSection';
 
 const defaultBackupsConfig = {
@@ -25,7 +25,7 @@ interface BackupsTabProps {
  * Solo disponible para administradores
  */
 const BackupsTab: React.FC<BackupsTabProps> = ({ userRole }) => {
-  const { data: backups, setData: setBackups, loading, save } = useUnifiedConfig('security', defaultBackupsConfig);
+  const { data: backups, setData: setBackups, loading, save } = useConfig('backups', defaultBackupsConfig);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

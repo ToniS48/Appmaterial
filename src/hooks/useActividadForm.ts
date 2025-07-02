@@ -7,6 +7,7 @@ import {
   actualizarActividad 
 } from '../services/actividadService';
 import { Timestamp } from 'firebase/firestore';
+import { completeActividad } from '../services/firestore/EntityDefaults';
 import { determinarEstadoActividad, toTimestamp } from '../utils/dateUtils';
 import { 
   validateActividad,
@@ -195,8 +196,8 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
       }
 
-      // Asegurar que todos los campos obligatorios estén definidos
-      const actividadValidada: Omit<Actividad, 'id' | 'fechaCreacion'> = {
+      // Usar la función helper para completar campos automáticamente
+      const actividadConDefaults = completeActividad({
         nombre: dataToSave.nombre || '',
         lugar: dataToSave.lugar || '',
         descripcion: dataToSave.descripcion || '',
@@ -209,7 +210,8 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         responsableMaterialId: dataToSave.responsableMaterialId || '',
         participanteIds: dataToSave.participanteIds || [],
         necesidadMaterial: Boolean(dataToSave.responsableMaterialId && dataToSave.materiales?.length),
-        materiales: dataToSave.materiales || [],        estado: determinarEstadoActividad(
+        materiales: dataToSave.materiales || [],
+        estado: determinarEstadoActividad(
           toTimestamp(dataToSave.fechaInicio),
           toTimestamp(dataToSave.fechaFin),
           dataToSave.estado
@@ -222,19 +224,17 @@ export function useActividadForm({ actividadId, usuarioId }: UseActividadFormPro
         enlacesWeb: dataToSave.enlacesWeb || [],
         imagenesTopografia: dataToSave.imagenesTopografia || [],
         archivosAdjuntos: dataToSave.archivosAdjuntos || [],
-        dificultad: dataToSave.dificultad || 'media'
-      };
+        dificultad: dataToSave.dificultad || 'media',
+        fechaActualizacion: Timestamp.fromDate(new Date())
+      });
 
-      // Ahora podemos asignar fechaActualizacion sin error
-      actividadValidada.fechaActualizacion = Timestamp.fromDate(new Date());
-
-      // Guardar actividad usando el objeto validado
+      // Guardar actividad usando el objeto con defaults
       let resultado: Actividad;
       if (actividadId) {
-        resultado = await actualizarActividad(actividadId, actividadValidada);
+        resultado = await actualizarActividad(actividadId, actividadConDefaults);
         toast({ title: 'Actividad actualizada', status: 'success' });
       } else {
-        resultado = await crearActividad(actividadValidada);
+        resultado = await crearActividad(actividadConDefaults);
         toast({ title: 'Actividad creada', status: 'success' });
       }
 

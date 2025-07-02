@@ -17,11 +17,16 @@ import {
   ModalHeader,
   ModalCloseButton,
   ModalBody,
-  useToast
+  useToast,
+  Badge,
+  Switch,
+  FormControl,
+  FormLabel
 } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { Actividad, EstadoActividad, TipoActividad } from '../../types/actividad';
 import { listarActividades } from '../../services/actividadService';
+import { useGoogleServices } from '../../services/google';
 import ActividadDetalle from './ActividadDetalle';
 import messages from '../../constants/messages';
 import { 
@@ -44,12 +49,18 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
   const [currentMonth, setCurrentMonth] = useState<Date>(mes);
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [actividades, setActividades] = useState<Actividad[]>([]);
+  const [googleEvents, setGoogleEvents] = useState<any[]>([]);
   const [filtroEstado, setFiltroEstado] = useState<string>("");
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [selectedActivity, setSelectedActivity] = useState<Actividad | null>(null);
+  const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [showGoogleEvents, setShowGoogleEvents] = useState<boolean>(true);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+
+  // Google Services
+  const { isConfigured, calendarService } = useGoogleServices();
 
   // Colores para los diferentes estados de actividades
   const colorEstado: Record<EstadoActividad, string> = {
@@ -126,7 +137,36 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
     };
 
     fetchActividades();
-  }, [filtroEstado, filtroTipo, toast]);
+  }, [currentMonth, filtroEstado, filtroTipo, toast]);
+
+  // Cargar eventos de Google Calendar
+  useEffect(() => {
+    const fetchGoogleEvents = async () => {
+      if (!isConfigured || !calendarService || !showGoogleEvents) {
+        setGoogleEvents([]);
+        return;
+      }
+
+      try {
+        const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        
+        const events = await calendarService.getEvents({
+          timeMin: startOfMonth.toISOString(),
+          timeMax: endOfMonth.toISOString(),
+          maxResults: 50
+        });
+        
+        setGoogleEvents(events || []);
+      } catch (error) {
+        console.error("Error al cargar eventos de Google Calendar:", error);
+        // No mostrar error al usuario para no ser molesto
+        setGoogleEvents([]);
+      }
+    };
+
+    fetchGoogleEvents();
+  }, [currentMonth, isConfigured, calendarService, showGoogleEvents]);
   
   // Navegar entre meses
   const navigateMonth = (direction: number) => {
@@ -196,6 +236,25 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
       return diaEnRango || coincideInicio || coincideFin;
     });  };
   
+  // Obtener eventos de Google Calendar para un día específico
+  const getGoogleEventsForDay = (day: Date) => {
+    if (!googleEvents || !showGoogleEvents) return [];
+    
+    return googleEvents.filter(event => {
+      if (!event.start) return false;
+      
+      const eventDate = new Date(event.start.dateTime || event.start.date);
+      const dayTime = day.getTime();
+      const eventTime = eventDate.getTime();
+      
+      // Comprobar si es el mismo día
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+      const dayEnd = dayStart + 24 * 60 * 60 * 1000; // 24 horas después
+      
+      return eventTime >= dayStart && eventTime < dayEnd;
+    });
+  };
+
   return (
     <Box>
       {/* Controles de navegación */}
@@ -271,6 +330,22 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                 </option>
               ))}
             </Select>
+
+            {/* Control para eventos de Google Calendar */}
+            {isConfigured && (
+              <FormControl display="flex" alignItems="center" width="auto">
+                <FormLabel htmlFor="google-events" mb="0" fontSize="sm" whiteSpace="nowrap">
+                  <Badge colorScheme="blue" mr={2}>Google</Badge>
+                  Eventos
+                </FormLabel>
+                <Switch 
+                  id="google-events"
+                  isChecked={showGoogleEvents}
+                  onChange={(e) => setShowGoogleEvents(e.target.checked)}
+                  size="sm"
+                />
+              </FormControl>
+            )}
           </HStack>
         </Flex>
       </Flex>
@@ -280,7 +355,8 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
         {calendarDays.map((day, index) => {
           const isActive = isCurrentMonth(day);
           const dayActivities = getActividadesForDay(day);
-          if (!isActive && dayActivities.length === 0) return null;
+          const dayGoogleEvents = getGoogleEventsForDay(day);
+          if (!isActive && dayActivities.length === 0 && dayGoogleEvents.length === 0) return null;
           
           const dayOfWeek = day.getDay(); // 0 (Domingo) a 6 (Sábado)
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -320,6 +396,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                       cursor="pointer"
                       onClick={() => {
                         setSelectedActivity(activity);
+                        setSelectedGoogleEvent(null);
                         onOpen();
                       }}
                     >
@@ -329,6 +406,41 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                 </VStack>
               ) : (
                 <Text fontSize="sm" color="gray.500">No hay actividades</Text>
+              )}
+
+              {/* Eventos de Google Calendar en vista móvil */}
+              {dayGoogleEvents.length > 0 && (
+                <VStack align="stretch" spacing={2} mt={3}>
+                  <Text fontSize="sm" fontWeight="bold" color="blue.600">
+                    Eventos de Google Calendar:
+                  </Text>
+                  {dayGoogleEvents.map(event => (
+                    <Box 
+                      key={event.id}
+                      p={2}
+                      borderRadius="md"
+                      bg="blue.500"
+                      color="white"
+                      cursor="pointer"
+                      onClick={() => {
+                        setSelectedGoogleEvent(event);
+                        setSelectedActivity(null);
+                        onOpen();
+                      }}
+                    >
+                      <Text fontWeight="bold">{event.summary}</Text>
+                      {event.start && (
+                        <Text fontSize="xs">
+                          {event.start.dateTime 
+                            ? new Date(event.start.dateTime).toLocaleString()
+                            : event.start.date 
+                            ? new Date(event.start.date).toLocaleDateString()
+                            : 'Sin fecha'}
+                        </Text>
+                      )}
+                    </Box>
+                  ))}
+                </VStack>
               )}
             </Box>
           );
@@ -356,6 +468,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
         {/* Celdas del calendario */}
         {calendarDays.map((day, index) => {
           const dayActivities = getActividadesForDay(day);
+          const dayGoogleEvents = getGoogleEventsForDay(day);
           const isActive = isCurrentMonth(day);
           
           const dayOfWeekForDesktop = day.getDay(); // 0 (Domingo) a 6 (Sábado)
@@ -396,6 +509,7 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                     cursor="pointer"
                     onClick={() => {
                       setSelectedActivity(activity);
+                      setSelectedGoogleEvent(null);
                       onOpen();
                     }}
                   >
@@ -403,17 +517,49 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                   </Box>
                 ))}
               </VStack>
+
+              {/* Mostrar eventos de Google Calendar si hay */}
+              {dayGoogleEvents.length > 0 && (
+                <VStack align="stretch" spacing={1} mt={2}>
+                  {dayGoogleEvents.map(event => (
+                    <Box 
+                      key={event.id}
+                      p={1}
+                      borderRadius="md"
+                      bg="blue.500"
+                      color="white"
+                      fontSize="xs"
+                      cursor="pointer"
+                      onClick={() => {
+                        setSelectedGoogleEvent(event);
+                        setSelectedActivity(null);
+                        onOpen();
+                      }}
+                    >
+                      <Text noOfLines={1}>{event.summary}</Text>
+                    </Box>
+                  ))}
+                </VStack>
+              )}
             </Box>
           );
         })}
       </SimpleGrid>
       
-      {/* Modal para ver detalle de actividad */}
-      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      {/* Modal para ver detalle de actividad o evento de Google */}
+      <Modal isOpen={isOpen} onClose={() => {
+        onClose();
+        setSelectedActivity(null);
+        setSelectedGoogleEvent(null);
+      }} size="lg">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
-            {selectedActivity ? `Detalle ${selectedActivity.nombre}` : "Detalle de Actividad"}
+            {selectedActivity 
+              ? `Detalle ${selectedActivity.nombre}` 
+              : selectedGoogleEvent
+              ? `Evento: ${selectedGoogleEvent.summary}`
+              : "Detalle de Actividad"}
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
@@ -422,6 +568,62 @@ const CalendarioSimple: React.FC<CalendarioSimpleProps> = ({ mes = new Date() })
                 actividad={selectedActivity}
                 onClose={onClose}
               />
+            )}
+            {selectedGoogleEvent && (
+              <VStack spacing={4} align="stretch">
+                <Box>
+                  <Text fontWeight="bold" color="blue.600">Título</Text>
+                  <Text>{selectedGoogleEvent.summary}</Text>
+                </Box>
+                
+                {selectedGoogleEvent.description && (
+                  <Box>
+                    <Text fontWeight="bold" color="blue.600">Descripción</Text>
+                    <Text>{selectedGoogleEvent.description}</Text>
+                  </Box>
+                )}
+                
+                <Box>
+                  <Text fontWeight="bold" color="blue.600">Fecha y Hora</Text>
+                  <Text>
+                    {selectedGoogleEvent.start?.dateTime 
+                      ? new Date(selectedGoogleEvent.start.dateTime).toLocaleString()
+                      : selectedGoogleEvent.start?.date 
+                      ? new Date(selectedGoogleEvent.start.date).toLocaleDateString()
+                      : 'No especificada'}
+                  </Text>
+                  {selectedGoogleEvent.end && (
+                    <Text fontSize="sm" color="gray.600">
+                      Hasta: {selectedGoogleEvent.end?.dateTime 
+                        ? new Date(selectedGoogleEvent.end.dateTime).toLocaleString()
+                        : selectedGoogleEvent.end?.date 
+                        ? new Date(selectedGoogleEvent.end.date).toLocaleDateString()
+                        : 'No especificada'}
+                    </Text>
+                  )}
+                </Box>
+                
+                {selectedGoogleEvent.location && (
+                  <Box>
+                    <Text fontWeight="bold" color="blue.600">Ubicación</Text>
+                    <Text>{selectedGoogleEvent.location}</Text>
+                  </Box>
+                )}
+                
+                {selectedGoogleEvent.htmlLink && (
+                  <Box>
+                    <Button 
+                      as="a"
+                      href={selectedGoogleEvent.htmlLink}
+                      target="_blank"
+                      colorScheme="blue"
+                      size="sm"
+                    >
+                      Ver en Google Calendar
+                    </Button>
+                  </Box>
+                )}
+              </VStack>
             )}
           </ModalBody>
         </ModalContent>

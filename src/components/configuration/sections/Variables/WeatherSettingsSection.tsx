@@ -1,73 +1,67 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   FormControl,
   FormLabel,
-  Input,
   Switch,
   Select,
   VStack,
   Text,
   Card,
   CardBody,
-  Heading,
   SimpleGrid,
   Divider,
-  Button
+  Button,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
-import { FiCloud, FiRadio, FiSettings } from 'react-icons/fi';
+import { FiCloud, FiSettings } from 'react-icons/fi';
+import { useWeatherConfig } from '../../../../hooks/configuration/useUnifiedConfig';
 
 interface WeatherSettingsSectionProps {
   userRole: 'admin' | 'vocal';
-  config: any;
-  setConfig: (cfg: any) => void;
-  save: (data: any) => Promise<void>;
 }
 
+/**
+ * Componente simplificado que usa directamente el converter de Firestore
+ * para la configuración meteorológica unificada
+ */
 const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
-  userRole,
-  config,
-  setConfig,
-  save
+  userRole
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: config, loading, saving, error, save } = useWeatherConfig();
 
-  if (!config || typeof config.aemetEnabled === 'undefined') {
+  const handleSwitchChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    save({ [key]: e.target.checked });
+  };
+  
+  const handleSelectChange = (key: string) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+    save({ [key]: e.target.value });
+  };
+
+  if (loading) {
     return (
-      <Card><CardBody><Text color="red.500">No se pudo cargar la configuración meteorológica o faltan campos requeridos (por ejemplo, 'aemetEnabled'). Por favor, revisa la colección 'configuracion/apis' en Firebase y asegúrate de que todos los campos existen. Si el error persiste, elimina la caché del navegador y recarga la página.</Text></CardBody></Card>
+      <Card>
+        <CardBody>
+          <Text>Cargando configuración meteorológica...</Text>
+        </CardBody>
+      </Card>
     );
   }
 
-  const handleSwitchChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [key]: e.target.checked,
-    }));
-  };
-  
-  const handleInputChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  if (error) {
+    return (
+      <Card>
+        <CardBody>
+          <Alert status="error">
+            <AlertIcon />
+            Error: {error}
+          </Alert>
+        </CardBody>
+      </Card>
+    );
+  }
 
-  const handleSave = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    try {
-      await save(config);
-      setSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
-    } finally {
-      setLoading(false);
-      setTimeout(() => setSuccess(false), 2000);
-    }
-  };
   return (
     <Card>
       <CardBody>
@@ -77,9 +71,10 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
         </Text>
         <Text fontSize="xs" color="gray.600" mb={4}>
           Gestiona la activación de servicios meteorológicos y las unidades de medida.
-          La configuración de APIs se encuentra en la pestaña correspondiente.
         </Text>
+        
         <VStack spacing={4} align="stretch">
+          {/* Servicio Principal */}
           <FormControl display="flex" alignItems="center" justifyContent="space-between">
             <Box>
               <FormLabel htmlFor="weatherEnabled" mb="0" fontSize="sm">
@@ -93,18 +88,16 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
               id="weatherEnabled"
               isChecked={config.weatherEnabled}
               onChange={handleSwitchChange('weatherEnabled')}
-              colorScheme="brand"
+              colorScheme="blue"
+              isDisabled={saving}
             />
           </FormControl>
 
           <Divider />
 
-          {/* AEMET Configuration (solo switches y uso, sin API key) */}
+          {/* AEMET Configuration */}
           <Box>
             <Text fontWeight="semibold" mb={2} color="orange.700">🇪🇸 AEMET - España</Text>
-            <Text fontSize="xs" color="gray.600" mb={3}>
-              Datos oficiales de la Agencia Estatal de Meteorología española para mayor precisión en territorio español.
-            </Text>
             <VStack spacing={3} align="stretch">
               <FormControl display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
@@ -119,10 +112,11 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
                   id="aemetEnabled"
                   isChecked={config.aemetEnabled}
                   onChange={handleSwitchChange('aemetEnabled')}
-                  colorScheme="brand"
-                  isDisabled={!config.weatherEnabled}
+                  colorScheme="blue"
+                  isDisabled={!config.weatherEnabled || saving}
                 />
               </FormControl>
+              
               <FormControl display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <FormLabel htmlFor="aemetUseForSpain" mb="0" fontSize="sm">
@@ -136,8 +130,8 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
                   id="aemetUseForSpain"
                   isChecked={config.aemetUseForSpain}
                   onChange={handleSwitchChange('aemetUseForSpain')}
-                  colorScheme="brand"
-                  isDisabled={!config.weatherEnabled}
+                  colorScheme="blue"
+                  isDisabled={!config.weatherEnabled || !config.aemetEnabled || saving}
                 />
               </FormControl>
             </VStack>
@@ -151,28 +145,26 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
               <FiSettings style={{ marginRight: 8 }} />
               Configuración de Unidades
             </Text>
-            <Text fontSize="xs" color="gray.600" mb={3}>
-              Personaliza las unidades de medida para mostrar en los pronósticos.
-            </Text>
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
               <FormControl>
                 <FormLabel fontSize="sm">Temperatura</FormLabel>
                 <Select
-                  value={config.temperatureUnit || ''}
-                  onChange={e => handleInputChange('temperatureUnit', e.target.value)}
-                  isDisabled={!config.weatherEnabled}
+                  value={config.temperatureUnit}
+                  onChange={handleSelectChange('temperatureUnit')}
+                  isDisabled={!config.weatherEnabled || saving}
                   size="sm"
                 >
                   <option value="celsius">Celsius (°C)</option>
                   <option value="fahrenheit">Fahrenheit (°F)</option>
                 </Select>
               </FormControl>
+              
               <FormControl>
                 <FormLabel fontSize="sm">Velocidad del viento</FormLabel>
                 <Select
-                  value={config.windSpeedUnit || ''}
-                  onChange={e => handleInputChange('windSpeedUnit', e.target.value)}
-                  isDisabled={!config.weatherEnabled}
+                  value={config.windSpeedUnit}
+                  onChange={handleSelectChange('windSpeedUnit')}
+                  isDisabled={!config.weatherEnabled || saving}
                   size="sm"
                 >
                   <option value="kmh">km/h</option>
@@ -180,12 +172,13 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
                   <option value="mph">mph</option>
                 </Select>
               </FormControl>
+              
               <FormControl>
                 <FormLabel fontSize="sm">Precipitación</FormLabel>
                 <Select
-                  value={config.precipitationUnit || ''}
-                  onChange={e => handleInputChange('precipitationUnit', e.target.value)}
-                  isDisabled={!config.weatherEnabled}
+                  value={config.precipitationUnit}
+                  onChange={handleSelectChange('precipitationUnit')}
+                  isDisabled={!config.weatherEnabled || saving}
                   size="sm"
                 >
                   <option value="mm">Milímetros (mm)</option>
@@ -195,24 +188,21 @@ const WeatherSettingsSection: React.FC<WeatherSettingsSectionProps> = ({
             </SimpleGrid>
           </Box>
 
-          <Divider />
-
-          {/* AEMET API Key (solo para admin) */}
-          {/* Esta sección ha sido eliminada de Variables. Si se requiere, debe ir en la pestaña de APIs. */}
-        </VStack>        {error && <Text color="red.500" mt={2}>{error}</Text>}
-        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
-        <Box display="flex" justifyContent="flex-end" mt={4}>
-          <Button
-            onClick={handleSave}
-            isLoading={loading}
-            loadingText="Guardando..."
-            colorScheme="blue"
-            size="sm"
-            isDisabled={userRole === 'vocal'}
-          >
-            Guardar
-          </Button>
-        </Box>
+          {/* Status */}
+          {saving && (
+            <Alert status="info">
+              <AlertIcon />
+              Guardando configuración...
+            </Alert>
+          )}
+          
+          {userRole === 'vocal' && (
+            <Alert status="warning" size="sm">
+              <AlertIcon />
+              <Text fontSize="sm">Como vocal, algunos cambios pueden requerir aprobación del administrador.</Text>
+            </Alert>
+          )}
+        </VStack>
       </CardBody>
     </Card>
   );

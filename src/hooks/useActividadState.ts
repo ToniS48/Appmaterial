@@ -3,6 +3,7 @@ import { useReducer, useCallback } from 'react';
 import { Actividad } from '../types/actividad';
 import { getUniqueParticipanteIds } from '../utils/actividadUtils';
 import { Timestamp } from 'firebase/firestore';
+import { completeActividad } from '../services/firestore/EntityDefaults';
 
 
 // Definir acciones tipadas
@@ -69,34 +70,23 @@ function actividadReducer(state: Actividad, action: ActividadAction): Actividad 
 
 // Función para crear el estado inicial
 function createInitialActividadState(initialData?: Partial<Actividad>): Actividad {
-  const defaultState: Actividad = {
+  // Usar la función helper para crear el estado inicial con todos los campos
+  const baseData = {
     id: '',
     nombre: '',
     lugar: '',
     fechaInicio: Timestamp.fromDate(new Date()),
     fechaFin: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
     descripcion: '',
-    tipo: [],
-    subtipo: [],
-    participanteIds: [],
-    creadorId: '',
+    creatorId: '',
     responsableActividadId: '',
-    responsableMaterialId: '',
-    materiales: [],
-    necesidadMaterial: false,
-    enlacesWikiloc: [],
-    enlacesTopografias: [],
-    enlacesDrive: [],
-    enlacesWeb: [],
-    enlaces: [],
-    imagenesTopografia: [],
-    archivosAdjuntos: [],    estado: 'planificada',
-    comentarios: [],
+    estado: 'planificada' as const,
     fechaCreacion: Timestamp.fromDate(new Date()),
-    fechaActualizacion: Timestamp.fromDate(new Date())
+    fechaActualizacion: Timestamp.fromDate(new Date()),
+    ...initialData
   };
   
-  return { ...defaultState, ...initialData };
+  return completeActividad(baseData) as Actividad;
 }
 
 // Hook personalizado para usar este estado

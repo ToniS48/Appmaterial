@@ -1,16 +1,15 @@
 import React from 'react';
 import {
-  Box,
   VStack,
   Alert,
   AlertIcon,
   Text,
   TabPanel,
   Spinner,
-  Divider,
-  SimpleGrid
+  SimpleGrid,
+  Box
 } from '@chakra-ui/react';
-import { useVariablesConfig, useApisConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import { useVariablesConfig } from '../../../hooks/configuration/useUnifiedConfig';
 import NotificationSection from '../sections/Variables/NotificationSection';
 import LoanManagementSection from '../sections/Variables/LoanManagementSection';
 import ActivityManagementSection from '../sections/Variables/ActivityManagementSection';
@@ -18,106 +17,46 @@ import ReputationSystemSection from '../sections/Variables/ReputationSystemSecti
 import ReportsSection from '../sections/Variables/ReportsSection';
 import WeatherSettingsSection from '../sections/Variables/WeatherSettingsSection';
 
-const VariablesTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
-  const { 
-    data: variables, 
-    setData: setVariables, 
-    loading: loadingVariables, 
-    save: saveVariables 
-  } = useVariablesConfig();
-  
-  const { 
-    data: apis, 
-    setData: setApis, 
-    loading: loadingApis, 
-    save: saveApis 
-  } = useApisConfig();
-  if (loadingVariables || loadingApis) {
+interface VariablesTabProps {
+  userRole: 'admin' | 'vocal';
+}
+
+/**
+ * Tab de variables - usa el hook unificado y componentes simplificados
+ */
+const VariablesTab: React.FC<VariablesTabProps> = ({ userRole }) => {
+  const { data: variables, loading, error, save } = useVariablesConfig();
+
+  // Wrapper para compatibilidad con componentes que esperan Promise<void>
+  const saveWrapper = async (newData: any) => {
+    await save(newData);
+  };
+
+  if (loading) {
     return (
-      <VStack spacing={4} p={6} align="center">
-        <Spinner size="lg" color="blue.500" />
-        <Text color="gray.600">Cargando variables del sistema...</Text>
-      </VStack>
+      <TabPanel>
+        <VStack spacing={4} align="center" py={8}>
+          <Spinner size="lg" color="blue.500" />
+          <Text color="gray.600">Cargando variables del sistema...</Text>
+        </VStack>
+      </TabPanel>
     );
   }
 
-  // Configuración meteorológica combinada (variables + APIs)
-  const weatherConfig = {
-    weatherEnabled: variables.weatherEnabled,
-    aemetEnabled: variables.aemetEnabled,
-    aemetUseForSpain: variables.aemetUseForSpain,
-    temperatureUnit: variables.temperatureUnit,
-    windSpeedUnit: variables.windSpeedUnit,
-    precipitationUnit: variables.precipitationUnit,
-    weatherApiUrl: apis.weatherApiUrl,
-    aemetApiKey: apis.aemetApiKey
-  };
+  if (error) {
+    return (
+      <TabPanel>
+        <Alert status="error">
+          <AlertIcon />
+          <Box>
+            <Text fontWeight="bold">Error al cargar variables</Text>
+            <Text fontSize="sm">{error}</Text>
+          </Box>
+        </Alert>
+      </TabPanel>
+    );
+  }
 
-  const setWeatherConfig = (newConfig: any) => {
-    const {
-      aemetApiKey,
-      weatherApiUrl,
-      weatherEnabled,
-      aemetEnabled,
-      aemetUseForSpain,
-      temperatureUnit,
-      windSpeedUnit,
-      precipitationUnit
-    } = newConfig;
-    
-    // Actualizar variables (flags y unidades)
-    setVariables(prev => ({
-      ...prev,
-      weatherEnabled,
-      aemetEnabled,
-      aemetUseForSpain,
-      temperatureUnit,
-      windSpeedUnit,
-      precipitationUnit
-    }));
-    
-    // Actualizar APIs (claves y URLs)
-    setApis(prev => ({
-      ...prev,
-      aemetApiKey: aemetApiKey || '',
-      weatherApiUrl: weatherApiUrl || ''
-    }));
-  };
-  // Funciones wrapper para compatibilidad de tipos con las secciones
-  const saveVariablesWrapper = async (data: any) => {
-    await saveVariables(data);
-  };
-
-  const saveWeatherConfigWrapper = async (newConfig: any) => {
-    const {
-      aemetApiKey,
-      weatherApiUrl,
-      weatherEnabled,
-      aemetEnabled,
-      aemetUseForSpain,
-      temperatureUnit,
-      windSpeedUnit,
-      precipitationUnit
-    } = newConfig;
-    
-    // Guardar en paralelo en ambos documentos
-    await Promise.all([
-      saveVariables({
-        ...variables,
-        weatherEnabled,
-        aemetEnabled,
-        aemetUseForSpain,
-        temperatureUnit,
-        windSpeedUnit,
-        precipitationUnit
-      }),
-      saveApis({
-        ...apis,
-        aemetApiKey: aemetApiKey || '',
-        weatherApiUrl: weatherApiUrl || ''
-      })
-    ]);
-  };
   return (
     <TabPanel>
       <VStack spacing={6} align="stretch">
@@ -127,55 +66,46 @@ const VariablesTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) =
             <Text fontWeight="bold">Variables del Sistema</Text>
             <Text fontSize="sm">
               Configura los parámetros operacionales que controlan el comportamiento de la aplicación.
-              Los valores se guardan automáticamente en Firestore.
             </Text>
           </Box>
         </Alert>
 
-        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>          {/* Loan Management */}
+        {/* Configuración Meteorológica Unificada */}
+        <WeatherSettingsSection userRole={userRole} />
+
+        {/* Otras secciones en grid */}
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
           <LoanManagementSection 
             config={variables} 
-            setConfig={setVariables} 
-            save={saveVariablesWrapper} 
+            setConfig={(newData) => save(newData)} 
+            save={saveWrapper} 
             userRole={userRole} 
           />
           
-          {/* Activity Management */}
           <ActivityManagementSection 
             config={variables} 
-            setConfig={setVariables} 
-            save={saveVariablesWrapper}
+            setConfig={(newData) => save(newData)} 
+            save={saveWrapper}
           />
           
-          {/* Reputation System */}
           <ReputationSystemSection 
             config={variables} 
-            setConfig={setVariables} 
-            save={saveVariablesWrapper}
+            setConfig={(newData) => save(newData)} 
+            save={saveWrapper}
           />
           
-          {/* Reports */}
           <ReportsSection 
             config={variables} 
-            setConfig={setVariables} 
-            save={saveVariablesWrapper}
+            setConfig={(newData) => save(newData)} 
+            save={saveWrapper}
           />
           
-          {/* Notifications - Usamos las variables unificadas */}
           <NotificationSection 
             config={variables} 
-            setConfig={setVariables} 
-            save={saveVariablesWrapper}
+            setConfig={(newData) => save(newData)} 
+            save={saveWrapper}
           />
         </SimpleGrid>
-
-        <Divider />        {/* Weather Settings - Span full width */}
-        <WeatherSettingsSection 
-          config={weatherConfig} 
-          setConfig={setWeatherConfig} 
-          save={saveWeatherConfigWrapper} 
-          userRole={userRole} 
-        />
       </VStack>
     </TabPanel>
   );

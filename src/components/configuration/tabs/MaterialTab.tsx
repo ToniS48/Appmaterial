@@ -15,8 +15,8 @@ import {
   Spinner
 } from '@chakra-ui/react';
 import { FiChevronDown, FiChevronRight, FiFileText } from 'react-icons/fi';
-import { useUnifiedConfig } from '../../../hooks/configuration/useUnifiedConfig';
-import { guardarConfiguracionGeneral } from '../../../services/configuracionService';
+import { useMaterialConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import { guardarConfiguracionMaterial } from '../../../services/configuracionService';
 import { ConfigSettings } from '../../../types/configuration';
 import MaterialManagementSection from '../sections/Material/MaterialManagementSection';
 import DropdownsTab from './DropdownsTab';
@@ -49,7 +49,7 @@ const defaultMaterialConfig = {
  * Contiene configuraciones específicas para el manejo de material del club
  */
 const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
-  const { data: material, setData: setMaterial, loading, save } = useUnifiedConfig('material', defaultMaterialConfig);
+  const { data: material, setData: setMaterial, loading, save } = useMaterialConfig();
   const [showInfo, setShowInfo] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
 
@@ -61,10 +61,7 @@ const MaterialTab: React.FC<MaterialTabProps> = ({ userRole }) => {
   const handleVariableChange = (key: string, value: any) => {
     setMaterial((prev: any) => ({
       ...prev,
-      variables: {
-        ...prev.variables,
-        [key]: value,
-      },
+      [key]: value
     }));
   };
 

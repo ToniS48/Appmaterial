@@ -17,16 +17,15 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { ConfigSettings } from '../../types/configuration';
-import { useConfigurationData } from '../../hooks/configuration/useConfigurationData';
-import { useConfigurationHandlers } from '../../hooks/configuration/useConfigurationHandlers';
 import {
   VariablesTab,
   MaterialTab,
   ApisTab,
   PermissionsTab,
-  SystemViewerTab,
+  SystemViewerTab as SystemTab,
   TabConfig,
-  BackupsTab
+  BackupsTab,
+  FirestoreSchemaTab
 } from '../configuration/tabs';
 
 interface ConfigurationManagerProps {
@@ -35,8 +34,8 @@ interface ConfigurationManagerProps {
 }
 
 /**
- * Componente refactorizado para gestión de configuración del sistema
- * Utiliza arquitectura modular con componentes de pestaña y sección
+ * Componente simplificado para gestión de configuración del sistema
+ * Utiliza arquitectura modular con componentes optimizados
  */
 const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
   userRole,
@@ -45,60 +44,16 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
   // Estado para la pestaña activa
   const [activeTabIndex, setActiveTabIndex] = useState(0);
 
-  // Cargar datos iniciales y exponer reload
-  const { settings: initialSettings, reload } = useConfigurationData(userRole);
-  
-  // Hooks personalizados para manejo de estado y handlers
-  const { 
-    settings, 
-    isLoading, 
-    handleVariableChange, 
-    handleSettingsChange, 
-    handleSubmit 
-  } = useConfigurationHandlers(initialSettings);  // Configuración de pestañas disponibles según el rol
+  // Configuración de pestañas disponibles según el rol
   const tabs: TabConfig[] = [
     { id: 'system-viewer', label: 'General', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'variables', label: 'Variables', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'material', label: 'Material', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
     { id: 'apis', label: 'APIs', roles: ['admin', 'vocal'] as ('admin' | 'vocal')[] },
+    { id: 'firestore-schemas', label: 'Firestore', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'backups', label: 'Backups', roles: ['admin'] as ('admin' | 'vocal')[] },
     { id: 'permissions', label: 'Permisos', roles: ['admin'] as ('admin' | 'vocal')[] },
   ].filter(tab => tab.roles.includes(userRole));
-
-  // Determinar si la pestaña actual necesita guardado global
-  const currentTab = tabs[activeTabIndex];
-  const needsGlobalSave = currentTab && !['permissions'].includes(currentTab.id);
-
-  // Handler para guardado global
-  const handleGlobalSave = async () => {
-    try {
-      await handleSubmit();
-      // Refrescar configuración tras guardar
-      await reload();
-    } catch (error) {
-      console.error('Error al guardar configuración:', error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Box p={5}>
-        <Card mb={5} variant="outline">
-          <CardBody>
-            <HStack mb={4}>
-              <Skeleton height="28px" width="260px" />
-              <Skeleton height="24px" width="90px" />
-            </HStack>
-            <Skeleton height="20px" width="100%" />
-          </CardBody>
-        </Card>
-        <VStack spacing={4} align="stretch">
-          <Skeleton height="48px" width="100%" />
-          <Skeleton height="400px" width="100%" />
-        </VStack>
-      </Box>
-    );
-  }
 
   return (
     <Box p={5}>
@@ -129,11 +84,7 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
         <TabPanels>
           {/* General (antes Visor Sistema) */}
           {tabs.find(t => t.id === 'system-viewer') && (
-            <SystemViewerTab
-              settings={settings}
-              userRole={userRole}
-              onConfigReload={reload}
-            />
+            <SystemTab userRole={userRole} />
           )}
           {/* Variables del Sistema */}
           {tabs.find(t => t.id === 'variables') && (
@@ -146,6 +97,10 @@ const ConfigurationManager: React.FC<ConfigurationManagerProps> = ({
           {/* APIs */}
           {tabs.find(t => t.id === 'apis') && (
             <ApisTab userRole={userRole} />
+          )}
+          {/* Esquemas Firestore (solo admin) */}
+          {tabs.find(t => t.id === 'firestore-schemas') && (
+            <FirestoreSchemaTab userRole={userRole} />
           )}
           {/* Backups (solo admin) */}
           {tabs.find(t => t.id === 'backups') && (

@@ -76,7 +76,9 @@ const WeatherCompactPreview: React.FC<WeatherCompactPreviewProps> = ({
       <HStack spacing={1} align="center">
         {displayData.map((day, index) => {
           const IconComponent = getWeatherIcon(day.condition);
-          const iconColor = getWeatherColor(day.condition);          // Formatear fecha para tooltip
+          const iconColor = getWeatherColor(day.condition);
+          
+          // Formatear fecha para tooltip
           const dateStr = typeof day.date === 'string' 
             ? new Date(day.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })
             : 'N/A';

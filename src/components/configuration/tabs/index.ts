@@ -6,6 +6,7 @@ export { default as BackupsTab } from './BackupsTab';
 export { default as PermissionsTab } from './PermissionsTab';
 export { default as DropdownsTab } from './DropdownsTab';
 export { default as SystemViewerTab } from './SystemViewerTab';
+export { default as FirestoreSchemaTab } from './FirestoreSchemaTab';
 
 // Tipos para las pestañas
 export interface TabConfig {

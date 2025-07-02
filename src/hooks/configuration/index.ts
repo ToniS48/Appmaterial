@@ -1,2 +1,11 @@
-// Exportaciones de hooks de configuración
-export { useUnifiedConfig, useApisConfig, useVariablesConfig, useMaterialConfig } from './useUnifiedConfig';
+// Exportaciones de hooks de configuración optimizados
+export { 
+  useConfig,
+  useWeatherConfig,
+  useMaterialConfig,
+  useVariablesConfig,
+  useApisConfig,
+  usePermissionsConfig,
+  useDropdownsConfig,
+  useSecurityConfig
+} from './useUnifiedConfig';

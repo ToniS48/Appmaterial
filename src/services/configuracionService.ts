@@ -1,336 +1,241 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+/**
+ * Servicio de configuración optimizado
+ * Eliminadas duplicaciones, uso correcto de FirestoreConverters
+ */
+
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { 
+  weatherConfigConverter, 
+  materialConfigConverter,
+  systemConfigConverter,
+  googleApisConfigConverter,
+  safeFirestoreUpdate,
+  WeatherConfig,
+  MaterialConfig,
+  SystemConfig,
+  GoogleApisConfig
+} from './firestore/FirestoreConverters';
 
-interface DriveConfig {
-  googleDriveUrl: string;
-  googleDriveTopoFolder: string;
-  googleDriveDocFolder: string;
-}
-
-interface WeatherConfig {
-  enabled: boolean;
-  defaultLocation: {
-    lat: number;
-    lon: number;
-    name: string;
-  };
-  temperatureUnit: 'celsius' | 'fahrenheit';
-  windSpeedUnit: 'kmh' | 'ms' | 'mph';
-  precipitationUnit: 'mm' | 'inch';
-  aemet: {
-    enabled: boolean;
-    apiKey: string;
-    useForSpain: boolean;
-  };
-}
-
-interface ConfiguracionGlobal {
-  googleDriveUrl: string;
-  googleDriveTopoFolder: string;
-  googleDriveDocFolder: string;
-  weather?: WeatherConfig;
-}
-
-// Tipado para las API Keys de Google
-export interface GoogleApisConfig {
-  driveApiKey: string;
-  mapsEmbedApiKey: string;
-  calendarApiKey: string;
-  gmailApiKey: string;
-  chatApiKey: string;
-  cloudMessagingApiKey: string;
-}
-
-const defaultConfig: ConfiguracionGlobal = {
-  googleDriveUrl: '',
-  googleDriveTopoFolder: '',
-  googleDriveDocFolder: '',  weather: {
-    enabled: false,
-    defaultLocation: {
-      lat: 40.618828,
-      lon: -0.099803,
-      name: 'Morella, España'
-    },
-    temperatureUnit: 'celsius',
-    windSpeedUnit: 'kmh',
-    precipitationUnit: 'mm',
-    aemet: {
-      enabled: false,
-      apiKey: '',
-      useForSpain: true
-    }
-  }
-};
-
-const defaultGoogleApisConfig: GoogleApisConfig = {
-  driveApiKey: '',
-  mapsEmbedApiKey: '',
-  calendarApiKey: '',
-  gmailApiKey: '',
-  chatApiKey: '',
-  cloudMessagingApiKey: ''
-};
-
-export const obtenerConfiguracion = async (): Promise<ConfiguracionGlobal> => {
-  try {
-    const docRef = doc(db, "configuracion", "global");
-    const docSnap = await getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        googleDriveUrl: data.googleDriveUrl || '',
-        googleDriveTopoFolder: data.googleDriveTopoFolder || '',
-        googleDriveDocFolder: data.googleDriveDocFolder || '',        weather: {
-          enabled: data.weather?.enabled || false,
-          defaultLocation: {
-            lat: data.weather?.defaultLocation?.lat || 40.618828,
-            lon: data.weather?.defaultLocation?.lon || -0.099803,
-            name: data.weather?.defaultLocation?.name || 'Morella, España'
-          },
-          temperatureUnit: data.weather?.temperatureUnit || 'celsius',
-          windSpeedUnit: data.weather?.windSpeedUnit || 'kmh',
-          precipitationUnit: data.weather?.precipitationUnit || 'mm',
-          aemet: {
-            enabled: data.weather?.aemet?.enabled || false,
-            apiKey: data.weather?.aemet?.apiKey || '',
-            useForSpain: data.weather?.aemet?.useForSpain ?? true
-          }
+/**
+ * Servicio genérico para cualquier configuración
+ */
+export class ConfigurationService {
+  /**
+   * Obtiene configuración usando converter específico si existe
+   */
+  static async getConfig<T extends Record<string, any>>(
+    documentId: string, 
+    converter?: any,
+    defaultValue?: T
+  ): Promise<T> {
+    try {
+      const docRef = doc(db, 'configuracion', documentId);
+      
+      if (converter) {
+        const docRefWithConverter = docRef.withConverter(converter.getConverter());
+        const docSnap = await getDoc(docRefWithConverter);
+        
+        if (docSnap.exists()) {
+          return docSnap.data() as T;
+        } else if (defaultValue) {
+          // Crear con valores por defecto
+          const defaultData = converter.createDefault();
+          await setDoc(docRefWithConverter, defaultData);
+          return defaultData;
         }
-      };
+      } else {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return { ...defaultValue, ...docSnap.data() } as T;
+        }
+      }
+      
+      throw new Error(`Configuración ${documentId} no encontrada`);
+    } catch (error) {
+      console.error(`Error obteniendo configuración ${documentId}:`, error);
+      throw error;
     }
-    
-    return defaultConfig;
-  } catch (error) {
-    console.error("Error al obtener configuración:", error);
-    return defaultConfig;
+  }
+
+  /**
+   * Guarda configuración usando converter específico si existe
+   */
+  static async saveConfig<T extends Record<string, any>>(
+    documentId: string,
+    data: T,
+    converter?: any
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, 'configuracion', documentId);
+      
+      if (converter) {
+        const docRefWithConverter = docRef.withConverter(converter.getConverter());
+        await setDoc(docRefWithConverter, data as any, { merge: true });
+      } else {
+        await setDoc(docRef, data as any, { merge: true });
+      }
+    } catch (error) {
+      console.error(`Error guardando configuración ${documentId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lista todos los documentos de configuración disponibles
+   */
+  static async listConfigurations(): Promise<string[]> {
+    try {
+      const configCollection = collection(db, 'configuracion');
+      const snapshot = await getDocs(configCollection);
+      return snapshot.docs.map(doc => doc.id);
+    } catch (error) {
+      console.error('Error listando configuraciones:', error);
+      throw error;
+    }
+  }
+}
+
+// Funciones específicas optimizadas para cada tipo de configuración
+
+export const WeatherConfigService = {
+  async get(): Promise<WeatherConfig> {
+    return ConfigurationService.getConfig('weather', weatherConfigConverter);
+  },
+  
+  async save(config: WeatherConfig): Promise<void> {
+    return ConfigurationService.saveConfig('weather', config, weatherConfigConverter);
+  },
+  
+  async update(updates: Partial<WeatherConfig>): Promise<void> {
+    const current = await this.get();
+    return this.save({ ...current, ...updates });
   }
 };
 
-export const obtenerConfiguracionDrive = async (): Promise<string> => {
-  try {
-    const config = await obtenerConfiguracion();
-    return config.googleDriveUrl;
-  } catch (error) {
-    console.error("Error al obtener configuración de Drive:", error);
-    return '';
+export const MaterialConfigService = {
+  async get(): Promise<MaterialConfig> {
+    return ConfigurationService.getConfig('material', materialConfigConverter);
+  },
+  
+  async save(config: MaterialConfig): Promise<void> {
+    return ConfigurationService.saveConfig('material', config, materialConfigConverter);
+  },
+  
+  async update(updates: Partial<MaterialConfig>): Promise<void> {
+    const current = await this.get();
+    return this.save({ ...current, ...updates });
   }
 };
 
-/**
- * Actualiza la configuración meteorológica
- */
-export const actualizarConfiguracionMeteorologica = async (weatherConfig: WeatherConfig): Promise<void> => {
-  try {
-    const docRef = doc(db, "configuracion", "global");
-    
-    // Obtener configuración actual
-    const currentConfig = await obtenerConfiguracion();
-    
-    // Actualizar solo la configuración meteorológica
-    const updatedConfig = {
-      ...currentConfig,
-      weather: weatherConfig
-    };
-    
-    await setDoc(docRef, updatedConfig, { merge: true });
-  } catch (error) {
-    console.error("Error al actualizar configuración meteorológica:", error);
-    throw new Error("No se pudo guardar la configuración meteorológica");
+export const SystemConfigService = {
+  async get(): Promise<SystemConfig> {
+    return ConfigurationService.getConfig('system', systemConfigConverter);
+  },
+  
+  async save(config: SystemConfig): Promise<void> {
+    return ConfigurationService.saveConfig('system', config, systemConfigConverter);
+  },
+  
+  async update(updates: Partial<SystemConfig>): Promise<void> {
+    const current = await this.get();
+    return this.save({ ...current, ...updates });
   }
 };
 
-/**
- * Obtiene solo la configuración meteorológica
- */
+export const GoogleApisConfigService = {
+  async get(): Promise<GoogleApisConfig> {
+    return ConfigurationService.getConfig('googleApis', googleApisConfigConverter);
+  },
+  
+  async save(config: GoogleApisConfig): Promise<void> {
+    return ConfigurationService.saveConfig('googleApis', config, googleApisConfigConverter);
+  },
+  
+  async update(updates: Partial<GoogleApisConfig>): Promise<void> {
+    const current = await this.get();
+    return this.save({ ...current, ...updates });
+  }
+};
+
+// Para configuraciones sin converter específico
+export const GenericConfigService = {
+  async get<T extends Record<string, any>>(documentId: string, defaultValue: T): Promise<T> {
+    return ConfigurationService.getConfig(documentId, null, defaultValue);
+  },
+  
+  async save<T extends Record<string, any>>(documentId: string, config: T): Promise<void> {
+    return ConfigurationService.saveConfig(documentId, config);
+  },
+  
+  async update<T extends Record<string, any>>(documentId: string, updates: Partial<T>, defaultValue: T): Promise<void> {
+    const current = await this.get(documentId, defaultValue);
+    return this.save(documentId, { ...current, ...updates });
+  }
+};
+
+// Exportar servicio principal
+export default ConfigurationService;
+
+// Exportar tipos para uso externo
+export type { GoogleApisConfig, WeatherConfig, MaterialConfig, SystemConfig };
+
+// Funciones de compatibilidad hacia atrás para la API existente
 export const obtenerConfiguracionMeteorologica = async (): Promise<WeatherConfig> => {
-  try {
-    const config = await obtenerConfiguracion();
-    return config.weather || defaultConfig.weather!;
-  } catch (error) {
-    console.error("Error al obtener configuración meteorológica:", error);
-    return defaultConfig.weather!;
-  }
+  return WeatherConfigService.get();
 };
 
-/**
- * Actualiza la configuración global (incluyendo apis)
- */
-export const guardarConfiguracionGlobal = async (config: ConfiguracionGlobal): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'global');
-    await setDoc(docRef, config, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración global:', error);
-    throw new Error('No se pudo guardar la configuración global');
-  }
+export const guardarConfiguracionMeteorologica = async (config: WeatherConfig): Promise<void> => {
+  return WeatherConfigService.save(config);
 };
 
-/**
- * Obtiene la sección de apis (GoogleApisConfig) desde el documento global
- */
-export const obtenerGoogleApisConfig = async (): Promise<GoogleApisConfig> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'global');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        driveApiKey: data.apis?.driveApiKey || '',
-        mapsEmbedApiKey: data.apis?.mapsEmbedApiKey || '',
-        calendarApiKey: data.apis?.calendarApiKey || '',
-        gmailApiKey: data.apis?.gmailApiKey || '',
-        chatApiKey: data.apis?.chatApiKey || '',
-        cloudMessagingApiKey: data.apis?.cloudMessagingApiKey || ''
-      };
-    }
-    return defaultGoogleApisConfig;
-  } catch (error) {
-    console.error('Error al obtener Google APIs config:', error);
-    return defaultGoogleApisConfig;
-  }
+export const obtenerConfiguracionMaterial = async (): Promise<MaterialConfig> => {
+  return MaterialConfigService.get();
 };
 
-/**
- * Guarda la sección de apis (GoogleApisConfig) dentro del documento global y actualiza el resto de valores
- */
-export const guardarGoogleApisConfig = async (apisConfig: GoogleApisConfig): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'global');
-    const docSnap = await getDoc(docRef);
-    let currentConfig = docSnap.exists() ? docSnap.data() : {};
-    // Actualizar solo la sección apis
-    const updatedConfig = {
-      ...currentConfig,
-      apis: apisConfig
-    };
-    await setDoc(docRef, updatedConfig, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar Google APIs config:', error);
-    throw new Error('No se pudo guardar la configuración de APIs de Google');
-  }
+export const guardarConfiguracionMaterial = async (config: MaterialConfig): Promise<void> => {
+  return MaterialConfigService.save(config);
 };
 
-// NUEVA ORGANIZACIÓN DE CONFIGURACIÓN POR SECCIÓN
-// Cada función accede a un documento diferente en la colección 'configuracion'
-
-// General (variables generales, material, etc.)
-export const obtenerConfiguracionGeneral = async (): Promise<any> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'general');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    // Devuelve valores por defecto si no existe
-    return {};
-  } catch (error) {
-    console.error('Error al obtener configuración general:', error);
-    return {};
-  }
+export const obtenerConfiguracionSistema = async (): Promise<SystemConfig> => {
+  return SystemConfigService.get();
 };
 
-export const guardarConfiguracionGeneral = async (data: any): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'general');
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración general:', error);
-  }
+export const guardarConfiguracionSistema = async (config: SystemConfig): Promise<void> => {
+  return SystemConfigService.save(config);
 };
 
-// APIs (API keys, servicios externos)
-export const obtenerConfiguracionApis = async (): Promise<any> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'apis');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return {};
-  } catch (error) {
-    console.error('Error al obtener configuración de APIs:', error);
-    return {};
-  }
+export const obtenerConfiguracionGoogleApis = async (): Promise<GoogleApisConfig> => {
+  return GoogleApisConfigService.get();
 };
 
-export const guardarConfiguracionApis = async (data: any): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'apis');
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración de APIs:', error);
-  }
+export const guardarConfiguracionGoogleApis = async (config: GoogleApisConfig): Promise<void> => {
+  return GoogleApisConfigService.save(config);
 };
 
-// Weather (configuración meteorológica)
-export const obtenerConfiguracionWeather = async (): Promise<any> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'weather');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return {};
-  } catch (error) {
-    console.error('Error al obtener configuración meteorológica:', error);
-    return {};
-  }
+// Funciones adicionales que faltan
+export const obtenerConfiguracionDrive = async () => {
+  const googleConfig = await GoogleApisConfigService.get();
+  return {
+    driveApiKey: googleConfig.driveApiKey,
+    driveEnabled: googleConfig.driveEnabled
+  };
 };
 
-export const guardarConfiguracionWeather = async (data: any): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'weather');
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración meteorológica:', error);
+export const guardarConfiguracionGeneral = async (config: any): Promise<void> => {
+  // Función de compatibilidad - redirigir según el tipo de configuración
+  if (config.porcentajeStockMinimo !== undefined) {
+    return MaterialConfigService.save(config);
   }
+  if (config.weatherEnabled !== undefined) {
+    return WeatherConfigService.save(config);
+  }
+  if (config.appName !== undefined) {
+    return SystemConfigService.save(config);
+  }
+  throw new Error('Tipo de configuración no reconocido');
 };
 
-// Security (seguridad)
-export const obtenerConfiguracionSecurity = async (): Promise<any> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'security');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return {};
-  } catch (error) {
-    console.error('Error al obtener configuración de seguridad:', error);
-    return {};
-  }
-};
-
-export const guardarConfiguracionSecurity = async (data: any): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'security');
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración de seguridad:', error);
-  }
-};
-
-// Permissions (permisos)
-export const obtenerConfiguracionPermissions = async (): Promise<any> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'permissions');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return {};
-  } catch (error) {
-    console.error('Error al obtener configuración de permisos:', error);
-    return {};
-  }
-};
-
-export const guardarConfiguracionPermissions = async (data: any): Promise<void> => {
-  try {
-    const docRef = doc(db, 'configuracion', 'permissions');
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error('Error al guardar configuración de permisos:', error);
-  }
+export const actualizarConfiguracionMeteorologica = async (config: WeatherConfig): Promise<void> => {
+  return WeatherConfigService.save(config);
 };

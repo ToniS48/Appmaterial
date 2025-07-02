@@ -4,6 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 export type TipoActividad = 'espeleologia' | 'barranquismo' | 'exterior';
 export type SubtipoActividad = 'visita' | 'exploracion' | 'formacion' | 'otro';
 export type EstadoActividad = 'planificada' | 'en_curso' | 'finalizada' | 'cancelada';
+export type SeccionActividad = 'espeleologia' | 'montaña' | 'escalada';
 
 export interface MaterialAsignado {
   materialId: string;
@@ -24,6 +25,7 @@ export interface Actividad {
   nombreNormalizado?: string; // Campo nuevo para búsquedas insensibles a mayúsculas/minúsculas
   tipo: TipoActividad[];
   subtipo: SubtipoActividad[];
+  secciones?: SeccionActividad[]; // Secciones a las que pertenece la actividad (opcional para compatibilidad)
   descripcion: string;
   // Estandarizar el tipo para facilitar la manipulación interna
   fechaInicio: Date | Timestamp;

@@ -8,7 +8,7 @@ import {
   Box,
   Spinner
 } from '@chakra-ui/react';
-import { useUnifiedConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import { usePermissionsConfig } from '../../../hooks/configuration/useUnifiedConfig';
 import PermissionsSection from '../sections/Permisos/PermissionsSection';
 
 const defaultPermissionsConfig = {
@@ -27,7 +27,7 @@ interface PermissionsTabProps {
 const PermissionsTab: React.FC<PermissionsTabProps> = ({
   userRole
 }) => {
-  const { data: permissions, setData: setPermissions, loading, save } = useUnifiedConfig('permissions', defaultPermissionsConfig);
+  const { data: permissions, setData: setPermissions, loading, save } = usePermissionsConfig();
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,4 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
+import { weatherConfigConverter, safeFirestoreUpdate } from './firestore/FirestoreConverters';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 export interface WeatherData {
   date: string;
@@ -769,7 +772,10 @@ class WeatherService {
     location?: string,
     activityEndDate?: Date | Timestamp
   ): Promise<WeatherData[]> {
+    console.log('[weatherService] get7DayForecastForActivity MODO DEBUG iniciando...');
+    
     if (!this.isEnabled()) {
+      console.log('[weatherService] Servicio deshabilitado');
       return [];
     }
 
@@ -782,6 +788,14 @@ class WeatherService {
         ? (activityEndDate instanceof Timestamp ? activityEndDate.toDate() : activityEndDate)
         : startDate;
 
+      console.log('[weatherService] Fechas de actividad:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        location
+      });
+
+      // MODO DEBUG: Temporalmente comentar restricciones de fecha
+      /*
       // Calcular días desde hoy hasta la fecha de inicio de la actividad
       const today = new Date();
       const daysUntilActivity = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -791,17 +805,30 @@ class WeatherService {
       
       // Si la actividad es muy lejana o ya terminó hace más de 1 día, no mostrar pronóstico
       if (daysUntilActivity > 15 || daysSinceEnd > 1) {
+        console.log('[weatherService] Actividad fuera de rango de fechas:', { daysUntilActivity, daysSinceEnd });
         return [];
       }
+      */
+
+      console.log('[weatherService] Obteniendo pronóstico para ubicación:', location);
 
       // Obtener pronóstico completo
       const forecast = await this.getWeatherForecast(location, 7);
+      console.log('[weatherService] Pronóstico obtenido:', {
+        hasData: !!forecast,
+        hasDaily: !!(forecast?.daily),
+        dailyLength: forecast?.daily?.length || 0
+      });
+
       if (!forecast || !forecast.daily) {
+        console.log('[weatherService] No hay datos de pronóstico disponibles');
         return [];
       }
 
       // Retornar los próximos 7 días
-      return forecast.daily.slice(0, 7);
+      const result = forecast.daily.slice(0, 7);
+      console.log('[weatherService] Retornando', result.length, 'días de pronóstico');
+      return result;
 
     } catch (error) {
       console.error('Error obteniendo pronóstico de 7 días:', error);

@@ -4,7 +4,7 @@ import { weatherService, WeatherData } from '../services/weatherService';
 import { Actividad } from '../types/actividad';
 import { 
   obtenerConfiguracionMeteorologica, 
-  actualizarConfiguracionMeteorologica 
+  guardarConfiguracionMeteorologica 
 } from '../services/configuracionService';
 
 interface UseWeatherOptions {
@@ -160,9 +160,20 @@ export const useWeatherConfig = () => {
     setLoading(true);
     setError(null);    try {
       const updatedConfig = { ...config, ...newConfig };
-        // Guardar en Firebase
-      const { actualizarConfiguracionMeteorologica } = await import('../services/configuracionService');
-      await actualizarConfiguracionMeteorologica(updatedConfig);
+      
+      // Mapear formato interno a formato de WeatherConfig
+      const weatherConfig = {
+        weatherEnabled: updatedConfig.enabled,
+        aemetEnabled: updatedConfig.aemet?.enabled || false,
+        aemetUseForSpain: updatedConfig.aemet?.useForSpain || false,
+        temperatureUnit: updatedConfig.temperatureUnit,
+        windSpeedUnit: updatedConfig.windSpeedUnit,
+        precipitationUnit: updatedConfig.precipitationUnit
+      };
+      
+      // Guardar en Firebase
+      const { guardarConfiguracionMeteorologica } = await import('../services/configuracionService');
+      await guardarConfiguracionMeteorologica(weatherConfig);
       
       // Actualizar el servicio
       await weatherService.configure(updatedConfig);

@@ -1,17 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Card,
   CardBody,
-  Heading,
   FormControl,
   FormLabel,
   Select,
   Text,
   SimpleGrid,
   Button,
-  useToast
+  useToast,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  VStack,
+  Box,
+  Badge
 } from '@chakra-ui/react';
 import { FiTool } from 'react-icons/fi';
+import { MaterialConfig } from '../../../../business/material/MaterialBusinessLogic';
+import { useMaterialConfigurationState } from '../../../../hooks/business/useMaterialBusinessLogic';
 
 interface MaterialManagementSectionProps {
   config: any;
@@ -20,7 +27,7 @@ interface MaterialManagementSectionProps {
 }
 
 /**
- * Sección de Gestión de Material
+ * Sección de Gestión de Material - UI separada de lógica de negocio
  */
 const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
   config,
@@ -29,23 +36,65 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
-  const handleChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-  const handleSave = async () => {
+
+  // Convertir config a MaterialConfig tipado
+  const materialConfig: MaterialConfig = useMemo(() => ({
+    porcentajeStockMinimo: config?.porcentajeStockMinimo ?? 10,
+    diasRevisionPeriodica: config?.diasRevisionPeriodica ?? 90,
+    tiempoMinimoEntrePrestamos: config?.tiempoMinimoEntrePrestamos ?? 0
+  }), [config]);
+
+  // Usar lógica de negocio separada
+  const {
+    config: businessConfig,
+    updateField,
+    isValid,
+    errors,
+    warnings,
+    stockPercentageOptions,
+    revisionDaysOptions,
+    timeBetweenLoansOptions,
+    configurationSummary
+  } = useMaterialConfigurationState(materialConfig);
+
+  // Manejadores de UI puros
+  const handleFieldChange = useCallback((field: keyof MaterialConfig, value: number) => {
+    updateField(field, value);
+    setConfig((prev: any) => ({ ...prev, [field]: value }));
+  }, [updateField, setConfig]);
+
+  const handleSave = useCallback(async () => {
+    if (!isValid) {
+      toast({
+        title: 'Errores de validación',
+        description: 'Por favor, corrige los errores antes de guardar',
+        status: 'error',
+        duration: 3000
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       await save(config);
-      toast({ title: 'Guardado', description: 'Configuración de material guardada.', status: 'success' });
+      toast({ 
+        title: 'Guardado', 
+        description: 'Configuración de material guardada correctamente.', 
+        status: 'success',
+        duration: 2000
+      });
     } catch (e) {
-      toast({ title: 'Error', description: 'No se pudo guardar la configuración.', status: 'error' });
+      toast({ 
+        title: 'Error', 
+        description: 'No se pudo guardar la configuración.', 
+        status: 'error',
+        duration: 3000
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [isValid, save, config, toast]);
+
   return (
     <Card>
       <CardBody>
@@ -53,76 +102,123 @@ const MaterialManagementSection: React.FC<MaterialManagementSectionProps> = ({
           <FiTool style={{ marginRight: 8 }} />
           Gestión de Materiales
         </Text>
+
+        {/* Mostrar estado de validación */}
+        {errors.length > 0 && (
+          <Alert status="error" mt={3} mb={4}>
+            <AlertIcon />
+            <VStack align="stretch" spacing={1}>
+              {errors.map((error: string, index: number) => (
+                <Text key={index} fontSize="sm">{error}</Text>
+              ))}
+            </VStack>
+          </Alert>
+        )}
+
+        {warnings.length > 0 && (
+          <Alert status="warning" mt={3} mb={4}>
+            <AlertIcon />
+            <VStack align="stretch" spacing={1}>
+              {warnings.map((warning: string, index: number) => (
+                <Text key={index} fontSize="sm">{warning}</Text>
+              ))}
+            </VStack>
+          </Alert>
+        )}
+
+        {/* Resumen de configuración */}
+        <Box bg="orange.50" p={3} borderRadius="md" mb={4} mt={3}>
+          <Text fontSize="sm" fontWeight="medium" color="orange.700">
+            Configuración actual
+          </Text>
+          <Text fontSize="xs" color="orange.600" mt={1}>
+            {configurationSummary}
+          </Text>
+        </Box>
+
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
           <FormControl>
-            <FormLabel fontSize="sm">Porcentaje mínimo de stock</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Porcentaje mínimo de stock
+              <Badge colorScheme={businessConfig.porcentajeStockMinimo < 15 ? 'red' : 'green'} size="sm">
+                {businessConfig.porcentajeStockMinimo}%
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.porcentajeStockMinimo}
-              onChange={(e) => handleChange('porcentajeStockMinimo', parseInt(e.target.value))}
+              value={businessConfig.porcentajeStockMinimo}
+              onChange={(e) => handleFieldChange('porcentajeStockMinimo', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="10">10%</option>
-              <option value="15">15%</option>
-              <option value="20">20%</option>
-              <option value="25">25%</option>
-              <option value="30">30%</option>
+              {stockPercentageOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Porcentaje mínimo de stock antes de alerta
+              Porcentaje mínimo de stock disponible antes de mostrar alertas
             </Text>
           </FormControl>
 
           <FormControl>
-            <FormLabel fontSize="sm">Días de revisión periódica</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Días de revisión periódica
+              <Badge colorScheme={businessConfig.diasRevisionPeriodica > 120 ? 'yellow' : 'blue'} size="sm">
+                {businessConfig.diasRevisionPeriodica}d
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.diasRevisionPeriodica}
-              onChange={(e) => handleChange('diasRevisionPeriodica', parseInt(e.target.value))}
+              value={businessConfig.diasRevisionPeriodica}
+              onChange={(e) => handleFieldChange('diasRevisionPeriodica', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="90">90 días (3 meses)</option>
-              <option value="180">180 días (6 meses)</option>
-              <option value="365">365 días (1 año)</option>
+              {revisionDaysOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Frecuencia de revisión periódica del material
+              Frecuencia para revisar el estado del material
             </Text>
           </FormControl>
 
           <FormControl>
-            <FormLabel fontSize="sm">Tiempo mínimo entre préstamos</FormLabel>
+            <FormLabel fontSize="sm" display="flex" alignItems="center" gap={2}>
+              Tiempo mínimo entre préstamos
+              <Badge colorScheme={businessConfig.tiempoMinimoEntrePrestamos === 0 ? 'green' : 'orange'} size="sm">
+                {businessConfig.tiempoMinimoEntrePrestamos === 0 ? 'Sin límite' : `${businessConfig.tiempoMinimoEntrePrestamos}h`}
+              </Badge>
+            </FormLabel>
             <Select
-              value={config.tiempoMinimoEntrePrestamos}
-              onChange={(e) => handleChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
+              value={businessConfig.tiempoMinimoEntrePrestamos}
+              onChange={(e) => handleFieldChange('tiempoMinimoEntrePrestamos', parseInt(e.target.value))}
+              size="sm"
             >
-              <option value="0">Sin restricción</option>
-              <option value="1">1 día</option>
-              <option value="2">2 días</option>
-              <option value="7">7 días</option>
+              {timeBetweenLoansOptions.map((option: any) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Select>
             <Text fontSize="xs" color="gray.600" mt={1}>
-              Tiempo mínimo entre préstamos del mismo material
-            </Text>
-          </FormControl>
-
-          <FormControl>
-            <FormLabel fontSize="sm">Días de antelación para revisión</FormLabel>
-            <Select
-              value={config.diasAntelacionRevision}
-              onChange={(e) => handleChange('diasAntelacionRevision', parseInt(e.target.value))}
-            >
-              <option value="15">15 días antes</option>
-              <option value="30">30 días antes</option>
-              <option value="60">60 días antes</option>
-              <option value="90">90 días antes</option>
-            </Select>
-            <Text fontSize="xs" color="gray.600" mt={1}>
-              Días de antelación para recordar revisión de material
+              Tiempo mínimo que debe transcurrir entre préstamos del mismo usuario
             </Text>
           </FormControl>
         </SimpleGrid>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <Button colorScheme="blue" onClick={handleSave} isLoading={loading}>
+
+        <Box display="flex" justifyContent="flex-end" mt={6}>
+          <Button 
+            colorScheme="orange" 
+            onClick={handleSave} 
+            isLoading={loading}
+            loadingText="Guardando..."
+            isDisabled={!isValid}
+            leftIcon={<FiTool />}
+          >
             Guardar
           </Button>
-        </div>
+        </Box>
       </CardBody>
     </Card>
   );

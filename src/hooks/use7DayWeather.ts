@@ -22,24 +22,27 @@ export const use7DayWeather = (actividad: Actividad | null): Use7DayWeatherRetur
    * Función para obtener pronóstico de 7 días
    */
   const fetch7DayWeather = useCallback(async (): Promise<void> => {
-    if (!actividad || !weatherService.isEnabled()) {
+    if (!actividad) {
       setWeatherData([]);
       return;
-    }    // Mostrar pronóstico hasta 1 día después del fin de la actividad
-    const today = new Date();
-    const activityStartDate = actividad.fechaInicio instanceof Timestamp 
+    }
+
+    if (!weatherService.isEnabled()) {
+      setWeatherData([]);
+      return;
+    }
+
+    // Verificar si la actividad es futura (dentro de 7 días)
+    const now = new Date();
+    const activityDate = actividad.fechaInicio instanceof Timestamp 
       ? actividad.fechaInicio.toDate() 
       : actividad.fechaInicio;
     
-    const activityEndDate = actividad.fechaFin
-      ? (actividad.fechaFin instanceof Timestamp ? actividad.fechaFin.toDate() : actividad.fechaFin)
-      : activityStartDate;
-
-    // Calcular días desde el fin de la actividad
-    const daysSinceEnd = Math.ceil((today.getTime() - activityEndDate.getTime()) / (1000 * 60 * 60 * 24));
+    const diffTime = activityDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // No mostrar si han pasado más de 1 día desde el fin
-    if (daysSinceEnd > 1) {
+    // Solo obtener pronóstico para actividades futuras (próximos 7 días)
+    if (diffDays < 0 || diffDays > 7) {
       setWeatherData([]);
       return;
     }
@@ -47,10 +50,10 @@ export const use7DayWeather = (actividad: Actividad | null): Use7DayWeatherRetur
     setLoading(true);
     setError(null);
 
-    try {      // Usar ubicación de la actividad
-      const locationToUse = actividad.lugar;      const weather = await weatherService.get7DayForecastForActivity(
+    try {      
+      const weather = await weatherService.get7DayForecastForActivity(
         actividad.fechaInicio,
-        locationToUse,
+        actividad.lugar,
         actividad.fechaFin
       );
 
@@ -58,7 +61,6 @@ export const use7DayWeather = (actividad: Actividad | null): Use7DayWeatherRetur
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error obteniendo pronóstico';
       setError(errorMessage);
-      console.error('Error en use7DayWeather:', err);
     } finally {
       setLoading(false);
     }

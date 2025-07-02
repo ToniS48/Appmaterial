@@ -6,16 +6,21 @@ import {
   AlertIcon,
   Text,
   TabPanel,
-  Spinner
+  Spinner,
+  Link,
+  Button
 } from '@chakra-ui/react';
-import { useApisConfig } from '../../../hooks/configuration/useUnifiedConfig';
+import { Link as RouterLink } from 'react-router-dom';
+import { FiExternalLink } from 'react-icons/fi';
+import { useGoogleApis } from '../../../hooks/useGoogleApis';
+import { GoogleApisConfig } from '../../../services/configuracionService';
 import ApisGoogleSection from '../sections/API/ApisGoogleSection';
 import WeatherServicesSection from '../sections/API/WeatherServicesSection';
 
 const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
-  const { data: config, setData: setConfig, loading, save } = useApisConfig();
+  const { config: googleConfig, updateConfig: updateGoogleConfig, loading: googleLoading } = useGoogleApis();
 
-  if (loading) {
+  if (googleLoading) {
     return (
       <VStack spacing={4} p={6} align="center">
         <Spinner size="lg" color="blue.500" />
@@ -24,36 +29,13 @@ const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
     );
   }
 
-  // Separar configuraciones de Google y Weather
-  const googleConfig = {
-    driveApiKey: config.driveApiKey,
-    mapsEmbedApiKey: config.mapsEmbedApiKey,
-    calendarApiKey: config.calendarApiKey,
-    gmailApiKey: config.gmailApiKey,
-    chatApiKey: config.chatApiKey,
-    cloudMessagingApiKey: config.cloudMessagingApiKey
+  const handleGoogleConfigChange = (newGoogleConfig: GoogleApisConfig) => {
+    // Este cambio se manejará a través del hook useGoogleApis
+    updateGoogleConfig(newGoogleConfig);
   };
 
-  const weatherConfig = {
-    weatherApiUrl: config.weatherApiUrl,
-    aemetApiKey: config.aemetApiKey
-  };
-
-  const handleGoogleConfigChange = (newGoogleConfig: any) => {
-    setConfig(prev => ({ ...prev, ...newGoogleConfig }));
-  };
-
-  const handleWeatherConfigChange = (newWeatherConfig: any) => {
-    setConfig(prev => ({ ...prev, ...newWeatherConfig }));
-  };
-  const saveGoogleConfig = async (googleData: any): Promise<void> => {
-    const updatedConfig = { ...config, ...googleData };
-    await save(updatedConfig);
-  };
-
-  const saveWeatherConfig = async (weatherData: any): Promise<void> => {
-    const updatedConfig = { ...config, ...weatherData };
-    await save(updatedConfig);
+  const saveGoogleConfig = async (googleData: GoogleApisConfig): Promise<void> => {
+    await updateGoogleConfig(googleData);
   };
 
   return (
@@ -61,24 +43,45 @@ const ApisTab: React.FC<{ userRole: 'admin' | 'vocal' }> = ({ userRole }) => {
       <VStack spacing={8} align="stretch">
         <Alert status="info">
           <AlertIcon />
-          <Box>
+          <Box flex={1}>
             <Text fontWeight="bold">APIs y Servicios Externos</Text>
             <Text>
-              Configura las integraciones con servicios externos: Google Drive, servicios meteorológicos, notificaciones, backup y analytics.
+              Configura las integraciones con servicios externos: Google Maps, servicios meteorológicos, notificaciones y analytics.
             </Text>
-          </Box>        </Alert>        
+          </Box>
+        </Alert>
+        
+        <Alert status="success">
+          <AlertIcon />
+          <Box flex={1}>
+            <Text fontWeight="bold">Google Drive y Calendar</Text>
+            <Text mb={2}>
+              Para configurar y verificar el estado de Google Drive y Calendar (via Firebase Functions), usa el Dashboard especializado:
+            </Text>
+            <Button 
+              as={RouterLink} 
+              to="/testing/google-apis" 
+              size="sm" 
+              colorScheme="blue" 
+              leftIcon={<FiExternalLink />}
+            >
+              Ir al Dashboard de Google APIs
+            </Button>
+          </Box>
+        </Alert>        
         {userRole === 'admin' && (
           <>
-            <ApisGoogleSection 
-              config={googleConfig} 
-              setConfig={handleGoogleConfigChange} 
-              save={saveGoogleConfig} 
-            />
+            {/* Configuración Google APIs (Maps, etc.) */}
+            {googleConfig && (
+              <ApisGoogleSection 
+                config={googleConfig} 
+                setConfig={handleGoogleConfigChange} 
+                save={saveGoogleConfig} 
+              />
+            )}
+            {/* Configuración Weather APIs - Ahora maneja su propia seguridad */}
             <WeatherServicesSection 
-              userRole={userRole} 
-              config={weatherConfig} 
-              setConfig={handleWeatherConfigChange}
-              save={saveWeatherConfig}
+              userRole={userRole}
             />
           </>
         )}

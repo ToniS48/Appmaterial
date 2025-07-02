@@ -35,6 +35,7 @@ import AdminHistorialMateriales from '../components/admin/AdminHistorialMaterial
 import DashboardMateriales from '../components/material/DashboardMateriales';
 import AdminEstadisticasActividadesPage from '../pages/admin/AdminEstadisticasActividadesPage';
 import VocalEstadisticasActividadesPage from '../pages/vocal/VocalEstadisticasActividadesPage';
+import GoogleApisTestPage from '../pages/GoogleApisTestPage';
 
 const AppRoutes: React.FC = () => {
   const { userProfile } = useAuth();
@@ -266,6 +267,12 @@ const AppRoutes: React.FC = () => {
       <Route path="/testing/mensajeria" element={
         <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
           <MensajeriaTesting />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/testing/google-apis" element={
+        <ProtectedRoute allowedRoles={['admin', 'vocal', 'socio']}>
+          <GoogleApisTestPage />
         </ProtectedRoute>
       } />
 

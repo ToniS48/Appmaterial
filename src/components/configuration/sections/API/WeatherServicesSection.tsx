@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   FormControl,
@@ -16,58 +16,50 @@ import {
   Heading,
   SimpleGrid,
   Divider,
-  Button
+  Button,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  Badge,
+  HStack
 } from '@chakra-ui/react';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
-import CryptoJS from "crypto-js";
+import { FiEye, FiEyeOff, FiShield, FiRefreshCw } from 'react-icons/fi';
+import { useSecureApisConfig } from '../../../../hooks/configuration/useSecureApisConfig';
 
 interface WeatherServicesSectionProps {
   userRole: 'admin' | 'vocal';
-  config: any;
-  setConfig: (cfg: any) => void;
-  save?: (data: any) => Promise<void>;
 }
 
 const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
-  userRole,
-  config,
-  setConfig,
-  save
+  userRole
 }) => {
-  // Acceso directo a la configuración (sin estructura anidada apis)
-  const apis = config && typeof config === 'object' ? config : {};
+  // Usar el hook seguro de APIs
+  const {
+    data: config,
+    setData: setConfig,
+    loading: configLoading,
+    saving,
+    error: configError,
+    setAemetApiKey,
+    validateAemetApiKey
+  } = useSecureApisConfig();
 
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showAemetKey, setShowAemetKey] = useState(false);
   const [aemetKeyInput, setAemetKeyInput] = useState<string>("");
+  const [validatingKey, setValidatingKey] = useState(false);
+  const [keyValidation, setKeyValidation] = useState<{
+    isValid: boolean;
+    lastChecked: Date | null;
+  }>({ isValid: false, lastChecked: null });
 
-  // Funciones de encriptado/desencriptado
-  const encrypt = (value: string) => {
-    if (!value) return "";
-    return CryptoJS.AES.encrypt(value, process.env.REACT_APP_API_ENCRYPT_KEY || "default_key").toString();
-  };
-
-  const decrypt = (value: string) => {
-    if (!value) return "";
-    try {
-      const bytes = CryptoJS.AES.decrypt(value, process.env.REACT_APP_API_ENCRYPT_KEY || "default_key");
-      return bytes.toString(CryptoJS.enc.Utf8);
-    } catch {
-      return value;
-    }
-  };
-
-  // Sincronizar el valor local con el prop config cuando cambia
-  React.useEffect(() => {
-    setAemetKeyInput(decrypt(apis.aemetApiKey ?? ""));
-    // eslint-disable-next-line
-  }, [apis.aemetApiKey]);
+  // Sincronizar el valor local con la configuración
+  useEffect(() => {
+    setAemetKeyInput(config.aemetApiKey || "");
+  }, [config.aemetApiKey]);
 
   // Handlers para cambios de input
   const handleInputChange = (key: string, value: any) => {
-    setConfig((prev: any) => ({
+    setConfig((prev) => ({
       ...prev,
       [key]: value,
     }));
@@ -75,33 +67,85 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
   const handleAemetKeyChange = (value: string) => {
     setAemetKeyInput(value);
-    setConfig((prev: any) => ({
+    setConfig((prev) => ({
       ...prev,
-      aemetApiKey: encrypt(value),
+      aemetApiKey: value,
     }));
+    // Reset validation when key changes
+    setKeyValidation({ isValid: false, lastChecked: null });
   };
-  const handleSave = async () => {
-    if (!save) return;
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    try {
-      await save(config);
-      setSuccess(true);
-    } catch (e: any) {
-      setError(e.message || 'Error al guardar');
-    } finally {
-      setLoading(false);
-      setTimeout(() => setSuccess(false), 2000);
+
+  // Guardar API key de AEMET de forma segura
+  const handleSaveAemetKey = async () => {
+    if (!aemetKeyInput.trim()) return;
+    
+    const success = await setAemetApiKey(aemetKeyInput.trim());
+    
+    if (success) {
+      // Validar la key después de guardarla
+      await handleValidateKey();
     }
   };
+
+  // Validar API key
+  const handleValidateKey = async () => {
+    setValidatingKey(true);
+    try {
+      const isValid = await validateAemetApiKey();
+      setKeyValidation({
+        isValid,
+        lastChecked: new Date()
+      });
+    } catch (error) {
+      console.error('Error validando API key:', error);
+      setKeyValidation({
+        isValid: false,
+        lastChecked: new Date()
+      });
+    } finally {
+      setValidatingKey(false);
+    }
+  };
+  if (configLoading) {
+    return (
+      <Card>
+        <CardBody>
+          <Text>Cargando configuración...</Text>
+        </CardBody>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardBody>
-        <Heading size="sm" mb={4} color="blue.600">
-          🔑 APIs Meteorológicas
-        </Heading>
-        <VStack spacing={4} align="stretch">
+        <VStack spacing={6} align="stretch">
+          {/* Header con información de seguridad */}
+          <Box>
+            <HStack justify="space-between" align="center" mb={2}>
+              <Heading size="sm" color="blue.600">
+                🔑 APIs Meteorológicas
+              </Heading>
+              <Badge colorScheme="green" variant="subtle">
+                <HStack spacing={1}>
+                  <FiShield />
+                  <Text fontSize="xs">Encriptación Segura</Text>
+                </HStack>
+              </Badge>
+            </HStack>
+            <Text fontSize="xs" color="gray.600">
+              Las API keys se almacenan encriptadas con claves únicas por usuario
+            </Text>
+          </Box>
+
+          {/* Mostrar errores si los hay */}
+          {configError && (
+            <Alert status="error" size="sm">
+              <AlertIcon />
+              <AlertDescription>{configError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Open-Meteo Configuration */}
           <Box>
             <Text fontWeight="semibold" mb={2} color="blue.700">📡 Open-Meteo (API gratuita)</Text>
@@ -112,7 +156,7 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
               <FormLabel fontSize="sm">URL base de Open-Meteo</FormLabel>
               <Input
                 name="weatherApiUrl"
-                value={apis.weatherApiUrl ?? ""}
+                value={config.weatherApiUrl || ""}
                 onChange={e => handleInputChange('weatherApiUrl', e.target.value)}
                 placeholder="https://api.open-meteo.com/v1/forecast"
                 isReadOnly={userRole === 'vocal'}
@@ -128,15 +172,30 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
 
           {/* AEMET API Key Configuration */}
           <Box>
-            <Text fontWeight="semibold" mb={2} color="orange.700">🇪🇸 AEMET - España</Text>
+            <HStack justify="space-between" align="center" mb={2}>
+              <Text fontWeight="semibold" color="orange.700">🇪🇸 AEMET - España</Text>
+              {keyValidation.lastChecked && (
+                <Badge 
+                  colorScheme={keyValidation.isValid ? "green" : "red"}
+                  variant="subtle"
+                  fontSize="xs"
+                >
+                  {keyValidation.isValid ? "✓ Válida" : "✗ Inválida"}
+                </Badge>
+              )}
+            </HStack>
+            
             <Text fontSize="xs" color="gray.600" mb={3}>
-              Configuración de la API Key para acceder a los datos oficiales de AEMET.
+              API Key oficial de AEMET para datos meteorológicos de España. 
+              <Text as="span" color="orange.600"> Se almacena encriptada.</Text>
             </Text>
-            <FormControl>
-              <FormLabel fontSize="sm">API Key de AEMET</FormLabel>
-              <InputGroup>
-                <Input
-                  name="aemetApiKey"
+            
+            <VStack spacing={3} align="stretch">
+              <FormControl>
+                <FormLabel fontSize="sm">API Key de AEMET</FormLabel>
+                <InputGroup>
+                  <Input
+                    name="aemetApiKey"
                   type={showAemetKey ? "text" : "password"}
                   value={aemetKeyInput}
                   onChange={e => handleAemetKeyChange(e.target.value)}
@@ -155,7 +214,8 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
                   />
                 </InputRightElement>
               </InputGroup>
-              <Text fontSize="xs" color="gray.500" mt={1}>
+              
+              <Text fontSize="xs" color="gray.500">
                 {userRole === 'vocal'
                   ? 'Solo administradores pueden modificar las claves de API'
                   : (
@@ -169,26 +229,77 @@ const WeatherServicesSection: React.FC<WeatherServicesSectionProps> = ({
                 }
               </Text>
             </FormControl>
+
+            {/* Botones de acción para AEMET */}
+            {userRole === 'admin' && (
+              <HStack spacing={2}>
+                <Button
+                  size="sm"
+                  colorScheme="orange"
+                  onClick={handleSaveAemetKey}
+                  isLoading={saving}
+                  loadingText="Guardando..."
+                  isDisabled={!aemetKeyInput.trim()}
+                  leftIcon={<FiShield />}
+                >
+                  Guardar Key Encriptada
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  colorScheme="blue"
+                  onClick={handleValidateKey}
+                  isLoading={validatingKey}
+                  loadingText="Validando..."
+                  isDisabled={!aemetKeyInput.trim()}
+                  leftIcon={<FiRefreshCw />}
+                >
+                  Validar Key
+                </Button>
+              </HStack>
+            )}
+
+            {/* Información de validación */}
+            {keyValidation.lastChecked && (
+              <Alert 
+                status={keyValidation.isValid ? "success" : "warning"} 
+                size="sm"
+                borderRadius="md"
+              >
+                <AlertIcon />
+                <AlertDescription fontSize="xs">
+                  {keyValidation.isValid 
+                    ? `API key válida (verificada el ${keyValidation.lastChecked.toLocaleString()})`
+                    : `API key inválida o no verificable (${keyValidation.lastChecked.toLocaleString()})`
+                  }
+                </AlertDescription>
+              </Alert>
+            )}
+            </VStack>
+          </Box>
+
+          {/* Información adicional de seguridad */}
+          <Box bg="blue.50" p={3} borderRadius="md" border="1px solid" borderColor="blue.200">
+            <Text fontSize="xs" color="blue.800" fontWeight="semibold" mb={1}>
+              🔒 Información de Seguridad
+            </Text>
+            <VStack spacing={1} align="start">
+              <Text fontSize="xs" color="blue.700">
+                • Las API keys se encriptan usando claves únicas por usuario
+              </Text>
+              <Text fontSize="xs" color="blue.700">
+                • Solo el usuario que las guardó puede acceder a ellas
+              </Text>
+              <Text fontSize="xs" color="blue.700">
+                • Las claves se reencriptan automáticamente cada 30 días
+              </Text>
+              <Text fontSize="xs" color="blue.700">
+                • No se almacenan claves de encriptación en el frontend
+              </Text>
+            </VStack>
           </Box>
         </VStack>
-        
-        {error && <Text color="red.500" mt={2}>{error}</Text>}
-        {success && <Text color="green.500" mt={2}>¡Guardado correctamente!</Text>}
-        
-        {save && (
-          <Box display="flex" justifyContent="flex-end" mt={4}>
-            <Button
-              onClick={handleSave}
-              isLoading={loading}
-              loadingText="Guardando..."
-              colorScheme="blue"
-              size="sm"
-              isDisabled={userRole === 'vocal'}
-            >
-              Guardar
-            </Button>
-          </Box>
-        )}
       </CardBody>
     </Card>
   );
