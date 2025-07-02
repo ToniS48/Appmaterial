@@ -14,12 +14,25 @@ Documentación específica para la integración con el servicio meteorológico A
 - Consulta de condiciones meteorológicas
 - Integración en planificación de actividades
 - Sistema de configuración habilitado
+- Mecanismo de respaldo con Open-Meteo cuando AEMET no está disponible
+
+---
+
+## 📝 **Notas Importantes (Julio 2025)**
+
+⚠️ **Limitación en Desarrollo Local:** En entornos de desarrollo local (localhost), la API de AEMET presenta problemas de CORS. Se ha implementado una solución automática que utiliza Open-Meteo como alternativa en desarrollo. Ver [`SOLUCION-PROBLEMA-CORS-AEMET.md`](./SOLUCION-PROBLEMA-CORS-AEMET.md) para más detalles.
 
 ---
 
 ## 📁 **Documentos Disponibles**
 
 ### 🎯 **Documentos Principales**
+
+#### `SOLUCION-PROBLEMA-CORS-AEMET.md` (NUEVO)
+**Solución al problema CORS de AEMET en desarrollo local**
+- **Uso**: Cuando hay errores de CORS con AEMET en localhost
+- **Contenido**: Detalles sobre la solución implementada y alternativas
+- **Estado**: Solucionado usando Open-Meteo como respaldo en desarrollo local
 
 #### `SOLUCION-SERVICIO-METEOROLOGICO.md`
 **Solución de problemas más comunes**

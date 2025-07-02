@@ -157,11 +157,17 @@ class WeatherService {
       }
 
       let forecast: WeatherForecast | null = null;
+      
+      // Verificar si estamos en desarrollo con localhost
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1';
 
-      // Usar AEMET para ubicaciones en España si está habilitado
+      // Usar AEMET para ubicaciones en España si está habilitado y NO estamos en localhost
+      // En localhost hay problemas de CORS con AEMET, pero en producción sí queremos usarla
       if (this.config.aemet.enabled && 
           this.config.aemet.useForSpain && 
-          this.isLocationInSpain(coordinates.lat, coordinates.lon)) {
+          this.isLocationInSpain(coordinates.lat, coordinates.lon) &&
+          !isLocalhost) {
         
         console.log('Usando AEMET para ubicación en España');
         forecast = await this.getAemetForecast(coordinates.lat, coordinates.lon, days);
@@ -173,6 +179,9 @@ class WeatherService {
         }
       } else {
         // Usar Open-Meteo por defecto
+        if (isLocalhost && this.config.aemet.enabled) {
+          console.log('En localhost: usando Open-Meteo en lugar de AEMET para evitar problemas CORS');
+        }
         forecast = await this.getOpenMeteoForecast(coordinates, days);
       }
 
@@ -489,7 +498,18 @@ class WeatherService {
   }
 
   /**
-   * Verifica si una ubicación está en España
+   * Verifica si una ubicación está en España basándose en coordenadas
+   * 
+   * Límites aproximados de España peninsular:
+   * - Norte: 43.8°N (Estaca de Bares, Galicia)
+   * - Sur: 36.0°N (Tarifa, Andalucía)
+   * - Este: 3.3°E (Cabo de Creus, Cataluña)
+   * - Oeste: 9.3°O (Cabo Touriñán, Galicia)
+   * 
+   * También considera las Islas Canarias e Islas Baleares
+   * 
+   * NOTA (Julio 2025): La API de AEMET tiene restricciones CORS en localhost,
+   * por lo que se usa únicamente en producción y se recurre a Open-Meteo en desarrollo local.
    */
   private isLocationInSpain(lat: number, lon: number): boolean {
     // Coordenadas aproximadas de España peninsular e islas
@@ -588,6 +608,15 @@ class WeatherService {
    */
   private async getAemetMunicipality(lat: number, lon: number): Promise<string | null> {
     try {
+      // Verificar si estamos en desarrollo con localhost para evitar problemas CORS
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1';
+      
+      if (isLocalhost) {
+        console.warn('AEMET: No se puede obtener municipio en localhost debido a restricciones CORS');
+        return null;
+      }
+      
       // Usar API de municipios de AEMET
       const response = await fetch('https://opendata.aemet.es/opendata/api/maestro/municipios', {
         headers: {
@@ -595,7 +624,10 @@ class WeatherService {
         }
       });
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn(`AEMET: Error obteniendo municipios (${response.status})`);
+        return null;
+      }
 
       const result = await response.json();
       if (result.estado !== 200 || !result.datos) return null;
@@ -728,7 +760,7 @@ class WeatherService {
       '11': '01d', // Despejado
       '12': '02d', // Poco nuboso
       '13': '03d', // Intervalos nubosos
-      '14': '04d', // Nuboso
+      '14': '04d', // Nublado
       '15': '04d', // Muy nuboso
       '16': '04d', // Cubierto
       '17': '02d', // Nubes altas

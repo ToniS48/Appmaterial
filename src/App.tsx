@@ -197,7 +197,7 @@ function App() {
         );
         
         if (testDecrypted === decryptedKey) {
-          console.log('✅ Verificación exitosa - La API key se può leer correctamente');
+          console.log('✅ Verificación exitosa - La API key se pò leer correctamente');
         } else {
           console.error('❌ Error en verificación - La API key no se puede leer correctamente');
         }
@@ -315,6 +315,14 @@ function App() {
         console.log('🌤️ Inicializando servicio meteorológico...');
         const weatherConfig = await obtenerConfiguracionMeteorologica();
         
+        // Verificar si estamos en desarrollo con localhost
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+          console.log('⚠️ Ejecutando en entorno de desarrollo local - AEMET no estará disponible por limitaciones CORS');
+        }
+        
         // Transformar WeatherConfig de Firestore a OpenMeteoConfig para weatherService
         const openMeteoConfig = {
           enabled: weatherConfig.weatherEnabled,
@@ -327,7 +335,7 @@ function App() {
           windSpeedUnit: weatherConfig.windSpeedUnit,
           precipitationUnit: weatherConfig.precipitationUnit,
           aemet: {
-            enabled: weatherConfig.aemetEnabled,
+            enabled: weatherConfig.aemetEnabled, // Permitir AEMET en producción
             apiKey: '', // Se cargará desde APIs config
             useForSpain: weatherConfig.aemetUseForSpain
           }
