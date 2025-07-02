@@ -9,7 +9,7 @@ import { crearPrestamo, actualizarPrestamo, obtenerPrestamosPorActividad } from 
 import { enviarNotificacionMasiva } from './notificacionService';
 import { listarUsuarios, obtenerUsuarioPorId } from './usuarioService';
 import { getEstadoActivoLegacy } from '../utils/migracionUsuarios';
-import { obtenerMaterial } from './MaterialService';
+import { obtenerMaterial } from 'src/services/MaterialService';
 import messages from '../constants/messages';
 import { determinarEstadoActividad } from '../utils/dateUtils';
 import { getUniqueParticipanteIds } from '../utils/actividadUtils';
